@@ -2,17 +2,18 @@ import { useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { circles } from '../data/mockData'
 import { useAppContext } from '../context/AppContext.jsx'
+import EventDetailModal from '../components/EventDetailModal.jsx'
  
 const clr = {
-  bg:       '#F0F0F5',
-  white:    '#FFFFFF',
-  indigo:   '#5B5FEF',
-  indigoLt: '#EEEEFF',
+  bg:       'var(--bg)',
+  white:    'var(--white)',
+  indigo:   'var(--indigo)',
+  indigoLt: 'var(--indigoLt)',
   teal:     '#0D9488',
-  textDark: '#1A1A2E',
-  textMid:  '#6B7280',
-  textLight:'#9CA3AF',
-  border:   '#E8E8EE',
+  textDark: 'var(--textDark)',
+  textMid:  'var(--textMid)',
+  textLight:'var(--textLight)',
+  border:   'var(--border)',
 }
  
 const TABS = [
@@ -35,8 +36,22 @@ export default function CircleDetail() {
   const { id }     = useParams()
   const navigate   = useNavigate()
   const circle     = useMemo(() => circles.find((c) => c.id === id), [id])
-  const { joinedCircles, joinCircle } = useAppContext()
+  const { joinedCircles, joinCircle, leaveCircle, startGroupChat, rsvpEvent, cancelRsvp, isRsvpd } = useAppContext()
   const [activeTab, setActiveTab] = useState('about')
+  const [showDropdown, setShowDropdown] = useState(false)
+
+  // Event detail modal state
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [detailClosing, setDetailClosing] = useState(false)
+
+  const openEventDetail = (event) => setSelectedEvent({ ...event, circleId: circle?.id, circleName: circle?.name })
+  const closeEventDetail = () => {
+    setDetailClosing(true)
+    setTimeout(() => {
+      setSelectedEvent(null)
+      setDetailClosing(false)
+    }, 300)
+  }
  
   if (!circle) {
     return (
@@ -78,13 +93,52 @@ export default function CircleDetail() {
           <span style={{ fontSize:16, fontWeight:700, color:'#FFFFFF' }}>
             {circle.name} {circle.emoji}
           </span>
-          <button type="button" style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
-            <svg width="20" height="20" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="5"  r="1" fill="#FFFFFF"/>
-              <circle cx="12" cy="12" r="1" fill="#FFFFFF"/>
-              <circle cx="12" cy="19" r="1" fill="#FFFFFF"/>
-            </svg>
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button type="button" onClick={() => setShowDropdown(!showDropdown)} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
+              <svg width="20" height="20" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="5"  r="1" fill="#FFFFFF"/>
+                <circle cx="12" cy="12" r="1" fill="#FFFFFF"/>
+                <circle cx="12" cy="19" r="1" fill="#FFFFFF"/>
+              </svg>
+            </button>
+            {showDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 8,
+                backgroundColor: clr.white,
+                borderRadius: 12,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                padding: 4,
+                width: 140,
+                zIndex: 50,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    leaveCircle(circle.id)
+                    setShowDropdown(false)
+                    navigate('/circles')
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: 8,
+                    textAlign: 'left',
+                    color: '#EF4444',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Leave Circle
+                </button>
+              </div>
+            )}
+          </div>
         </div>
  
         {/* Circle icon */}
@@ -180,7 +234,7 @@ export default function CircleDetail() {
       </div>
  
       {/* ── Tab content ── */}
-      <div style={{ padding:'20px 16px', maxWidth:500, margin:'0 auto' }}>
+      <div style={{ padding:'20px 16px', margin:'0 auto' }}>
  
         {/* ABOUT */}
         {activeTab === 'about' && (
@@ -290,10 +344,10 @@ export default function CircleDetail() {
           }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               {circle.members?.map((member) => (
-                <div key={member.id} style={{
+                <div key={member.id} onClick={() => navigate(`/user/${member.id}`)} style={{
                   display:'flex', alignItems:'center', gap:10,
-                  backgroundColor:'#F7F7FB', borderRadius:14,
-                  padding:'10px 12px',
+                  backgroundColor: clr.bg, borderRadius:14,
+                  padding:'10px 12px', cursor: 'pointer'
                 }}>
                   <img src={member.avatar} alt={member.name} style={{
                     width:36, height:36, borderRadius:'50%', objectFit:'cover', flexShrink:0,
@@ -313,38 +367,53 @@ export default function CircleDetail() {
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {(!circle.events || circle.events.length === 0) ? (
               <p style={{ fontSize:14, color: clr.textMid, padding:20 }}>No upcoming events yet.</p>
-            ) : circle.events.map((event) => (
-              <div key={event.id} style={{
-                backgroundColor: clr.white, borderRadius:20,
-                padding:'18px', boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
-                display:'flex', justifyContent:'space-between', alignItems:'center', gap:12,
-              }}>
-                {/* Date block */}
-                <div style={{
-                  width:52, flexShrink:0, textAlign:'center',
-                  backgroundColor: clr.indigoLt, borderRadius:14, padding:'10px 6px',
+            ) : circle.events.map((event) => {
+              const going = isRsvpd(event.id)
+              return (
+                <div key={event.id} onClick={() => openEventDetail(event)} style={{
+                  backgroundColor: clr.white, borderRadius:20,
+                  padding:'18px', boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
+                  display:'flex', justifyContent:'space-between', alignItems:'center', gap:12,
+                  cursor: 'pointer',
                 }}>
-                  <p style={{ fontSize:22, fontWeight:800, color: clr.indigo, margin:0, lineHeight:1 }}>
-                    {event.date?.split(' ')[1] ?? event.date?.split('-')[2] ?? '—'}
-                  </p>
-                  <p style={{ fontSize:10, fontWeight:700, color: clr.indigo, margin:'2px 0 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                    {event.date?.split(' ')[0] ?? 'Mar'}
-                  </p>
+                  {/* Date block */}
+                  <div style={{
+                    width:52, flexShrink:0, textAlign:'center',
+                    backgroundColor: going ? '#DCFCE7' : clr.indigoLt, borderRadius:14, padding:'10px 6px',
+                  }}>
+                    <p style={{ fontSize:22, fontWeight:800, color: going ? '#059669' : clr.indigo, margin:0, lineHeight:1 }}>
+                      {event.date?.split(' ')[1] ?? event.date?.split('-')[2] ?? '—'}
+                    </p>
+                    <p style={{ fontSize:10, fontWeight:700, color: going ? '#059669' : clr.indigo, margin:'2px 0 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                      {event.date?.split(' ')[0] ?? 'Mar'}
+                    </p>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <p style={{ fontSize:15, fontWeight:700, color: clr.textDark, margin:'0 0 4px 0' }}>{event.title}</p>
+                    <p style={{ fontSize:12, color: clr.textMid, margin:0 }}>{event.time} · {event.location}</p>
+                  </div>
+                  {going ? (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); cancelRsvp(event.id); }} style={{
+                      padding:'9px 18px', borderRadius:999, border:'none',
+                      background:'#FEE2E2',
+                      color:'#DC2626', fontSize:13, fontWeight:600, cursor:'pointer',
+                      flexShrink:0,
+                    }}>
+                      Cancel
+                    </button>
+                  ) : (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); openEventDetail(event); }} style={{
+                      padding:'9px 18px', borderRadius:999, border:'none',
+                      background:`linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
+                      color:'#FFFFFF', fontSize:13, fontWeight:600, cursor:'pointer',
+                      flexShrink:0,
+                    }}>
+                      Details
+                    </button>
+                  )}
                 </div>
-                <div style={{ flex:1 }}>
-                  <p style={{ fontSize:15, fontWeight:700, color: clr.textDark, margin:'0 0 4px 0' }}>{event.title}</p>
-                  <p style={{ fontSize:12, color: clr.textMid, margin:0 }}>{event.time} · {event.location}</p>
-                </div>
-                <button type="button" style={{
-                  padding:'9px 18px', borderRadius:999, border:'none',
-                  background:`linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
-                  color:'#FFFFFF', fontSize:13, fontWeight:600, cursor:'pointer',
-                  flexShrink:0,
-                }}>
-                  RSVP
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
  
@@ -357,7 +426,7 @@ export default function CircleDetail() {
           }}>
             <h3 style={{ fontSize:16, fontWeight:700, color: clr.textDark, margin:0 }}>Latest Messages</h3>
             <div style={{
-              backgroundColor:'#F7F7FB', borderRadius:16, padding:'14px',
+              backgroundColor: clr.bg, borderRadius:16, padding:'14px',
               display:'flex', flexDirection:'column', gap:14,
             }}>
               {circle.chatPreview?.map((msg) => (
@@ -371,19 +440,34 @@ export default function CircleDetail() {
               ))}
             </div>
             <div style={{ display:'flex', justifyContent:'center' }}>
-              <Link to={`/chat/${circle.chatId}`} style={{
-                padding:'13px 40px', borderRadius:999, textDecoration:'none',
+              <button type="button" onClick={() => {
+                const chatId = startGroupChat(circle)
+                navigate(`/chat/${chatId}`)
+              }} style={{
+                padding:'13px 40px', borderRadius:999, border:'none', cursor:'pointer',
                 background:`linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
                 color:'#FFFFFF', fontSize:15, fontWeight:700,
                 boxShadow:'0 6px 20px rgba(91,95,239,0.35)',
               }}>
                 Open Chat →
-              </Link>
+              </button>
             </div>
           </div>
         )}
  
       </div>
+
+      {/* Event Detail Modal */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={closeEventDetail}
+          closing={detailClosing}
+          isRsvpd={isRsvpd}
+          onRsvp={(evt) => rsvpEvent(evt, circle)}
+          onCancelRsvp={(evtId) => cancelRsvp(evtId)}
+        />
+      )}
     </div>
   )
 }

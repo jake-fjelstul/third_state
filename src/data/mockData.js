@@ -1,4 +1,4 @@
-const baseAvatar = (name) => `https://i.pravatar.cc/150?u=${encodeURIComponent(name)}`
+const baseAvatar = (name) => `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(name)}`
 
 export const currentUser = {
   id: 'user-alex',
@@ -6,7 +6,7 @@ export const currentUser = {
   age: 29,
   city: 'Austin, TX',
   bio: 'Product designer who just moved to Austin. Here to find climbing buddies, startup folks, and a great flat white.',
-  avatar: baseAvatar('Alex Rivera'),
+  avatar: '',
   intents: ['Professional Networking', 'Coffee Chats', 'Activity Partners'],
   interests: [
     'Rock Climbing',
@@ -597,6 +597,44 @@ export const chats = [
         isMe: false,
       },
     ],
+  },
+]
+
+export const notifications = [
+  {
+    id: 'notif-1',
+    type: 'connection_request',
+    user: {
+      name: 'Emi Sato',
+      avatar: baseAvatar('Emi Sato'),
+      id: 'p-emi',
+    },
+    message: 'wants to connect with you.',
+    timestamp: '2 hours ago',
+    isRead: false,
+  },
+  {
+    id: 'notif-2',
+    type: 'event_approaching',
+    event: {
+      title: 'Sunrise Community Run',
+      id: 'e-community-run',
+    },
+    message: 'is happening tomorrow at 07:00.',
+    timestamp: '5 hours ago',
+    isRead: false,
+  },
+  {
+    id: 'notif-3',
+    type: 'connection_request',
+    user: {
+      name: 'Daniel Kim',
+      avatar: baseAvatar('Daniel Kim'),
+      id: 'p-daniel',
+    },
+    message: 'wants to connect with you.',
+    timestamp: '1 day ago',
+    isRead: true,
   },
 ]
 
