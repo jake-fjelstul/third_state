@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
-import { currentUser as seedUser, circles, meetups as seedMeetups, chats as mockChats } from '../data/mockData'
+import { currentUser as seedUser, circles, meetups as seedMeetups, chats as mockChats, seedNotifications, people } from '../data/mockData'
 
 const AppContext = createContext(null)
 
@@ -18,6 +18,10 @@ export function AppProvider({ children }) {
   const [meetups, setMeetups] = useState(seedMeetups)
   const [theme, setTheme] = useState('dark')
   const [connections, setConnections] = useState(['p-daniel'])
+  const [notifications, setNotifications] = useState(seedNotifications)
+  const [reconnectThresholdDays, setReconnectThresholdDays] = useState(21)
+  const [searchRadius, setSearchRadius] = useState(10)
+  const [pendingApplications, setPendingApplications] = useState([])
 
   const [chatState, setChatState] = useState(() => {
     const initial = {}
@@ -71,6 +75,9 @@ export function AppProvider({ children }) {
       if (Array.isArray(parsed.connections)) setConnections(parsed.connections)
       if (parsed.chatState) setChatState(parsed.chatState)
       if (parsed.discoverySwipes) setDiscoverySwipes(parsed.discoverySwipes)
+      if (Array.isArray(parsed.notifications)) setNotifications(parsed.notifications)
+      if (typeof parsed.reconnectThresholdDays === 'number') setReconnectThresholdDays(parsed.reconnectThresholdDays)
+      if (typeof parsed.searchRadius === 'number') setSearchRadius(parsed.searchRadius)
     } catch {
       // ignore malformed localStorage
     }
@@ -86,9 +93,75 @@ export function AppProvider({ children }) {
       chatState,
       discoverySwipes,
       connections,
+      notifications,
+      reconnectThresholdDays,
+      searchRadius
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-  }, [currentUser, joinedCircles, onboardingComplete, meetups, theme, chatState, discoverySwipes, connections])
+  }, [currentUser, joinedCircles, onboardingComplete, meetups, theme, chatState, discoverySwipes, connections, notifications, reconnectThresholdDays, searchRadius])
+
+  // Reconnect Nudge Engine
+  useEffect(() => {
+    if (!connections || connections.length === 0) return
+
+    setNotifications(prev => {
+      let nuList = [...prev]
+      let changed = false
+
+      connections.forEach(connId => {
+        const person = people.find(p => p.id === connId)
+        if (!person || !person.lastHangout) return
+
+        const daysSince = (Date.now() - new Date(person.lastHangout).getTime()) / (1000 * 60 * 60 * 24)
+        
+        if (daysSince >= reconnectThresholdDays) {
+          const alreadyNudged = nuList.some(n => n.type === 'reconnect_nudge' && n.targetId === person.id)
+          if (!alreadyNudged) {
+            changed = true
+            
+            // Look for a shared upcoming meetup
+            const sharedEvent = meetups.find(m => 
+              m.attendees?.some(a => a.name === currentUser.name) && 
+              m.attendees?.some(a => a.name === person.name)
+            )
+
+            let message = ''
+            let suggestions = []
+
+            if (sharedEvent) {
+              const eventDate = new Date(sharedEvent.date).toLocaleDateString('en-US', { weekday: 'long' })
+              message = `You haven't hung out with ${person.name.split(' ')[0]} in a while — there's a ${sharedEvent.title} this ${eventDate} you're both signed up for.`
+              suggestions = [
+                `Hey! Still going to the ${sharedEvent.title}?`,
+                `Want to grab coffee before the event on ${eventDate}?`,
+                `It's been a minute! How have you been?`
+              ]
+            } else {
+              message = `You haven't hung out with ${person.name.split(' ')[0]} in a while. Reach out to reconnect!`
+              suggestions = [
+                `Hey! Long time no see!`,
+                `Are you free for coffee sometime next week?`,
+                `It's been a minute! How have you been?`
+              ]
+            }
+
+            nuList.unshift({
+              id: `notif-nudge-${person.id}-${Date.now()}`,
+              type: 'reconnect_nudge',
+              targetId: person.id,
+              user: { name: person.name, avatar: person.avatar },
+              message,
+              suggestions,
+              timestamp: 'Just now',
+              isRead: false
+            })
+          }
+        }
+      })
+
+      return changed ? nuList : prev
+    })
+  }, [connections, reconnectThresholdDays, meetups, currentUser.name])
 
   // Inactivity drain
   useEffect(() => {
@@ -187,7 +260,7 @@ export function AppProvider({ children }) {
     return meetups.some(m => m.id === eventId || m.sourceEventId === eventId)
   }
 
-  const sendMessage = (chatId, text) => {
+  const sendMessage = (chatId, text, channelId = 'general') => {
     if (!text.trim()) return
     
     const today = new Date().toDateString()
@@ -202,6 +275,7 @@ export function AppProvider({ children }) {
       sender: 'You',
       text: text.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      channelId,
     }
     setChatState(prev => ({
       ...prev,
@@ -251,6 +325,7 @@ export function AppProvider({ children }) {
         members: circle.members,
         memberCount: circle.memberCount || circle.members?.length || 0,
         messages: [],
+        channels: ['general', 'planning', 'photos', 'meetups'],
         time: '',
         unread: 0,
       }
@@ -271,6 +346,84 @@ export function AppProvider({ children }) {
   const connectWithPerson = (personId) => {
     setConnections(prev => prev.includes(personId) ? prev : [...prev, personId])
   }
+
+  const submitApplication = useCallback((application) => {
+    setPendingApplications(prev => [application, ...prev])
+  }, [])
+
+  const approveApplication = useCallback((appId) => {
+    setPendingApplications(prev => prev.map(app => app.id === appId ? { ...app, status: 'approved' } : app))
+    const app = pendingApplications.find(a => a.id === appId)
+    if (app && app.circleId) {
+      if (app.applicantId === currentUser.id) {
+        setJoinedCircles(prev => Array.from(new Set([...prev, app.circleId])))
+      }
+      setNotifications(prev => [{
+        id: `notify-${Date.now()}`,
+        type: 'application_approved',
+        message: `You've been approved to join a circle! 🎉`,
+        timestamp: new Date().toISOString(),
+        isRead: false
+      }, ...prev])
+    }
+  }, [pendingApplications, currentUser.id])
+
+  const declineApplication = useCallback((appId) => {
+    setPendingApplications(prev => prev.map(app => app.id === appId ? { ...app, status: 'declined' } : app))
+    setNotifications(prev => [{
+      id: `notify-${Date.now()}`,
+      type: 'application_declined',
+      message: `Your application was not approved this time.`,
+      timestamp: new Date().toISOString(),
+      isRead: false
+    }, ...prev])
+  }, [])
+
+  const importDiscordServer = useCallback((serverName, membersText) => {
+    const rawNames = membersText.split(/[\n,]+/).map(n => n.trim()).filter(Boolean)
+    const newMembers = rawNames.map((n, i) => ({
+      id: `m-discord-${Date.now()}-${i}`,
+      name: n,
+      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(n)}`
+    }))
+
+    const newCircleId = `c-discord-${Date.now()}`
+    const newCircle = {
+      id: newCircleId,
+      name: serverName,
+      type: 'private',
+      category: 'social',
+      interestTag: 'Discord Import',
+      description: `Imported from Discord server: ${serverName}`,
+      memberCount: newMembers.length + 1,
+      members: [{ id: currentUser.id, name: currentUser.name, avatar: currentUser.avatar }, ...newMembers],
+      emoji: '👾',
+      coverGradient: 'linear-gradient(135deg, #5865F2 0%, #7289da 100%)',
+      events: []
+    }
+
+    circles.unshift(newCircle)
+    setJoinedCircles(prev => [newCircleId, ...prev])
+
+    setChatState(prev => ({
+      ...prev,
+      [newCircleId]: {
+        id: newCircleId,
+        circleId: newCircleId,
+        type: 'group',
+        circleName: serverName,
+        unread: 1,
+        time: 'Just now',
+        messages: [{
+          id: Date.now(),
+          sender: 'System',
+          text: `Welcome to your imported Circle! ${newMembers.length} members have been privately invited.`,
+          timestamp: new Date().toISOString(),
+          isSystem: true
+        }]
+      }
+    }))
+  }, [currentUser])
 
   const value = useMemo(
     () => ({
@@ -300,8 +453,19 @@ export function AppProvider({ children }) {
       batteryPoints,
       batteryHistory,
       chargeBattery,
+      notifications,
+      setNotifications,
+      reconnectThresholdDays,
+      setReconnectThresholdDays,
+      searchRadius,
+      setSearchRadius,
+      importDiscordServer,
+      pendingApplications,
+      submitApplication,
+      approveApplication,
+      declineApplication
     }),
-    [currentUser, joinedCircles, onboardingComplete, meetups, theme, chatState, discoverySwipes, connections, batteryPoints, batteryHistory, chargeBattery],
+    [currentUser, joinedCircles, onboardingComplete, meetups, theme, chatState, discoverySwipes, connections, batteryPoints, batteryHistory, chargeBattery, notifications, reconnectThresholdDays, searchRadius, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

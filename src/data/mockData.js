@@ -33,6 +33,7 @@ export const people = [
     bio: 'PM at a climate-tech startup. I climb at Austin Bouldering Project most nights and always down for a post-session taco.',
     interests: ['Rock Climbing', 'Startups', 'Tacos', 'Travel'],
     sharedInterests: ['Rock Climbing', 'Startups'],
+    lastHangout: '2026-03-01T12:00:00Z',
   },
   {
     id: 'p-daniel',
@@ -43,6 +44,7 @@ export const people = [
     bio: 'Software engineer who takes coffee way too seriously. Exploring third wave spots around downtown.',
     interests: ['Coffee', 'Tech', 'Photography', 'Film'],
     sharedInterests: ['Coffee', 'Tech'],
+    lastHangout: '2026-02-15T12:00:00Z', // Past the 3-week threshold to auto-trigger nudge
   },
   {
     id: 'p-sophia',
@@ -111,6 +113,21 @@ export const circles = [
       avatar: baseAvatar('Maya Chen'),
       role: 'Organizer',
     },
+    hoops: [
+      {
+        id: 'hoop-1',
+        type: 'written',
+        prompt: 'Why do you want to join the Austin Rock Climbers?',
+        order: 1,
+      },
+      {
+        id: 'hoop-2',
+        type: 'multiplechoice',
+        prompt: 'What is your climbing experience level?',
+        options: ['Complete beginner', 'Some experience', 'Intermediate', 'Advanced'],
+        order: 2,
+      }
+    ],
     members: [
       'Nia Thompson',
       'Alex Rivera',
@@ -461,6 +478,7 @@ export const chats = [
     lastMessagePreview: 'I can take 2 people from Mueller if anyone needs a ride.',
     lastMessageTime: '09:20',
     unreadCount: 3,
+    channels: ['general', 'planning', 'photos', 'meetups'],
     members: circles
       .find((c) => c.id === 'circle-austin-rock-climbers')
       .members.map((m) => m.name),
@@ -472,6 +490,7 @@ export const chats = [
         text: 'Thinking about hitting Reimer’s this Sunday if the weather holds. Anyone else in?',
         timestamp: '09:05',
         isMe: false,
+        channelId: 'general',
       },
       {
         id: 'arc-2',
@@ -480,6 +499,7 @@ export const chats = [
         text: 'Yes please. I’ve been stuck projecting at ABP and need some real rock.',
         timestamp: '09:08',
         isMe: true,
+        channelId: 'general',
       },
       {
         id: 'arc-3',
@@ -488,6 +508,7 @@ export const chats = [
         text: 'Same. I can drive and have 2 open spots in my car.',
         timestamp: '09:12',
         isMe: false,
+        channelId: 'general',
       },
       {
         id: 'arc-4',
@@ -496,6 +517,7 @@ export const chats = [
         text: 'Calling one of those seats 🙋‍♂️',
         timestamp: '09:14',
         isMe: true,
+        channelId: 'general',
       },
     ],
   },
@@ -508,6 +530,7 @@ export const chats = [
     lastMessagePreview: 'Tomorrow’s topic: first 10 users — bring a story.',
     lastMessageTime: '18:42',
     unreadCount: 1,
+    channels: ['general', 'planning', 'photos', 'meetups'],
     members: circles
       .find((c) => c.id === 'circle-startup-coffee-club')
       .members.map((m) => m.name),
@@ -519,6 +542,7 @@ export const chats = [
         text: 'For tomorrow, let’s each share how we found our first 10 users — messy stories welcomed.',
         timestamp: '18:40',
         isMe: false,
+        channelId: 'general',
       },
       {
         id: 'scc-2',
@@ -527,6 +551,7 @@ export const chats = [
         text: 'Amazing. Mine involves way too many cold DMs and one very patient friend group.',
         timestamp: '18:44',
         isMe: true,
+        channelId: 'general',
       },
     ],
   },
@@ -539,6 +564,7 @@ export const chats = [
     lastMessagePreview: 'Chapter 3 absolutely wrecked me, in the best way.',
     lastMessageTime: '11:09',
     unreadCount: 0,
+    channels: ['general', 'planning', 'photos', 'meetups'],
     members: circles
       .find((c) => c.id === 'circle-sunday-book-club')
       .members.map((m) => m.name),
@@ -550,6 +576,7 @@ export const chats = [
         text: 'How’s everyone feeling about the main character so far? No spoilers past chapter 5 please.',
         timestamp: '11:01',
         isMe: false,
+        channelId: 'general',
       },
       {
         id: 'sbc-2',
@@ -558,6 +585,7 @@ export const chats = [
         text: 'Chapter 3 absolutely wrecked me, in the best way.',
         timestamp: '11:09',
         isMe: true,
+        channelId: 'general',
       },
     ],
   },
@@ -600,7 +628,7 @@ export const chats = [
   },
 ]
 
-export const notifications = [
+export const seedNotifications = [
   {
     id: 'notif-1',
     type: 'connection_request',
@@ -635,6 +663,21 @@ export const notifications = [
     message: 'wants to connect with you.',
     timestamp: '1 day ago',
     isRead: true,
+  },
+  {
+    id: 'notif-4',
+    type: 'circle_activity',
+    circle: {
+      name: 'Austin Rock Climbers',
+      id: 'circle-austin-rock-climbers',
+    },
+    user: {
+      name: 'Nia Thompson',
+      avatar: baseAvatar('Nia Thompson'),
+    },
+    message: 'posted a new route photo in general.',
+    timestamp: '10 mins ago',
+    isRead: false,
   },
 ]
 

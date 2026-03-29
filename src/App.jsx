@@ -212,12 +212,12 @@ function ShellLayout() {
   )
 }
 
-/* ── Onboarding guard ── */
+/* ── Onboarding guard & Refresh Redirect ── */
+let isInitialMount = true
+
 function OnboardingGuard() {
   const { onboardingComplete } = useAppContext()
   const location = useLocation()
-
-  useEffect(() => { }, [location.pathname])
 
   if (!onboardingComplete && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
@@ -225,6 +225,17 @@ function OnboardingGuard() {
   if (onboardingComplete && location.pathname === '/onboarding') {
     return <Navigate to="/feed" replace />
   }
+
+  if (isInitialMount && onboardingComplete && location.pathname !== '/feed') {
+    isInitialMount = false
+    return <Navigate to="/feed" replace />
+  }
+
+  // Ensure it's false after first render
+  useEffect(() => {
+    isInitialMount = false
+  }, [])
+
   return <Outlet />
 }
 

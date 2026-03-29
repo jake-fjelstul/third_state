@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { circles } from '../data/mockData'
+import { circles, people } from '../data/mockData'
 import { useAppContext } from '../context/AppContext.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
+import HoopApplication from '../components/hoops/HoopApplication.jsx'
+import OrganizerReview from '../components/hoops/OrganizerReview.jsx'
  
 const clr = {
   bg:       'var(--bg)',
@@ -36,9 +38,24 @@ export default function CircleDetail() {
   const { id }     = useParams()
   const navigate   = useNavigate()
   const circle     = useMemo(() => circles.find((c) => c.id === id), [id])
-  const { joinedCircles, joinCircle, leaveCircle, startGroupChat, rsvpEvent, cancelRsvp, isRsvpd } = useAppContext()
+  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, startGroupChat, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, startDM } = useAppContext()
   const [activeTab, setActiveTab] = useState('about')
+  const [showHoopApp, setShowHoopApp] = useState(false)
+  const [activeChannel, setActiveChannel] = useState('general')
+  const [chatInput, setChatInput] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showNewChannel, setShowNewChannel] = useState(false)
+  const [newChannelName, setNewChannelName] = useState('')
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteSearch, setInviteSearch] = useState('')
+  const [toastMsg, setToastMsg] = useState(null)
+  const msgsEndRef = useRef(null)
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [activeTab, activeChannel, chatState, circle?.chatId])
 
   // Event detail modal state
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -63,7 +80,16 @@ export default function CircleDetail() {
  
   const isJoined  = joinedCircles.includes(circle.id)
   const isPrivate = circle.type === 'private'
- 
+  const isOrganizer = circle.organizer?.name === currentUser.name
+  const hasHoops = !!circle.hoops?.length
+  const pendingApp = pendingApplications?.find(a => a.circleId === circle.id && a.applicantId === currentUser.id && a.status === 'pending')
+
+  const dynamicTabs = useMemo(() => {
+    const base = [...TABS]
+    if (isOrganizer) base.push({ id: 'applications', label: 'Applications' })
+    return base
+  }, [isOrganizer])
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -185,22 +211,67 @@ export default function CircleDetail() {
           left:0, right:0,
           display:'flex', justifyContent:'center',
         }}>
-          <button
-            type="button"
-            onClick={() => { if (!isJoined) joinCircle(circle.id) }}
-            style={{
-              padding:'12px 40px',
-              borderRadius:999,
-              border:'none',
-              backgroundColor: clr.white,
-              color: isJoined ? clr.textMid : clr.indigo,
-              fontSize:16, fontWeight:700,
-              cursor: isJoined ? 'default' : 'pointer',
-              boxShadow:'0 6px 24px rgba(0,0,0,0.15)',
-            }}
-          >
-            {isJoined ? '✓ Joined' : isPrivate ? 'Request to Join' : 'Join Circle'}
-          </button>
+          {isJoined ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab('chat')}
+              style={{
+                padding:'12px 40px',
+                borderRadius:999,
+                border:'none',
+                background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
+                color: '#FFF',
+                fontSize:16, fontWeight:800,
+                cursor: 'pointer',
+                boxShadow:'0 6px 24px rgba(91,95,239,0.3)',
+              }}
+            >
+              Open Chat
+            </button>
+          ) : pendingApp ? (
+            <button
+              type="button"
+              disabled
+              style={{
+                padding:'12px 40px', borderRadius:999, border:'none',
+                backgroundColor: clr.white, color: clr.textMid,
+                fontSize:16, fontWeight:700, cursor: 'not-allowed',
+                boxShadow:'0 6px 24px rgba(0,0,0,0.15)',
+              }}
+            >
+              ⏳ Pending Review
+            </button>
+          ) : hasHoops ? (
+            <button
+              type="button"
+              onClick={() => setShowHoopApp(true)}
+              style={{
+                padding:'12px 40px', borderRadius:999, border:'none',
+                backgroundColor: clr.white, color: clr.indigo,
+                fontSize:16, fontWeight:700, cursor: 'pointer',
+                boxShadow:'0 6px 24px rgba(0,0,0,0.15)',
+              }}
+            >
+              Apply to Join 🏀
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => joinCircle(circle.id)}
+              style={{
+                padding:'12px 40px',
+                borderRadius:999,
+                border:'none',
+                backgroundColor: clr.white,
+                color: clr.indigo,
+                fontSize:16, fontWeight:700,
+                cursor: 'pointer',
+                boxShadow:'0 6px 24px rgba(0,0,0,0.15)',
+              }}
+            >
+              {isPrivate ? 'Request to Join' : 'Join Circle'}
+            </button>
+          )}
         </div>
       </div>
  
@@ -212,7 +283,7 @@ export default function CircleDetail() {
         display:'flex', justifyContent:'center',
       }}>
         <div style={{ display:'flex', gap:0 }}>
-          {TABS.map((tab) => {
+          {dynamicTabs.map((tab) => {
             const active = activeTab === tab.id
             return (
               <button key={tab.id} type="button"
@@ -239,7 +310,32 @@ export default function CircleDetail() {
         {/* ABOUT */}
         {activeTab === 'about' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
- 
+            
+            {/* Entry Requirements */}
+            {hasHoops && (
+              <div style={{
+                backgroundColor: clr.white, borderRadius:20,
+                padding:'20px', boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
+              }}>
+                <h3 style={{ fontSize:18, fontWeight:800, color: clr.textDark, margin:'0 0 12px 0' }}>Entry Requirements</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {circle.hoops.map((h, i) => (
+                    <div key={h.id} style={{ display: 'flex', gap: 12, alignItems: 'center', backgroundColor: clr.bg, padding: '12px 16px', borderRadius: 12 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: clr.indigoLt, color: clr.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: clr.textDark }}>
+                          {h.type === 'written' ? '✍️ Written' : h.type === 'video' ? '🎥 Video' : h.type === 'voice' ? '🎤 Voice' : '📋 Multiple Choice'}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', backgroundColor: '#FEF3C7', padding: '4px 8px', borderRadius: 6, textTransform: 'uppercase' }}>Required</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Description */}
             <div style={{
               backgroundColor: clr.white, borderRadius:20,
@@ -338,26 +434,48 @@ export default function CircleDetail() {
  
         {/* MEMBERS */}
         {activeTab === 'members' && (
-          <div style={{
-            backgroundColor: clr.white, borderRadius:20,
-            padding:'20px', boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
-          }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              {circle.members?.map((member) => (
-                <div key={member.id} onClick={() => navigate(`/user/${member.id}`)} style={{
-                  display:'flex', alignItems:'center', gap:10,
-                  backgroundColor: clr.bg, borderRadius:14,
-                  padding:'10px 12px', cursor: 'pointer'
-                }}>
-                  <img src={member.avatar} alt={member.name} style={{
-                    width:36, height:36, borderRadius:'50%', objectFit:'cover', flexShrink:0,
-                  }}/>
-                  <span style={{ fontSize:13, fontWeight:600, color: clr.textDark,
-                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {member.name}
-                  </span>
-                </div>
-              ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Invite Button */}
+            <button
+              onClick={() => setShowInviteModal(true)}
+              style={{
+                width: '100%', padding: '16px', borderRadius: 20,
+                border: `1.5px dashed ${clr.indigo}`, backgroundColor: clr.indigoLt,
+                color: clr.indigo, fontSize: 15, fontWeight: 700,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+              }}
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              Invite Connections
+            </button>
+
+            {/* Members List */}
+            <div style={{
+              backgroundColor: clr.white, borderRadius: 20,
+              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                {circle.members?.map((member) => (
+                  <div key={member.id} onClick={() => navigate(`/user/${member.id}`)} style={{
+                    display:'flex', alignItems:'center', gap:10,
+                    backgroundColor: clr.bg, borderRadius:14,
+                    padding:'10px 12px', cursor: 'pointer'
+                  }}>
+                    <img src={member.avatar} alt={member.name} style={{
+                      width:36, height:36, borderRadius:'50%', objectFit:'cover', flexShrink:0,
+                    }}/>
+                    <span style={{ fontSize:13, fontWeight:600, color: clr.textDark,
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {member.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -418,43 +536,165 @@ export default function CircleDetail() {
         )}
  
         {/* CHAT */}
-        {activeTab === 'chat' && (
-          <div style={{
-            backgroundColor: clr.white, borderRadius:20,
-            padding:'20px', boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
-            display:'flex', flexDirection:'column', gap:16,
-          }}>
-            <h3 style={{ fontSize:16, fontWeight:700, color: clr.textDark, margin:0 }}>Latest Messages</h3>
+        {activeTab === 'chat' && (() => {
+          const chatId = circle.chatId || `circle-${circle.id}`;
+          const chatData = chatState[chatId] || { messages: [], channels: ['general', 'planning', 'photos', 'meetups'] };
+          const channels = chatData.channels || ['general', 'planning', 'photos', 'meetups'];
+          const messages = (chatData.messages || []).filter(m => m.channelId === activeChannel || (!m.channelId && activeChannel === 'general'));
+
+          return (
             <div style={{
-              backgroundColor: clr.bg, borderRadius:16, padding:'14px',
-              display:'flex', flexDirection:'column', gap:14,
+              backgroundColor: clr.white, borderRadius:20,
+              boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
+              display:'flex', flexDirection:'column', height: 500,
+              overflow: 'hidden'
             }}>
-              {circle.chatPreview?.map((msg) => (
-                <div key={msg.id}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                    <span style={{ fontSize:13, fontWeight:700, color: clr.textDark }}>{msg.sender}</span>
-                    <span style={{ fontSize:11, color: clr.textLight }}>{msg.timestamp}</span>
-                  </div>
-                  <p style={{ fontSize:14, color: clr.textMid, margin:0, lineHeight:1.5 }}>{msg.text}</p>
-                </div>
-              ))}
-            </div>
-            <div style={{ display:'flex', justifyContent:'center' }}>
-              <button type="button" onClick={() => {
-                const chatId = startGroupChat(circle)
-                navigate(`/chat/${chatId}`)
-              }} style={{
-                padding:'13px 40px', borderRadius:999, border:'none', cursor:'pointer',
-                background:`linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
-                color:'#FFFFFF', fontSize:15, fontWeight:700,
-                boxShadow:'0 6px 20px rgba(91,95,239,0.35)',
+              {/* Channel selector horizontal bar */}
+              <div style={{
+                display: 'flex', gap: 8, padding: '16px 20px',
+                borderBottom: `1px solid ${clr.border}`,
+                overflowX: 'auto', scrollbarWidth: 'none',
+                backgroundColor: clr.bg
               }}>
-                Open Chat →
-              </button>
+                {channels.map(ch => {
+                  const isActive = activeChannel === ch;
+                  return (
+                    <button key={ch} type="button" onClick={() => setActiveChannel(ch)} style={{
+                      padding: '8px 16px', borderRadius: 999, border: 'none',
+                      backgroundColor: isActive ? clr.indigo : clr.white,
+                      color: isActive ? '#fff' : clr.textDark,
+                      fontSize: 14, fontWeight: isActive ? 700 : 600,
+                      cursor: 'pointer', whiteSpace: 'nowrap',
+                      boxShadow: isActive ? '0 4px 12px rgba(91,95,239,0.25)' : '0 2px 6px rgba(0,0,0,0.05)',
+                      transition: 'all 0.2s ease',
+                    }}>
+                      #{ch}
+                    </button>
+                  )
+                })}
+                {showNewChannel ? (
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const val = newChannelName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+                    if (val && !channels.includes(val)) {
+                      setChatState(prev => ({
+                        ...prev,
+                        [chatId]: {
+                          ...prev[chatId],
+                          channels: [...channels, val]
+                        }
+                      }));
+                      setActiveChannel(val);
+                    }
+                    setShowNewChannel(false);
+                    setNewChannelName('');
+                  }} style={{ display: 'flex' }}>
+                    <input
+                      autoFocus
+                      value={newChannelName}
+                      onChange={e => setNewChannelName(e.target.value)}
+                      onBlur={() => {
+                        // Allow small delay for submit if clicked instead of enter
+                        setTimeout(() => setShowNewChannel(false), 150)
+                      }}
+                      placeholder="new-channel"
+                      style={{
+                        padding: '8px 16px', borderRadius: 999, border: `1.5px solid ${clr.indigo}`,
+                        backgroundColor: clr.white, color: clr.textDark,
+                        fontSize: 14, fontWeight: 600, outline: 'none', width: 120
+                      }}
+                    />
+                  </form>
+                ) : (
+                  <button type="button" onClick={() => setShowNewChannel(true)} style={{
+                    padding: '8px 16px', borderRadius: 999, border: `1px dashed ${clr.border}`,
+                    backgroundColor: 'transparent', color: clr.textMid,
+                    fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                    display: 'flex', alignItems: 'center', gap: 4
+                  }}>
+                    <span>+</span> Add
+                  </button>
+                )}
+              </div>
+
+              {/* Messages area */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {messages.length === 0 ? (
+                  <div style={{ margin: 'auto', color: clr.textMid, fontSize: 14 }}>No messages in #{activeChannel} yet.</div>
+                ) : (
+                  messages.map((msg, i) => {
+                    const isMe = msg.sender === 'You' || msg.isMe;
+                    return (
+                      <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                        {!isMe && (
+                          <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                        )}
+                        <div style={{
+                          maxWidth: '75%',
+                          padding: '10px 14px',
+                          borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                          backgroundColor: isMe ? clr.indigo : clr.bg,
+                          color: isMe ? '#FFFFFF' : clr.textDark,
+                          fontSize: 14, lineHeight: 1.4,
+                          boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 6px rgba(0,0,0,0.04)',
+                        }}>
+                          {msg.text}
+                        </div>
+                        <span style={{ fontSize:10, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                          {msg.time ?? msg.timestamp ?? ''}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
+                <div ref={msgsEndRef} />
+              </div>
+
+              {/* Input area */}
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                if (!chatInput.trim()) return
+                startGroupChat(circle)
+                sendMessage(chatId, chatInput, activeChannel)
+                setChatInput('')
+              }} style={{
+                display: 'flex', gap: 10, padding: '14px 20px',
+                borderTop: `1px solid ${clr.border}`,
+                backgroundColor: clr.white,
+              }}>
+                <input
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  placeholder={`Message #${activeChannel}...`}
+                  style={{
+                    flex:1, padding:'12px 16px', borderRadius:999,
+                    border:`1.5px solid ${clr.border}`,
+                    backgroundColor: clr.bg,
+                    fontSize:14, color: clr.textDark,
+                    outline:'none', fontFamily:'inherit',
+                  }}
+                />
+                <button type="submit" style={{
+                  width:42, height:42, borderRadius:'50%', border:'none',
+                  background:`linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  cursor:'pointer', flexShrink:0,
+                  boxShadow:'0 4px 12px rgba(91,95,239,0.35)',
+                }}>
+                  <svg width="18" height="18" fill="none" stroke="#FFFFFF" strokeWidth="2.2" viewBox="0 0 24 24">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </form>
             </div>
-          </div>
-        )}
+          )
+        })()}
  
+        {/* APPLICATIONS */}
+        {activeTab === 'applications' && isOrganizer && (
+          <OrganizerReview circle={circle} />
+        )}
       </div>
 
       {/* Event Detail Modal */}
@@ -468,6 +708,104 @@ export default function CircleDetail() {
           onCancelRsvp={(evtId) => cancelRsvp(evtId)}
         />
       )}
+
+      {/* Invite Modal Overlay */}
+      {showInviteModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 300,
+          backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', flexDirection: 'column',
+          justifyContent: 'flex-end', alignItems: 'center'
+        }} onClick={() => { setShowInviteModal(false); setInviteSearch(''); }}>
+          <div style={{
+            backgroundColor: clr.white, width: '100%', maxWidth: 500,
+            borderRadius: '24px 24px 0 0', padding: '24px 20px 48px',
+            animation: 'slideUp 0.25s ease', maxHeight: '85vh', display: 'flex', flexDirection: 'column'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: clr.textDark }}>Invite Connections</h3>
+              <button onClick={() => { setShowInviteModal(false); setInviteSearch(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <svg width="24" height="24" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <input 
+              autoFocus
+              placeholder="Search connections..." 
+              value={inviteSearch}
+              onChange={e => setInviteSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16,
+                border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15,
+                color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16
+              }}
+            />
+
+            <div style={{ overflowY: 'auto', flex: 1, msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+              {people
+                .filter(p => p.name.toLowerCase().includes(inviteSearch.toLowerCase()))
+                .slice(0, 10)
+                .map(p => {
+                  const alreadyMember = circle.members?.some(m => m.id === p.id)
+                  return (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${clr.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <img src={p.avatar} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                        <span style={{ fontSize: 15, fontWeight: 600, color: clr.textDark }}>{p.name}</span>
+                      </div>
+                      <button 
+                        disabled={alreadyMember}
+                        onClick={() => {
+                          const chatId = startDM(p);
+                          sendMessage(chatId, `Hey ${p.name.split(' ')[0]}! I think you'd love this circle: ${circle.name}. You should check it out! 🌟`);
+                          setShowInviteModal(false);
+                          setInviteSearch('');
+                          setToastMsg(`Invite sent to ${p.name}!`);
+                          setTimeout(() => setToastMsg(null), 2500);
+                        }}
+                        style={{
+                          padding: '8px 16px', borderRadius: 999, border: 'none',
+                          backgroundColor: alreadyMember ? clr.bg : clr.indigo,
+                          color: alreadyMember ? clr.textMid : '#FFF',
+                          fontSize: 13, fontWeight: 700, cursor: alreadyMember ? 'default' : 'pointer',
+                        }}
+                      >
+                        {alreadyMember ? 'Joined' : 'Invite'}
+                      </button>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)',
+          background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999,
+          fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap'
+        }}>
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Hoop Application Modal */}
+      {showHoopApp && <HoopApplication circle={circle} onClose={() => setShowHoopApp(false)} />}
+
+      {/* Styles */}
+      <style>{`
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeToast {
+          0% { opacity: 0; transform: translate(-50%, 20px); }
+          15% { opacity: 1; transform: translate(-50%, 0); }
+          85% { opacity: 1; transform: translate(-50%, 0); }
+          100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+      `}</style>
     </div>
   )
 }

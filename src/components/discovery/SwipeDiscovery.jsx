@@ -38,7 +38,9 @@ function DiscoveryCard({ card }) {
             </h2>
             {p.online && <div style={{ width:12, height:12, borderRadius:'50%', backgroundColor: 'var(--green, #22C55E)' }} />}
           </div>
-          <p style={{ margin:'0 0 12px 0', fontSize:14, color: clr.textMid }}>{p.city}</p>
+          <p style={{ margin:'0 0 12px 0', fontSize:14, color: clr.textMid }}>
+            {p.city} • <span style={{ fontWeight: 700 }}>📍 {card.distance} miles away</span>
+          </p>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
             {p.interests?.slice(0,4).map(i => (
               <span key={i} style={{ padding:'4px 10px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:700 }}>
@@ -73,7 +75,9 @@ function DiscoveryCard({ card }) {
              </span>
           </div>
           <h2 style={{ margin:'0 0 8px 0', fontSize:26, fontWeight:800, color: clr.textDark }}>{c.name}</h2>
-          <p style={{ margin:'0 0 16px', fontSize:15, color: clr.textMid }}>{c.memberCount ?? c.members?.length ?? 0} members • {c.interestTag}</p>
+          <p style={{ margin:'0 0 16px', fontSize:15, color: clr.textMid }}>
+            {c.memberCount ?? c.members?.length ?? 0} members • <span style={{ fontWeight: 700 }}>📍 {card.distance} miles away</span>
+          </p>
           <p style={{ margin:0, fontSize:15, color:clr.textDark, lineHeight:1.5 }}>{c.description}</p>
         </div>
       </div>
@@ -100,7 +104,7 @@ function DiscoveryCard({ card }) {
             <span style={{ fontSize:18 }}>📅</span> {e.date} • {e.time}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <span style={{ fontSize:18 }}>📍</span> {e.location}
+            <span style={{ fontSize:18 }}>📍</span> {e.location} • <span style={{ fontWeight: 700 }}>{card.distance} miles away</span>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
             <span style={{ fontSize:18 }}>🎟️</span> Hosted by {e.circleName ?? 'Community'}
@@ -116,7 +120,7 @@ function DiscoveryCard({ card }) {
 }
 
 export default function SwipeDiscovery({ onClose }) {
-  const { joinCircle, startDM, sendMessage, discoverySwipes, recordSwipe } = useAppContext()
+  const { joinCircle, startDM, sendMessage, discoverySwipes, recordSwipe, searchRadius } = useAppContext()
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events'])
   const [cardIndex, setCardIndex] = useState(0)
   
@@ -151,20 +155,33 @@ export default function SwipeDiscovery({ onClose }) {
     const today = new Date().toDateString()
     const swipes = discoverySwipes.date === today ? discoverySwipes : { person:0, circle:0, event:0 }
 
+    const getMockDist = (id) => ((String(id).charCodeAt(0) * 13 + String(id).length * 7) % 50) + 1
+
     if (activeFilters.includes('people')) {
       const allowed = Math.max(0, 5 - (swipes.person || 0))
-      cards.push(...people.slice(0, allowed).map(p => ({ type: 'person', data: p })))
+      cards.push(...people
+        .filter(p => getMockDist(p.id) <= searchRadius)
+        .slice(0, allowed)
+        .map(p => ({ type: 'person', data: p, distance: getMockDist(p.id) }))
+      )
     }
     if (activeFilters.includes('circles')) {
       const allowed = Math.max(0, 5 - (swipes.circle || 0))
-      cards.push(...circles.slice(0, allowed).map(c => ({ type: 'circle', data: c })))
+      cards.push(...circles
+        .filter(c => getMockDist(c.id) <= searchRadius)
+        .slice(0, allowed)
+        .map(c => ({ type: 'circle', data: c, distance: getMockDist(c.id) }))
+      )
     }
     if (activeFilters.includes('events')) {
-      cards.push(...events.map(e => ({ type: 'event', data: e })))
+      cards.push(...events
+        .filter(e => getMockDist(e.id) <= searchRadius)
+        .map(e => ({ type: 'event', data: e, distance: getMockDist(e.id) }))
+      )
     }
     return cards.sort(() => Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters])
+  }, [activeFilters, searchRadius])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]
@@ -277,44 +294,58 @@ export default function SwipeDiscovery({ onClose }) {
       backgroundColor: clr.bg, fontFamily: "'DM Sans', 'Inter', sans-serif",
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '20px 24px 12px', flexShrink: 0
-      }}>
-        <button onClick={onClose} style={{
-          width: 40, height: 40, borderRadius: '50%', border: 'none',
-          backgroundColor: clr.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)', cursor: 'pointer'
+      {/* Centered Top Content */}
+      <div style={{ width: '100%', maxWidth: 500, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 24px 24px', flexShrink: 0, position: 'relative'
         }}>
-          <svg width="20" height="20" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-        <span style={{ fontSize: 18, fontWeight: 800, color: clr.textDark }}>Discover</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: clr.textMid }}>
-          {activeFilters.length === 3 ? 'Everything' : activeFilters.map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(' · ')}
-        </span>
-      </div>
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+            <button onClick={onClose} style={{
+              width: 40, height: 40, borderRadius: '50%', border: 'none',
+              backgroundColor: clr.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)', cursor: 'pointer'
+            }}>
+              <svg width="20" height="20" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
 
-      {/* Filter bubbles */}
-      <div style={{ overflowX: 'auto', padding: '10px 20px 20px', flexShrink: 0, whiteSpace: 'nowrap' }}>
-        <div style={{ display: 'inline-flex', gap: 8 }}>
-          {FILTERS.map(f => {
-            const isActive = f.id === 'all' ? activeFilters.length === 3 : activeFilters.includes(f.id)
-            return (
-              <button key={f.id} onClick={() => toggleFilter(f.id)} style={{
-                padding: '10px 18px', borderRadius: 999, cursor: 'pointer',
-                border: isActive ? 'none' : `1.5px solid ${clr.border}`,
-                backgroundColor: isActive ? clr.indigo : clr.white,
-                color: isActive ? '#FFFFFF' : clr.textDark,
-                fontSize: 14, fontWeight: 700,
-                boxShadow: isActive ? '0 4px 12px rgba(91,95,239,0.3)' : 'none',
-              }}>
-                {f.label}
-              </button>
-            )
-          })}
+          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: clr.textDark, fontFamily: "'DM Serif Display', 'Georgia', serif", letterSpacing: '-0.02em' }}>
+              Discover
+            </h1>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, textAlign: 'right' }}>
+              {activeFilters.length === 3 ? 'Everything' : activeFilters.map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(' · ')}
+            </span>
+          </div>
+        </div>
+
+        {/* Filter bubbles */}
+        <div style={{ overflowX: 'auto', padding: '16px 20px 20px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: clr.textMid, marginRight: 4 }}>Filter by:</span>
+            {FILTERS.map(f => {
+              const isActive = f.id === 'all' ? activeFilters.length === 3 : activeFilters.includes(f.id)
+              return (
+                <button key={f.id} onClick={() => toggleFilter(f.id)} style={{
+                  padding: '10px 18px', borderRadius: 999, cursor: 'pointer',
+                  border: isActive ? 'none' : `1.5px solid ${clr.border}`,
+                  backgroundColor: isActive ? clr.indigo : clr.white,
+                  color: isActive ? '#FFFFFF' : clr.textDark,
+                  fontSize: 14, fontWeight: 700,
+                  boxShadow: isActive ? '0 4px 12px rgba(91,95,239,0.3)' : 'none',
+                }}>
+                  {f.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 

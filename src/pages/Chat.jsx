@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { people, circles } from '../data/mockData'
  
@@ -68,21 +68,22 @@ function UserAvatar({ src, name, online }) {
  
 /* derive display fields from raw chat object */
 function normChat(chat) {
-  const isGroup   = chat.type === 'group' || !!chat.circleName
-  const name      = chat.name ?? chat.circleName ?? 'Unknown'
+  const isGroup   = chat.type === 'group' || chat.type === 'circle' || !!chat.circleName
+  const name      = chat.name ?? chat.circleName ?? chat.title ?? 'Unknown'
   const lastMsg   = chat.messages?.[chat.messages.length - 1]
   const preview   = lastMsg
-    ? `${lastMsg.sender !== 'You' ? lastMsg.sender + ': ' : ''}${lastMsg.text}`
-    : chat.lastMessage ?? ''
-  const time      = chat.time ?? chat.lastTime ?? ''
-  const unread    = chat.unread ?? 0
-  const avatar    = chat.avatar ?? chat.participants?.[0]?.avatar ?? null
+    ? `${lastMsg.senderName || lastMsg.sender || 'Unknown'}: ${lastMsg.text}`
+    : chat.lastMessagePreview ?? chat.lastMessage ?? ''
+  const time      = lastMsg ? (lastMsg.time ?? lastMsg.timestamp) : (chat.time ?? chat.lastTime ?? chat.lastMessageTime ?? '')
+  const unread    = chat.unread ?? chat.unreadCount ?? 0
+  const avatar    = chat.avatar ?? chat.avatarUrl ?? chat.participants?.[0]?.avatar ?? null
   const online    = chat.online ?? false
   return { isGroup, name, preview, time, unread, avatar, online }
 }
  
 /* ── Full thread view ── */
-function ThreadView({ chat, onBack }) {
+function ThreadView({ chat, baseId, channelId, onBack }) {
+  const location = useLocation()
   const [input, setInput] = useState('')
   const { name, avatar, online, isGroup } = normChat(chat)
   const messages = chat.messages ?? []
@@ -93,6 +94,12 @@ function ThreadView({ chat, onBack }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (location.state?.prefillText) {
+      setInput(location.state.prefillText)
+    }
+  }, [location.state?.prefillText, chat.id])
 
   useEffect(() => {
     setChatState(prev => {
@@ -107,7 +114,7 @@ function ThreadView({ chat, onBack }) {
   const handleSend = (e) => {
     e.preventDefault()
     if (!input.trim()) return
-    sendMessage(chat.id, input)
+    sendMessage(baseId || chat.id, input, channelId || 'general')
     setInput('')
   }
  
@@ -357,7 +364,16 @@ export default function Chat() {
   const [showCompose, setShowCompose] = useState(false)
 
   if (id) {
-    const chat = chatState[id]
+    let chat = null;
+    let baseId = id;
+    let channelId = null;
+
+    if (id.includes('---')) {
+      [baseId, channelId] = id.split('---');
+    }
+    
+    chat = chatState[baseId];
+
     if (!chat) {
       return (
         <div style={{ height:'calc(100vh - 80px)', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily:"'DM Sans','Inter',sans-serif" }}>
@@ -375,15 +391,46 @@ export default function Chat() {
         </div>
       )
     }
-    return <ThreadView chat={chat} onBack={() => navigate('/chat')} />
+
+    if (channelId) {
+      chat = {
+        ...chat,
+        name: `${chat.name || chat.circleName || chat.title} #${channelId}`,
+        messages: (chat.messages || []).filter(m => (m.channelId || 'general') === channelId)
+      }
+    }
+
+    return <ThreadView chat={chat} baseId={baseId} channelId={channelId} onBack={() => navigate('/chat')} />
   }
 
-  const filtered = Object.values(chatState).filter(c => {
+  const listItems = [];
+  Object.values(chatState).forEach(c => {
+    if (c.type === 'circle' || c.type === 'group' || !!c.circleName) {
+      const msgsByChannel = {};
+      (c.messages || []).forEach(m => {
+        const ch = m.channelId || 'general';
+        if (!msgsByChannel[ch]) msgsByChannel[ch] = [];
+        msgsByChannel[ch].push(m);
+      });
+      Object.entries(msgsByChannel).forEach(([ch, msgs]) => {
+        listItems.push({
+          ...c,
+          id: `${c.id}---${ch}`,
+          name: `${c.name || c.circleName || c.title} #${ch}`,
+          messages: msgs,
+        });
+      });
+    } else {
+      listItems.push(c);
+    }
+  });
+
+  const filtered = listItems.filter(c => {
     const { name } = normChat(c)
     return name.toLowerCase().includes(search.toLowerCase())
   }).sort((a,b) => {
-    const tA = new Date(`1970/01/01 ${a.time || '12:00 AM'}`).getTime() || 0
-    const tB = new Date(`1970/01/01 ${b.time || '12:00 AM'}`).getTime() || 0
+    const tA = new Date(`1970/01/01 ${normChat(a).time || '12:00 AM'}`).getTime() || 0
+    const tB = new Date(`1970/01/01 ${normChat(b).time || '12:00 AM'}`).getTime() || 0
     return tB - tA
   })
  

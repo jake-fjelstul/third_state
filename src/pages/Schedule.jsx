@@ -4,6 +4,7 @@ import { circles, meetups as mockMeetups } from '../data/mockData'
 import { useAppContext } from '../context/AppContext.jsx'
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar.js'
 import EventDetailModal from '../components/EventDetailModal.jsx'
+import TimePicker from '../components/TimePicker.jsx'
 
 // Color system
 const clr = {
@@ -488,15 +489,15 @@ export default function Schedule() {
 
         {/* SECTION E: Your RSVP'd Events */}
         <div>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: clr.textDark, margin: 0 }}>
               Your Meetups
             </h2>
             <button onClick={() => setShowForm(true)} style={{
-              padding: '8px 16px', borderRadius: 999, border: 'none',
+              padding: '12px 24px', borderRadius: 999, border: 'none',
               background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
-              color: '#FFFFFF', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(91,95,239,0.3)',
+              color: '#FFFFFF', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+              boxShadow: '0 6px 16px rgba(91,95,239,0.35)',
             }}>
               + New Meetup
             </button>
@@ -526,10 +527,12 @@ export default function Schedule() {
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 1000,
           display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+          alignItems: 'center',
           animation: formClosing ? 'fadeOut 0.3s ease forwards' : 'fadeIn 0.3s ease forwards',
         }}>
           <div style={{
             backgroundColor: clr.white,
+            width: '100%', maxWidth: 500,
             borderTopLeftRadius: 32, borderTopRightRadius: 32,
             padding: '32px 24px', height: '85vh',
             boxShadow: '0 -10px 40px rgba(0,0,0,0.1)',
@@ -580,25 +583,22 @@ export default function Schedule() {
                 </div>
               </div>
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div>
-                  <label style={labelStyle}>Date</label>
-                  <input type="date" value={form.date}
-                    onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                    style={inputStyle}
-                    onFocus={e => e.target.style.borderColor = clr.indigo}
-                    onBlur={e  => e.target.style.borderColor = clr.border}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Time</label>
-                  <input type="time" value={form.time}
-                    onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-                    style={inputStyle}
-                    onFocus={e => e.target.style.borderColor = clr.indigo}
-                    onBlur={e  => e.target.style.borderColor = clr.border}
-                  />
-                </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Date</label>
+                <input type="date" value={form.date}
+                  onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                  onClick={(e) => { try { e.target.showPicker() } catch(err){} }}
+                  style={inputStyle}
+                  onFocus={e => e.target.style.borderColor = clr.indigo}
+                  onBlur={e  => e.target.style.borderColor = clr.border}
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Time</label>
+                <TimePicker 
+                  value={form.time} 
+                  onChange={t => setForm(f => ({ ...f, time: t }))} 
+                />
               </div>
 
               <div>
@@ -679,6 +679,8 @@ export default function Schedule() {
           onCancelRsvp={(evtId) => cancelRsvp(evtId)}
         />
       )}
+
+
 
       {/* Styles for animation */}
       <style>{`

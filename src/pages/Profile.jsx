@@ -40,6 +40,11 @@ export default function Profile() {
 
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [detailClosing, setDetailClosing] = useState(false)
+  
+  const [showExternalInvite, setShowExternalInvite] = useState(false)
+  const [inviteInput, setInviteInput] = useState('')
+  const [toastMsg, setToastMsg] = useState(null)
+  
   const openEventDetail = (event) => setSelectedEvent(event)
   const closeEventDetail = () => {
     setDetailClosing(true)
@@ -288,8 +293,17 @@ export default function Profile() {
 
         {/* ── Recent Connections ── */}
         <div id="connections-section" style={{ padding:'0 0 28px' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 20px', marginBottom:14 }}>
-            <h2 style={{ fontSize:22, fontWeight:800, color: clr.textDark, margin:0 }}>Recent Connections</h2>
+          <div style={{ padding:'0 20px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <h2 style={{ fontSize:22, fontWeight:800, color: clr.textDark, margin:'0 0 4px 0' }}>Recent Connections</h2>
+              <p style={{ fontSize:13, fontWeight:600, color: clr.textMid, margin:0 }}>Sorted by: Most recent interaction</p>
+            </div>
+            <button onClick={() => setShowExternalInvite(true)} style={{
+              padding: '8px 16px', borderRadius: 999, border: 'none',
+              background: clr.indigoLt, color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer'
+            }}>
+              + Invite
+            </button>
           </div>
           <div style={{ display:'flex', gap:12, overflowX:'auto', padding:'4px 20px', scrollbarWidth:'none' }}>
             {recentConnections.map((person) => (
@@ -473,6 +487,7 @@ export default function Profile() {
               </div>
 
             </div>
+
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:20 }}>
               <button type="button" onClick={() => setEditing(false)} style={{
                 padding:'10px 20px', borderRadius:999, border:'none',
@@ -494,6 +509,96 @@ export default function Profile() {
           </div>
         </div>
       )}
+
+      {/* ── External Invite Modal ── */}
+      {showExternalInvite && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 300,
+          backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', flexDirection: 'column',
+          justifyContent: 'flex-end', alignItems: 'center'
+        }} onClick={() => { setShowExternalInvite(false); setInviteInput(''); }}>
+          <div style={{
+            backgroundColor: clr.white, width: '100%', maxWidth: 500,
+            borderRadius: '24px 24px 0 0', padding: '24px 20px 32px',
+            animation: 'slideUp 0.25s ease', display: 'flex', flexDirection: 'column'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: clr.textDark }}>Invite to Third Space</h3>
+              <button onClick={() => { setShowExternalInvite(false); setInviteInput(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <svg width="24" height="24" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 16px 0' }}>Invite friends to join you using their phone number or email address.</p>
+
+            <input 
+              autoFocus
+              placeholder="Email or Phone Number" 
+              value={inviteInput}
+              onChange={e => setInviteInput(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16,
+                border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15,
+                color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16
+              }}
+            />
+
+            {/* Preview Block */}
+            <div style={{ padding: 16, backgroundColor: clr.indigoLt, borderRadius: 16, marginBottom: 24, border: `1px dashed ${clr.indigo}` }}>
+              <p style={{ margin: 0, fontSize: 12, color: clr.indigo, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Message Preview</p>
+              <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>
+                Hey! I'm using Third Space to find local meetups. Join me here:{' '}
+                <span style={{color: clr.indigo, textDecoration: 'underline'}}>https://third.space/join/{currentUser.name.split(' ')[0].toLowerCase()}</span>
+              </p>
+            </div>
+
+            <button 
+              disabled={!inviteInput.trim()}
+              onClick={() => {
+                setShowExternalInvite(false);
+                setToastMsg(`Invite sent to ${inviteInput}!`);
+                setInviteInput('');
+                setTimeout(() => setToastMsg(null), 3000);
+              }}
+              style={{
+                width: '100%', padding: '16px', borderRadius: 999, border: 'none',
+                background: !inviteInput.trim() ? clr.border : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
+                color: !inviteInput.trim() ? clr.textMid : '#FFF',
+                fontSize: 16, fontWeight: 800, cursor: !inviteInput.trim() ? 'default' : 'pointer',
+                boxShadow: !inviteInput.trim() ? 'none' : '0 6px 20px rgba(91,95,239,0.3)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Send Invite
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)',
+          background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999,
+          fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap'
+        }}>
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Styles */}
+      <style>{`
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeToast {
+          0% { opacity: 0; transform: translate(-50%, 20px); }
+          15% { opacity: 1; transform: translate(-50%, 0); }
+          85% { opacity: 1; transform: translate(-50%, 0); }
+          100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+      `}</style>
 
       {/* ── Event Detail Modal ── */}
       {selectedEvent && (

@@ -156,7 +156,7 @@ function useDarkMode() {
   return isDark
 }
 
-function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onSelectNode }) {
+function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onSelectNode, selectedNode }) {
   const isDark = useDarkMode()
   const [hoveredNode, setHoveredNode] = useState(null)
   
@@ -294,13 +294,16 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
     const fromNode = graphData.nodes.find(n => n.id === edge.from)
     const toNode = graphData.nodes.find(n => n.id === edge.to)
     if (!fromNode?.matchFilter || !toNode?.matchFilter) return 0
-    if (hoveredNode) {
-      if (edge.from === hoveredNode || edge.to === hoveredNode) return 0.8
+    
+    // Explicitly target active taps or hovers organically
+    const activeTargetId = selectedNode?.id || hoveredNode
+    
+    if (activeTargetId) {
+      if (edge.from === activeTargetId || edge.to === activeTargetId) return 0.8
       return 0.05
     }
-    if (edge.strength === 'strong') return 0.35
-    if (edge.strength === 'medium') return 0.25
-    return 0.15
+
+    return 0
   }
 
   const getEdgeStrokeWidth = (strength) => strength === 'strong' ? 2.5 : strength === 'medium' ? 1.5 : 1
@@ -635,18 +638,7 @@ export default function Circles() {
 
         {activeTab === 'connections' && (
           <div style={{ animation: 'slideUp 0.15s ease' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-              {[
-                { value: rankedConnections.length, label: 'Connections' },
-                { value: rankedConnections.filter(c => c.score >= 80).length, label: 'Close' },
-                { value: rankedConnections.filter(c => Object.values(chatState ?? {}).some(ch => ch.type === 'dm' && ch.personId === c.id)).length, label: 'In Touch' },
-              ].map(({ value, label }, i) => (
-                <div key={i} style={{ backgroundColor: clr.white, borderRadius: 16, padding: '14px 8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                  <p style={{ fontSize: 24, fontWeight: 800, color: clr.indigo, margin: '0 0 3px 0' }}>{value}</p>
-                  <p style={{ fontSize: 11, color: clr.textMid, margin: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
-                </div>
-              ))}
-            </div>
+
 
             <div style={{ position: 'relative', marginBottom: 14 }}>
               <svg width="16" height="16" fill="none" stroke={clr.textLight} strokeWidth="2.5" viewBox="0 0 24 24" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -695,8 +687,9 @@ export default function Circles() {
                           <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {person.name}
                           </span>
-                          <span style={{ fontSize: 10, fontWeight: 700, backgroundColor: tier.bg, color: tier.color, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
-                            {tier.label}
+                          <span title="Momentum Streak" style={{ fontSize: 11, fontWeight: 700, backgroundColor: tier.bg, color: tier.color, padding: '2px 8px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            {Math.max(1, Math.floor(person.score / 15))}
                           </span>
                         </div>
                         <div style={{ marginBottom: 5 }}>
@@ -752,7 +745,7 @@ export default function Circles() {
                   ))}
                 </div>
                 
-                <NetworkGraph filter={networkFilter} people={people} circles={circles} joinedCircles={joinedCircles} currentUser={currentUser} onSelectNode={setSelectedNode} />
+                <NetworkGraph filter={networkFilter} people={people} circles={circles} joinedCircles={joinedCircles} currentUser={currentUser} onSelectNode={setSelectedNode} selectedNode={selectedNode} />
 
                 {selectedNode && (
                   <div style={{
