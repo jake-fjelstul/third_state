@@ -151,15 +151,16 @@ export default function CreateWheel({ onAction }) {
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        margin: '30px 0',
-        touchAction: 'none'
+        margin: '30px auto',
+        touchAction: 'none',
+        width: '100%',
+        maxWidth: 380,
       }}
     >
       <svg 
         ref={svgRef}
-        width="100%" 
         viewBox="0 0 400 400" 
-        style={{ maxWidth: 380, maxHeight: 380, overflow: 'visible', cursor: 'pointer' }}
+        style={{ width: '100%', height: 'auto', aspectRatio: '1 / 1', overflow: 'visible', cursor: 'pointer', display: 'block' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
