@@ -155,12 +155,15 @@ export default function CreateWheel({ onAction }) {
         touchAction: 'none',
         width: '100%',
         maxWidth: 380,
+        WebkitTapHighlightColor: 'transparent',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
       }}
     >
       <svg 
         ref={svgRef}
         viewBox="0 0 400 400" 
-        style={{ width: '100%', height: 'auto', aspectRatio: '1 / 1', overflow: 'visible', cursor: 'pointer', display: 'block' }}
+        style={{ width: '100%', height: 'auto', aspectRatio: '1 / 1', overflow: 'visible', cursor: 'pointer', display: 'block', WebkitTapHighlightColor: 'transparent' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -226,30 +229,19 @@ export default function CreateWheel({ onAction }) {
           })}
         </g>
 
-        {/* Center "TAP TO CREATE" Button (Glassmorphism) */}
+        {/* Center "TAP TO CREATE" Button — pure SVG for pixel-perfect centering */}
         <g 
           style={{ 
             transform: isDragging ? 'scale(0.92)' : 'scale(1)',
             transformOrigin: `${cx}px ${cy}px`,
-            transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            pointerEvents: 'none',
           }}
         >
-          <foreignObject x={cx - 76} y={cy - 76} width="152" height="152" style={{ pointerEvents: 'none' }}>
-            <div style={{
-              width: '100%', height: '100%',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(0,0,0,0.2))',
-              border: '1.5px solid rgba(255,255,255,0.2)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              color: '#FFFFFF', fontWeight: 800, fontSize: 13, letterSpacing: '0.05em', lineHeight: 1.4
-            }}>
-              <span>TAP TO</span>
-              <span>CREATE</span>
-            </div>
-          </foreignObject>
+          <circle cx={cx} cy={cy} r="76" fill="rgba(40,40,44,0.85)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+          <circle cx={cx} cy={cy} r="74" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+          <text x={cx} y={cy - 6} fill="#FFFFFF" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">TAP TO</text>
+          <text x={cx} y={cy + 14} fill="#FFFFFF" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">CREATE</text>
         </g>
       </svg>
     </div>
