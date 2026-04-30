@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { signUp, signIn, resetPassword, signInWithGoogle } from '../lib/auth'
 import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 
@@ -36,6 +36,8 @@ function GoogleIcon() {
 
 function AuthPage() {
   const navigate = useNavigate()
+  const [search] = useSearchParams()
+  const fromInvite = search.get('invited') === '1'
   const [mode, setMode] = useState('signin') // 'signin', 'signup', 'reset'
   
   const [name, setName] = useState('')
@@ -131,6 +133,15 @@ function AuthPage() {
           width:'100%', marginBottom:16, display:'flex', flexDirection:'column', gap:16,
           backgroundColor: clr.white, borderRadius: 20, padding: '24px', boxShadow: `0 2px 12px rgba(0,0,0,0.06)`,
         }}>
+          {fromInvite && (
+            <div style={{
+              padding: 12, marginBottom: 4, borderRadius: 12,
+              backgroundColor: '#EEF2FF', color: '#4338CA', fontSize: 13, fontWeight: 600,
+              textAlign: 'center',
+            }}>
+              You've been invited! Sign up or sign in to connect.
+            </div>
+          )}
           {error && <div style={{ color: '#E11D48', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#FFE4E6', borderRadius: 8 }}>{error}</div>}
           {resetSent && <div style={{ color: '#059669', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#D1FAE5', borderRadius: 8 }}>Check your email for the reset link!</div>}
           

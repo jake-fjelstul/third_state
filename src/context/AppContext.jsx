@@ -42,10 +42,12 @@ import {
   deleteNotification as deleteNotifDb,
   mapNotificationRow,
 } from '../lib/notifications'
+import { redeemInvite } from '../lib/invites'
 
 const AppContext = createContext(null)
 
 const UI_STORAGE_KEY = 'ts-ui-state'
+const PENDING_INVITE_KEY = 'ts.pendingInviteToken'
 
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
@@ -147,6 +149,16 @@ export function AppProvider({ children }) {
     }
   }, [mapProfileToCurrentUser, resetLocalAuthState, session?.user])
 
+  const refreshConnections = useCallback(async () => {
+    if (!session?.user?.id) return
+    try {
+      const list = await listMyConnections(session.user.id)
+      setConnections(list)
+    } catch (err) {
+      console.error('[AppContext] refreshConnections failed', err)
+    }
+  }, [session?.user?.id])
+
   // Load profile whenever session changes
   useEffect(() => {
     if (!session?.user) {
@@ -223,6 +235,31 @@ export function AppProvider({ children }) {
       })
     return () => { cancelled = true }
   }, [mapProfileToCurrentUser, resetLocalAuthState, session])
+
+  useEffect(() => {
+    if (!session?.user?.id || !currentUser?.id) return
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const pending = window.localStorage.getItem(PENDING_INVITE_KEY)
+        if (!pending) return
+        try {
+          await redeemInvite(pending)
+          window.localStorage.removeItem(PENDING_INVITE_KEY)
+          const list = await listMyConnections(session.user.id)
+          if (!cancelled) setConnections(list)
+        } catch (err) {
+          console.warn('[AppContext] pending invite redeem failed', err)
+          window.localStorage.removeItem(PENDING_INVITE_KEY)
+        }
+      } catch {
+        // localStorage unavailable
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [session?.user?.id, currentUser?.id])
 
   // Global realtime subscription for incoming chat messages
   useEffect(() => {
@@ -807,6 +844,7 @@ export function AppProvider({ children }) {
       declineApplication,
       loadApplicationsForCircle,
       refreshProfile,
+      refreshConnections,
       currentlyOpenChatId,
       setCurrentlyOpenChatId,
       profileError,
@@ -815,7 +853,7 @@ export function AppProvider({ children }) {
       profileLoading,
       signOut
     }),
-    [currentUser, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion],
+    [currentUser, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

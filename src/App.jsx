@@ -13,6 +13,7 @@ import UserProfilePage from './pages/UserProfile.jsx'
 import SettingsPage from './pages/Settings.jsx'
 import NotificationsPage from './pages/Notifications.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
+import InviteLandingPage from './pages/InviteLanding.jsx'
 const clr = {
   bg: 'var(--bg)',
   white: 'var(--white)',
@@ -221,6 +222,7 @@ function AuthGuard() {
   const { session, authLoading, currentUser, profileError, refreshProfile, signOut } = useAppContext()
   const location = useLocation()
   const onAuthRoute = location.pathname === '/auth' || location.pathname === '/auth/callback'
+  const onPublicInviteRoute = location.pathname.startsWith('/invite/')
 
   const handleProfileRetry = async () => {
     if (profileError && isProfileSessionFatalError(profileError)) {
@@ -254,7 +256,7 @@ function AuthGuard() {
     )
   }
 
-  if (!session && !onAuthRoute) {
+  if (!session && !onAuthRoute && !onPublicInviteRoute) {
     return <Navigate to="/auth" replace />
   }
   if (session && onAuthRoute) {
@@ -268,6 +270,7 @@ function AuthGuard() {
 function App() {
   return (
     <Routes>
+      <Route path="/invite/:token" element={<InviteLandingPage />} />
       <Route element={<AuthGuard />}>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />

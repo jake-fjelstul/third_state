@@ -60,7 +60,7 @@ export default function UserProfile() {
   return (
     <div style={{ minHeight:'100vh', backgroundColor:clr.bg, paddingBottom:100, fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ padding:'20px 24px 0', display:'flex', justifyContent:'space-between' }}>
-        <button onClick={() => navigate(-1)} style={{ background:'none', border:'none', cursor:'pointer' }}>
+        <button onClick={() => navigate('/feed')} style={{ background:'none', border:'none', cursor:'pointer' }}>
           <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
             <polyline points="15 18 9 12 15 6" />
           </svg>

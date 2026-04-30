@@ -18,7 +18,7 @@ export default function ProfileCompletionCard({ completeness }) {
 
   if (completeness.isComplete || dismissed) return null
 
-  const chips = completeness.missing.slice(0, 2)
+  const chips = completeness.missing.slice(0, 1)
 
   const dismiss = () => {
     try {
@@ -33,9 +33,9 @@ export default function ProfileCompletionCard({ completeness }) {
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
-        padding: '18px 20px',
-        marginBottom: 20,
+        gap: 10,
+        padding: '12px 14px',
+        marginBottom: 16,
         backgroundColor: 'var(--white)',
         borderRadius: 20,
         boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
@@ -47,8 +47,8 @@ export default function ProfileCompletionCard({ completeness }) {
         aria-label="Dismiss"
         style={{
           position: 'absolute',
-          top: 12,
-          right: 12,
+          top: 8,
+          right: 8,
           width: 28,
           height: 28,
           display: 'flex',
@@ -68,26 +68,26 @@ export default function ProfileCompletionCard({ completeness }) {
       </button>
 
       <div style={{ flexShrink: 0 }}>
-        <ProfileProgressRing percent={completeness.percent} size={56} />
+        <ProfileProgressRing percent={completeness.percent} size={44} />
       </div>
 
-      <div style={{ flex: 1, minWidth: 0, paddingRight: 20 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--textDark)', margin: '0 0 4px 0' }}>
+      <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 800, color: 'var(--textDark)', margin: '0 0 2px 0', lineHeight: 1.2 }}>
           Complete your profile
         </h2>
-        <p style={{ fontSize: 13, color: 'var(--textMid)', margin: '0 0 10px 0', lineHeight: 1.45 }}>
+        <p style={{ fontSize: 12, color: 'var(--textMid)', margin: '0 0 6px 0', lineHeight: 1.35 }}>
           Help others find you and get better matches
         </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {chips.map(({ key, label }) => (
             <span
               key={key}
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 600,
                 color: 'var(--indigo)',
                 backgroundColor: 'var(--indigoLt)',
-                padding: '4px 10px',
+                padding: '3px 8px',
                 borderRadius: 999,
               }}
             >
@@ -102,10 +102,11 @@ export default function ProfileCompletionCard({ completeness }) {
         onClick={() => navigate('/profile?edit=1')}
         style={{
           flexShrink: 0,
-          padding: '10px 18px',
+          marginLeft: 2,
+          padding: '8px 12px',
           borderRadius: 999,
           border: 'none',
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 700,
           color: '#fff',
           cursor: 'pointer',
@@ -113,7 +114,7 @@ export default function ProfileCompletionCard({ completeness }) {
           boxShadow: '0 4px 14px rgba(91,95,239,0.35)',
         }}
       >
-        Complete →
+        Complete
       </button>
     </div>
   )

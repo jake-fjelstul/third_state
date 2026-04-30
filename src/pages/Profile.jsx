@@ -9,6 +9,7 @@ import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 import { uploadAvatar, deleteAvatar } from '../lib/storage'
 import { avatarFor } from '../lib/avatar'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
+import { buildInviteMessage, classifyContact, createInvite } from '../lib/invites.js'
 
 const INTERESTS = [
   'Rock Climbing','Hiking','Coffee','Startups','Photography','Chess',
@@ -30,7 +31,7 @@ const clr = {
 }
 
 export default function Profile() {
-  const { currentUser, setCurrentUser, joinedCircles, meetups, connections, refreshProfile } = useAppContext()
+  const { currentUser, joinedCircles, meetups, connections, refreshProfile } = useAppContext()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [editing, setEditing] = useState(false)
@@ -123,41 +124,85 @@ export default function Profile() {
     if (!currentUser?.id || saving) return
     setSaving(true)
     try {
-      const row = await updateProfile(currentUser?.id, {
-        name: draft.name.trim(),
-        age: Number(draft.age) || null,
-        city: draft.city?.label || null,
-        latitude: draft.city?.lat || null,
-        longitude: draft.city?.lng || null,
-        bio: draft.bio.trim() || null,
-        interests: draft.interests,
-        intents: draft.intents,
+      await updateProfile(currentUser.id, {
+        name: draft.name?.trim() || currentUser.name,
+        age: draft.age ? Number(draft.age) : null,
+        city: draft.city?.label || draft.city || null,
+        latitude: draft.city?.lat ?? currentUser.latitude ?? null,
+        longitude: draft.city?.lng ?? currentUser.longitude ?? null,
+        bio: draft.bio?.trim() ?? '',
+        interests: draft.interests || [],
+        intents: draft.intents || [],
         avatar_url: draft.avatar || null,
       })
-      setCurrentUser(prev => ({
-        ...prev,
-        id: row.id,
-        name: row.name,
-        age: row.age,
-        city: row.city,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        bio: row.bio,
-        avatar: row.avatar_url || '',
-        interests: row.interests || [],
-        intents: row.intents || [],
-      }))
-      await refreshProfile().catch(() => {})
       setEditing(false)
       stripEditQuery()
-      setToastMsg('Profile saved.')
+      try {
+        await refreshProfile()
+      } catch (refreshErr) {
+        console.warn('[Profile] refreshProfile failed after save', refreshErr)
+      }
+      setToastMsg('Profile saved')
       setTimeout(() => setToastMsg(null), 2500)
     } catch (err) {
-      console.error('[Profile] updateProfile failed', err)
-      setToastMsg('Could not save profile. Please try again.')
-      setTimeout(() => setToastMsg(null), 3000)
+      console.error('[Profile] save failed', err)
+      setToastMsg('Couldn\'t save — try again')
+      setTimeout(() => setToastMsg(null), 3500)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendInvite = async () => {
+    const contact = inviteInput.trim()
+    const kind = classifyContact(contact)
+    if (!kind || !currentUser?.id) {
+      setToastMsg('Enter a valid email or phone number')
+      setTimeout(() => setToastMsg(null), 3000)
+      return
+    }
+
+    try {
+      const { url } = await createInvite({
+        inviterId: currentUser.id,
+        recipientContact: contact,
+      })
+      const body = buildInviteMessage({ senderName: currentUser.name, url })
+
+      if (kind === 'email') {
+        const subject = encodeURIComponent(`${currentUser.name} invited you to Third Space`)
+        const bodyEnc = encodeURIComponent(body)
+        window.location.href = `mailto:${contact}?subject=${subject}&body=${bodyEnc}`
+      } else {
+        const bodyEnc = encodeURIComponent(body)
+        window.location.href = `sms:${contact}?body=${bodyEnc}`
+      }
+
+      setShowExternalInvite(false)
+      setInviteInput('')
+      setToastMsg(`Opening ${kind === 'email' ? 'mail' : 'messages'}...`)
+      setTimeout(() => setToastMsg(null), 2500)
+    } catch (err) {
+      console.error('[Profile] invite send failed', err)
+      setToastMsg('Couldn\'t create invite — try again')
+      setTimeout(() => setToastMsg(null), 3500)
+    }
+  }
+
+  const handleCopyInviteLink = async () => {
+    if (!currentUser?.id) return
+    try {
+      const { url } = await createInvite({
+        inviterId: currentUser.id,
+        recipientContact: inviteInput.trim() || null,
+      })
+      await navigator.clipboard.writeText(url)
+      setToastMsg('Link copied')
+      setTimeout(() => setToastMsg(null), 2500)
+    } catch (err) {
+      console.error('[Profile] copy invite failed', err)
+      setToastMsg('Couldn\'t copy link — try again')
+      setTimeout(() => setToastMsg(null), 3500)
     }
   }
 
@@ -735,11 +780,11 @@ export default function Profile() {
                 padding:'10px 24px', borderRadius:999, border:'none',
                 background: `linear-gradient(135deg, var(--indigo), #8B84FF)`,
                 color:'#fff', fontSize:14, fontWeight:600,
-                cursor: saving ? 'not-allowed' : 'pointer',
+                cursor: saving ? 'default' : 'pointer',
                 opacity: saving ? 0.7 : 1,
                 boxShadow:'0 4px 14px rgba(91,95,239,0.35)',
               }}>
-                {saving ? 'Saving…' : 'Save Changes'}
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
@@ -768,7 +813,7 @@ export default function Profile() {
               </button>
             </div>
             
-            <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 16px 0' }}>Invite friends to join you using their phone number or email address.</p>
+            <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 16px 0' }}>Invite friends to join you using their phone number or email address. SMS deep links work best on mobile.</p>
 
             <input 
               autoFocus
@@ -787,28 +832,41 @@ export default function Profile() {
               <p style={{ margin: 0, fontSize: 12, color: clr.indigo, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Message Preview</p>
               <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>
                 Hey! I'm using Third Space to find local meetups. Join me here:{' '}
-                <span style={{color: clr.indigo, textDecoration: 'underline'}}>https://third.space/join/{currentUser?.name?.split(' ')[0]?.toLowerCase()}</span>
+                <span style={{color: clr.indigo, textDecoration: 'underline'}}>third-state.vercel.app/invite/...</span>
               </p>
             </div>
 
             <button 
-              disabled={!inviteInput.trim()}
-              onClick={() => {
-                setShowExternalInvite(false);
-                setToastMsg(`Invite sent to ${inviteInput}!`);
-                setInviteInput('');
-                setTimeout(() => setToastMsg(null), 3000);
-              }}
+              disabled={!inviteInput.trim() || !classifyContact(inviteInput)}
+              onClick={handleSendInvite}
               style={{
                 width: '100%', padding: '16px', borderRadius: 999, border: 'none',
-                background: !inviteInput.trim() ? clr.border : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                color: !inviteInput.trim() ? clr.textMid : '#FFF',
-                fontSize: 16, fontWeight: 800, cursor: !inviteInput.trim() ? 'default' : 'pointer',
-                boxShadow: !inviteInput.trim() ? 'none' : '0 6px 20px rgba(91,95,239,0.3)',
+                background: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.border : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
+                color: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.textMid : '#FFF',
+                fontSize: 16, fontWeight: 800, cursor: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'default' : 'pointer',
+                boxShadow: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'none' : '0 6px 20px rgba(91,95,239,0.3)',
                 transition: 'all 0.2s ease'
               }}
             >
               Send Invite
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyInviteLink}
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginTop: 10,
+                borderRadius: 999,
+                border: `1.5px solid ${clr.border}`,
+                background: clr.white,
+                color: clr.textDark,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Copy link
             </button>
           </div>
         </div>

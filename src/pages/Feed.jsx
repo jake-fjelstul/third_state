@@ -930,7 +930,7 @@ export default function Feed() {
     <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: "'DM Sans','Inter',sans-serif", paddingBottom: 110 }}>
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
-        <ProfileCompletionCard completeness={completeness} />
+        {!completeness.isComplete && <ProfileCompletionCard completeness={completeness} />}
         {/* ── Greeting ── */}
         <div style={{ padding: '12px 0 16px' }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: clr.textDark, margin: '0 0 6px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display','Georgia',serif" }}>

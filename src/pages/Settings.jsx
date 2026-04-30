@@ -2,6 +2,7 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { useState, useEffect } from 'react'
 import { updateProfile } from '../lib/auth'
 import { useCalendar } from '../hooks/useCalendar.js'
+import { useNavigate } from 'react-router-dom'
 
 const clr = {
   bg:       'var(--bg)',
@@ -15,6 +16,7 @@ const clr = {
 }
 
 export default function Settings() {
+  const navigate = useNavigate()
   const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, importDiscordServer, signOut } = useAppContext()
   const { isConnected: isCalendarConnected, isLoading: calendarLoading, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
   const [notifyConnections, setNotifyConnections] = useState(true)
@@ -102,9 +104,28 @@ export default function Settings() {
         margin: '0 auto',
         padding: '24px 20px 80px',
       }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, marginBottom: 24, paddingLeft: 4 }}>
-          Settings
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingLeft: 4 }}>
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            aria-label="Back to profile"
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              border: 'none', backgroundColor: clr.white,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="18" height="18" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0 }}>
+            Settings
+          </h1>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           
