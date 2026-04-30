@@ -5,6 +5,7 @@ import { listCirclesForUser } from '../lib/circles'
 import { updateProfile } from '../lib/auth'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import ImageUploader from '../components/ui/ImageUploader.jsx'
+import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 import { uploadAvatar, deleteAvatar } from '../lib/storage'
 import { avatarFor } from '../lib/avatar'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
@@ -33,7 +34,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState({ name: '', age: '', city: '', bio: '', interests: [], intents: [], avatar: '' })
+  const [draft, setDraft] = useState({ name: '', age: '', city: null, bio: '', interests: [], intents: [], avatar: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function Profile() {
     setDraft({
       name: currentUser?.name || '',
       age: currentUser?.age ?? '',
-      city: currentUser?.city ?? '',
+      city: currentUser?.city ? { label: currentUser.city, lat: currentUser.latitude, lng: currentUser.longitude } : null,
       bio: currentUser?.bio ?? '',
       interests: currentUser?.interests ?? [],
       intents: currentUser?.intents ?? [],
@@ -54,7 +55,7 @@ export default function Profile() {
     if (!editing) return currentUser
     return {
       ...currentUser,
-      city: draft.city,
+      city: draft.city?.label || '',
       bio: draft.bio,
       interests: draft.interests,
       intents: draft.intents,
@@ -125,7 +126,9 @@ export default function Profile() {
       const row = await updateProfile(currentUser?.id, {
         name: draft.name.trim(),
         age: Number(draft.age) || null,
-        city: draft.city.trim() || null,
+        city: draft.city?.label || null,
+        latitude: draft.city?.lat || null,
+        longitude: draft.city?.lng || null,
         bio: draft.bio.trim() || null,
         interests: draft.interests,
         intents: draft.intents,
@@ -137,6 +140,8 @@ export default function Profile() {
         name: row.name,
         age: row.age,
         city: row.city,
+        latitude: row.latitude,
+        longitude: row.longitude,
         bio: row.bio,
         avatar: row.avatar_url || '',
         interests: row.interests || [],
@@ -293,9 +298,9 @@ export default function Profile() {
         {/* ── Stats row ── */}
         <div style={{ display:'flex', gap:12, padding:'0 20px 28px', justifyContent:'center' }}>
           {[
-            { value: currentUser?.stats?.circlesJoined  ?? joinedCircles.length, label:'CIRCLES',     route: '/circles' },
-            { value: currentUser?.stats?.meetupsAttended ?? meetups.length,       label:'MEETUPS',     route: '/schedule' },
-            { value: currentUser?.stats?.connections     ?? 85,                   label:'CONNECTIONS', id: 'connections-section' },
+            { value: joinedCircles.length, label:'CIRCLES', route: '/circles' },
+            { value: meetups.length, label:'MEETUPS', route: '/schedule' },
+            { value: connections.length, label:'CONNECTIONS', id: 'connections-section' },
           ].map(({ value, label, route, id }) => (
             <div key={label} 
               onClick={() => {
@@ -583,20 +588,7 @@ export default function Profile() {
                     <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--modal-suggest-chip-text)', backgroundColor: 'var(--modal-suggest-chip-bg)', padding: '2px 8px', borderRadius: 999 }}>Suggested</span>
                   )}
                 </div>
-                <input type="text" value={draft.city}
-                  onChange={e => setDraft(d => ({ ...d, city: e.target.value }))}
-                  placeholder="Austin, TX"
-                  style={{
-                    width:'100%', boxSizing:'border-box',
-                    padding:'10px 14px', borderRadius:12,
-                    border:`1.5px solid ${clr.border}`,
-                    backgroundColor: clr.bg,
-                    fontSize:14, color: clr.textDark,
-                    outline:'none', fontFamily:'inherit',
-                  }}
-                  onFocus={e => e.target.style.borderColor = clr.indigo}
-                  onBlur={e  => e.target.style.borderColor = clr.border}
-                />
+                <CityAutocomplete value={draft.city} onChange={(cityObj) => setDraft(d => ({ ...d, city: cityObj }))} placeholder="Austin, TX" clr={clr} />
               </div>
               <div
                 id="profile-edit-section-bio"

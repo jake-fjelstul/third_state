@@ -146,6 +146,7 @@ export default function Schedule() {
   const navigate = useNavigate()
   const [calView, setCalView] = useState('week')
   const [weekOffset, setWeekOffset] = useState(0)
+  const [monthOffset, setMonthOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState(new Date())
   
   const [showForm, setShowForm] = useState(false)
@@ -212,6 +213,33 @@ export default function Schedule() {
   const selectedDayEvents = useMemo(() => {
     return allCalendarEvents.filter(e => e.dateObj && isSameDay(e.dateObj, selectedDay))
   }, [allCalendarEvents, selectedDay])
+  const monthRefDate = useMemo(() => {
+    const ref = new Date()
+    ref.setMonth(ref.getMonth() + monthOffset)
+    return ref
+  }, [monthOffset])
+
+  const advance = (delta) => {
+    if (calView === 'day') {
+      setSelectedDay((d) => {
+        const next = new Date(d)
+        next.setDate(next.getDate() + delta)
+        return next
+      })
+      return
+    }
+    if (calView === 'month') {
+      setMonthOffset((m) => m + delta)
+      return
+    }
+    setWeekOffset((w) => w + delta)
+  }
+
+  const goToToday = () => {
+    setSelectedDay(new Date())
+    setWeekOffset(0)
+    setMonthOffset(0)
+  }
 
   // Form handling
   const joinedCircleOptions = circles.filter((c) => joinedCircles.includes(c.id))
@@ -346,7 +374,7 @@ export default function Schedule() {
           </div>
 
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <button onClick={() => setWeekOffset(w => w - 1)} style={{
+            <button onClick={() => advance(-1)} style={{
               width:32, height:32, borderRadius:'50%', border:'none',
               backgroundColor: clr.white, boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
               cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
@@ -355,13 +383,13 @@ export default function Schedule() {
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
-            <button onClick={() => setWeekOffset(0)} style={{
+            <button onClick={goToToday} style={{
               fontSize: 12, fontWeight: 600, color: clr.indigo,
               background:'none', border:'none', cursor:'pointer',
             }}>
               Today
             </button>
-            <button onClick={() => setWeekOffset(w => w + 1)} style={{
+            <button onClick={() => advance(1)} style={{
               width:32, height:32, borderRadius:'50%', border:'none',
               backgroundColor: clr.white, boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
               cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
@@ -373,8 +401,8 @@ export default function Schedule() {
           </div>
         </div>
 
-        {/* SECTION C: Week view calendar grid */}
-        <div style={{
+        {/* SECTION C: Calendar grid */}
+        {calView === 'week' && <div style={{
           backgroundColor: clr.white, borderRadius: 20,
           overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           marginBottom: 24,
@@ -438,7 +466,77 @@ export default function Schedule() {
               )
             })}
           </div>
-        </div>
+        </div>}
+
+        {calView === 'day' && (
+          <div style={{ backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+            <div style={{ padding: 16, textAlign: 'center', borderBottom: `1px solid ${clr.border}` }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 4px' }}>
+                {selectedDay.toLocaleDateString('en-US', { weekday: 'long' })}
+              </p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0 }}>
+                {selectedDay.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+            <div style={{ padding: 8 }}>
+              {Array.from({ length: 17 }, (_, i) => i + 7).map((hour) => {
+                const eventsThisHour = selectedDayEvents.filter((e) => e.dateObj && e.dateObj.getHours() === hour)
+                return (
+                  <div key={hour} style={{ display: 'flex', borderBottom: `1px solid ${clr.border}`, minHeight: 56 }}>
+                    <div style={{ width: 56, padding: '8px 0', fontSize: 11, color: clr.textMid, textAlign: 'right', paddingRight: 12 }}>
+                      {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                    </div>
+                    <div style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {eventsThisHour.map((event) => (
+                        <div key={event.id} onClick={() => openEventDetail(event)} style={{ backgroundColor: event.source === 'google' ? '#EFF6FF' : clr.indigoLt, borderLeft: `3px solid ${event.source === 'google' ? '#3B82F6' : clr.indigo}`, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: clr.textDark }}>
+                          {event.title}
+                          <div style={{ fontSize: 11, fontWeight: 400, color: clr.textMid, marginTop: 2 }}>{event.time}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {calView === 'month' && (() => {
+          const firstOfMonth = new Date(monthRefDate.getFullYear(), monthRefDate.getMonth(), 1)
+          const startDay = firstOfMonth.getDay() || 7
+          const daysInMonth = new Date(monthRefDate.getFullYear(), monthRefDate.getMonth() + 1, 0).getDate()
+          const cells = []
+          for (let i = 0; i < startDay - 1; i++) cells.push(null)
+          for (let d = 1; d <= daysInMonth; d++) {
+            cells.push(new Date(monthRefDate.getFullYear(), monthRefDate.getMonth(), d))
+          }
+          return (
+            <div style={{ backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+              <div style={{ padding: 16, textAlign: 'center' }}>
+                <p style={{ fontSize: 20, fontWeight: 800, color: clr.textDark, margin: 0 }}>
+                  {monthRefDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: `1px solid ${clr.border}` }}>
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                  <div key={`${d}-${i}`} style={{ padding: 8, fontSize: 11, fontWeight: 700, color: clr.textMid, textAlign: 'center', borderBottom: `1px solid ${clr.border}` }}>{d}</div>
+                ))}
+                {cells.map((day, i) => {
+                  if (!day) return <div key={`empty-${i}`} style={{ minHeight: 64, borderBottom: `1px solid ${clr.border}`, borderRight: `1px solid ${clr.border}` }} />
+                  const dayEvents = allCalendarEvents.filter((e) => e.dateObj && isSameDay(e.dateObj, day))
+                  const isToday = isSameDay(day, today)
+                  const isSelected = isSameDay(day, selectedDay)
+                  return (
+                    <button key={day.toISOString()} onClick={() => { setSelectedDay(day); setCalView('day') }} style={{ minHeight: 64, padding: 4, border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: `1px solid ${clr.border}`, borderRight: `1px solid ${clr.border}`, backgroundColor: isSelected ? clr.indigoLt : isToday ? '#FFFBEB' : clr.white }}>
+                      <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: clr.textDark }}>{day.getDate()}</div>
+                      {dayEvents.length > 0 && <div style={{ marginTop: 2, fontSize: 10, color: clr.indigo, fontWeight: 600 }}>{dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}</div>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* SECTION D: Selected Day Detail */}
         <div style={{ marginBottom: 24 }}>

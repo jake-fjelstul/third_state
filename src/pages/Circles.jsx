@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listProfiles } from '../lib/profiles'
-import { listCircles } from '../lib/circles'
+import { listCircles, listJoinedCircleMembers } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 
@@ -418,7 +418,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
 
 export default function Circles() {
   const navigate = useNavigate()
-  const { currentUser, joinedCircles, joinCircle, startDM, chatState } = useAppContext()
+  const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion } = useAppContext()
 
   const [activeTab, setActiveTab] = useState('circles')
   const [circleOrder, setCircleOrder] = useState(joinedCircles)
@@ -450,52 +450,69 @@ export default function Circles() {
     let cancelled = false
     setCirclesLoading(true)
     listCircles()
-      .then(list => { if (!cancelled) { setCircles(list); setCirclesError(null) } })
+      .then(async (list) => {
+        if (cancelled) return
+        try {
+          const membersByCircle = await listJoinedCircleMembers(currentUser?.id)
+          if (cancelled) return
+          const withMembers = list.map((c) => membersByCircle[c.id] ? { ...c, members: membersByCircle[c.id] } : c)
+          setCircles(withMembers)
+          setCirclesError(null)
+        } catch (err) {
+          setCircles(list)
+          setCirclesError(null)
+          console.error('[Circles] listJoinedCircleMembers failed', err)
+        }
+      })
       .catch(err => { if (!cancelled) setCirclesError(err) })
       .finally(() => { if (!cancelled) setCirclesLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [currentUser?.id, circleMembershipVersion])
 
   const rankedConnections = useMemo(() => {
     const seen = new Set()
-    const connected = []
+    const result = []
 
-    joinedCircles.forEach(circleId => {
-      const circle = circles.find(c => c.id === circleId)
-      ;(circle?.members || []).forEach(member => {
-        if (!seen.has(member.id) && member.id !== currentUser?.id) {
-          seen.add(member.id)
-          connected.push({
-            ...member,
-            score: getInteractionScore(member, chatState, circles, joinedCircles),
-              sharedCircles: joinedCircles
-                .filter(cid => {
-                  const c = circles.find(x => x.id === cid)
-                  return (c?.members || []).some(m => m.id === member.id)
-                })
-                .map(cid => circles.find(x => x.id === cid))
-                .filter(Boolean),
-          })
-        }
+    connections.forEach((person) => {
+      if (seen.has(person.id) || person.id === currentUser?.id) return
+      seen.add(person.id)
+      result.push({
+        ...person,
+        score: getInteractionScore(person, chatState, circles, joinedCircles),
+        sharedCircles: joinedCircles
+          .map((cid) => circles.find((c) => c.id === cid))
+          .filter((c) => c && (c.members || []).some((m) => m.id === person.id)),
       })
     })
 
-    Object.values(chatState ?? {}).forEach(chat => {
-      if (chat.type === 'dm' && chat.personId && !seen.has(chat.personId) && chat.personId !== currentUser?.id) {
-        const person = people.find(p => p.id === chat.personId)
-        if (person) {
-          seen.add(person.id)
-          connected.push({
-            ...person,
-            score: getInteractionScore(person, chatState, circles, joinedCircles),
-            sharedCircles: [],
-          })
-        }
-      }
+    joinedCircles.forEach((circleId) => {
+      const circle = circles.find((c) => c.id === circleId)
+      ;(circle?.members || []).forEach((member) => {
+        if (seen.has(member.id) || member.id === currentUser?.id) return
+        seen.add(member.id)
+        result.push({
+          ...member,
+          score: getInteractionScore(member, chatState, circles, joinedCircles),
+          sharedCircles: [circle].filter(Boolean),
+        })
+      })
     })
 
-    return connected.sort((a, b) => b.score - a.score)
-  }, [joinedCircles, chatState, circles, currentUser?.id])
+    Object.values(chatState ?? {}).forEach((chat) => {
+      if (chat.type !== 'dm' || !chat.personId) return
+      if (seen.has(chat.personId) || chat.personId === currentUser?.id) return
+      const person = people.find((p) => p.id === chat.personId)
+      if (!person) return
+      seen.add(person.id)
+      result.push({
+        ...person,
+        score: getInteractionScore(person, chatState, circles, joinedCircles),
+        sharedCircles: [],
+      })
+    })
+
+    return result.sort((a, b) => b.score - a.score)
+  }, [connections, joinedCircles, chatState, circles, currentUser?.id, people])
 
   const filteredConnections = useMemo(() => {
     return rankedConnections.filter(person => {

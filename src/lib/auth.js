@@ -1,10 +1,17 @@
 import { supabase } from './supabase'
 
-export async function signUp({ email, password, name, age, city }) {
+function isMissingColumnError(error, columnName) {
+  return error?.code === 'PGRST204' && String(error?.message || '').includes(`'${columnName}'`)
+}
+
+export async function signUp({ email, password, name, age, city, latitude, longitude }) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name, age, city } },
+    options: {
+      data: { name, age, city, latitude, longitude },
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+    },
   })
   if (error) throw error
   return data
@@ -60,6 +67,8 @@ export function profileRowFromAuthUser(user) {
     name,
     age,
     city: meta.city || null,
+    latitude: meta.latitude != null ? Number(meta.latitude) : null,
+    longitude: meta.longitude != null ? Number(meta.longitude) : null,
     avatar_url: meta.avatar_url || meta.picture || null,
   }
 }
@@ -107,12 +116,28 @@ export async function fetchProfileForUser(user) {
 }
 
 export async function updateProfile(userId, patch) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', userId)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const payload = { ...patch, updated_at: new Date().toISOString() }
+  const runUpdate = async (updatePatch) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updatePatch)
+      .eq('id', userId)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  try {
+    return await runUpdate(payload)
+  } catch (error) {
+    const missingLatitude = isMissingColumnError(error, 'latitude')
+    const missingLongitude = isMissingColumnError(error, 'longitude')
+    if (!missingLatitude && !missingLongitude) throw error
+
+    const fallbackPatch = { ...payload }
+    delete fallbackPatch.latitude
+    delete fallbackPatch.longitude
+    return await runUpdate(fallbackPatch)
+  }
 }

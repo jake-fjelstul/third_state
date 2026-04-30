@@ -5,6 +5,7 @@ import { listUpcomingEvents } from '../../lib/events'
 import { useAppContext } from '../../context/AppContext.jsx'
 import { avatarFor } from '../../lib/avatar'
 import { resolveCircleCover } from '../../lib/circleCover'
+import { haversineMiles } from '../../lib/geo'
 
 /* ── Colors (from app theme) ── */
 const clr = {
@@ -126,7 +127,7 @@ function DiscoveryCard({ card }) {
 }
 
 export default function SwipeDiscovery({ onClose }) {
-  const { joinCircle, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius } = useAppContext()
+  const { joinCircle, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser } = useAppContext()
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events'])
   const [cardIndex, setCardIndex] = useState(0)
   
@@ -180,15 +181,22 @@ export default function SwipeDiscovery({ onClose }) {
     const swipes = discoverySwipes.date === today ? discoverySwipes : { person:0, circle:0, event:0 }
 
     const getMockDist = (id) => ((String(id).charCodeAt(0) * 13 + String(id).length * 7) % 50) + 1
+    const myLat = currentUser?.latitude
+    const myLng = currentUser?.longitude
+    const personDistanceTo = (person) => haversineMiles(myLat, myLng, person.latitude, person.longitude)
 
     if (activeFilters.includes('people')) {
       const allowed = Math.max(0, 5 - (swipes.person || 0))
       cards.push(...people
-        .filter(p => getMockDist(p.id) <= searchRadius)
+        .filter(p => {
+          const dist = personDistanceTo(p)
+          return dist == null || dist <= searchRadius
+        })
         .slice(0, allowed)
-        .map(p => ({ type: 'person', data: p, distance: getMockDist(p.id) }))
+        .map(p => ({ type: 'person', data: p, distance: personDistanceTo(p) == null ? '?' : Math.round(personDistanceTo(p)) }))
       )
     }
+    // TODO: switch circles/events to real distance when those entities store lat/lng.
     if (activeFilters.includes('circles')) {
       const allowed = Math.max(0, 5 - (swipes.circle || 0))
       cards.push(...circles
@@ -205,7 +213,7 @@ export default function SwipeDiscovery({ onClose }) {
     }
     return cards.sort(() => Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius, circles, people, events])
+  }, [activeFilters, searchRadius, circles, people, events, discoverySwipes, currentUser?.latitude, currentUser?.longitude])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]
@@ -438,7 +446,7 @@ export default function SwipeDiscovery({ onClose }) {
             <p style={{ fontSize: 15, color: clr.textMid, marginBottom: 24, lineHeight: 1.5 }}>
               Check back later for new people and events near you.
             </p>
-            <button onClick={() => setCardIndex(0)} style={{
+            <button onClick={() => { resetDiscoverySwipes(); setCardIndex(0) }} style={{
               padding: '12px 32px', borderRadius: 999, border: 'none', cursor: 'pointer',
               background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
               color: '#FFFFFF', fontSize: 15, fontWeight: 700,

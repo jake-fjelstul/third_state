@@ -845,7 +845,7 @@ function SocialBattery() {
 /* ── Main Feed ── */
 export default function Feed() {
   const navigate = useNavigate()
-  const { currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd } = useAppContext()
+  const { currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd, circleMembershipVersion } = useAppContext()
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -865,7 +865,7 @@ export default function Feed() {
       .then(list => { if (!cancelled) setEvents(list) })
       .catch(err => console.error('[Feed] listUpcomingEvents failed', err))
     return () => { cancelled = true }
-  }, [currentUser?.id])
+  }, [currentUser?.id, circleMembershipVersion])
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
 

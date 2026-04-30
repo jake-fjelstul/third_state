@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signUp, signIn, resetPassword, signInWithGoogle } from '../lib/auth'
+import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 
 const clr = {
   bg:        'var(--bg)',
@@ -39,7 +40,7 @@ function AuthPage() {
   
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
-  const [city, setCity] = useState('')
+  const [city, setCity] = useState(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -67,13 +68,15 @@ function AuthPage() {
     try {
       if (mode === 'signup') {
         if (!name.trim()) throw new Error('Name is required')
-        if (!city.trim()) throw new Error('City is required')
+        if (!city?.label?.trim()) throw new Error('City is required')
         await signUp({
           email: emailTrimmed,
           password,
           name: name.trim(),
           age: age ? Number(age) : undefined,
-          city: city.trim(),
+          city: city.label,
+          latitude: city.lat,
+          longitude: city.lng,
         })
         navigate('/feed')
       } else if (mode === 'signin') {
@@ -181,10 +184,7 @@ function AuthPage() {
               </div>
               <div>
                 <label style={{ display:'block', fontSize:13, fontWeight:600, color:'#475569', marginBottom:6 }}>City</label>
-                <input
-                  type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="Austin, TX"
-                  style={inputStyle} onFocus={e => e.target.style.borderColor = clr.indigo} onBlur={e => e.target.style.borderColor = clr.border}
-                />
+                <CityAutocomplete value={city} onChange={setCity} placeholder="Austin, TX" clr={clr} />
               </div>
             </>
           )}

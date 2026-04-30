@@ -79,6 +79,36 @@ export async function listCirclesForUser(userId) {
   return (data || []).map(r => r.circles).filter(Boolean).map(mapCircleRow)
 }
 
+export async function listJoinedCircleMembers(userId) {
+  if (!userId) return {}
+  const { data: mine, error: mineErr } = await supabase
+    .from('circle_members')
+    .select('circle_id')
+    .eq('user_id', userId)
+  if (mineErr) throw mineErr
+  const circleIds = (mine || []).map((r) => r.circle_id).filter(Boolean)
+  if (circleIds.length === 0) return {}
+
+  const { data, error } = await supabase
+    .from('circle_members')
+    .select('circle_id, user_id, profiles(id, name, avatar_url)')
+    .in('circle_id', circleIds)
+  if (error) throw error
+
+  const byCircle = {}
+  for (const row of data || []) {
+    const p = row.profiles || {}
+    if (!p.id) continue
+    if (!byCircle[row.circle_id]) byCircle[row.circle_id] = []
+    byCircle[row.circle_id].push({
+      id: p.id,
+      name: p.name,
+      avatar: p.avatar_url || '',
+    })
+  }
+  return byCircle
+}
+
 export async function getCircle(circleId) {
   if (!circleId) return null
   const [circleRes, hoopsRes, membersRes] = await Promise.all([

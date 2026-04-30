@@ -49,27 +49,39 @@ export default function CircleDetail() {
   const [circleLoading, setCircleLoading] = useState(true)
   const [circleError, setCircleError] = useState(null)
 
-  useEffect(() => {
+  const reloadCircle = useCallback(async () => {
     if (!id) return
-    let cancelled = false
     setCircleLoading(true)
-    Promise.all([
-      getCircle(id),
-      listEventsForCircle(id)
-    ])
-      .then(([c, evts]) => {
-        if (!cancelled && c) {
-          c.events = evts
-          setCircle(c)
-          setCircleError(null)
-        }
-      })
-      .catch(err => { if (!cancelled) setCircleError(err) })
-      .finally(() => { if (!cancelled) setCircleLoading(false) })
-    return () => { cancelled = true }
+    try {
+      const [c, evts] = await Promise.all([getCircle(id), listEventsForCircle(id)])
+      if (!c) return
+      c.events = evts
+      setCircle(c)
+      setCircleError(null)
+    } catch (err) {
+      setCircleError(err)
+    } finally {
+      setCircleLoading(false)
+    }
   }, [id])
 
-  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections } = useAppContext()
+  useEffect(() => {
+    reloadCircle()
+  }, [reloadCircle])
+
+  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion } = useAppContext()
+
+  useEffect(() => {
+    reloadCircle()
+  }, [circleMembershipVersion, reloadCircle])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reloadCircle()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [reloadCircle])
   const [activeTab, setActiveTab] = useState('about')
   const [showHoopApp, setShowHoopApp] = useState(false)
   const [activeChannel, setActiveChannel] = useState('general')
@@ -137,9 +149,10 @@ export default function CircleDetail() {
       {/* ── Hero banner ── */}
       <div style={{
         background: cover.kind === 'gradient' ? cover.value : undefined,
-        paddingBottom: 56,
+        paddingBottom: 72,
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'visible',
+        zIndex: 3,
       }}>
         {cover.kind === 'image' && (
           <>
@@ -281,6 +294,7 @@ export default function CircleDetail() {
           position: 'absolute', bottom: -22,
           left: 0, right: 0,
           display: 'flex', justifyContent: 'center',
+          zIndex: 6,
         }}>
           {isJoined ? (
             <button
@@ -350,8 +364,10 @@ export default function CircleDetail() {
       <div style={{
         backgroundColor: clr.white,
         borderBottom: `1px solid ${clr.border}`,
-        marginTop: 0, paddingTop: 32,
+        marginTop: 0, paddingTop: 24,
         display: 'flex', justifyContent: 'center',
+        position: 'relative',
+        zIndex: 2,
       }}>
         <div style={{ display: 'flex', gap: 0 }}>
           {dynamicTabs.map((tab) => {

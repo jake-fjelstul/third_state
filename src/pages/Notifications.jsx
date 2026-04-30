@@ -32,13 +32,19 @@ export default function Notifications() {
   const [drafts, setDrafts] = useState({})
   const [sentStates, setSentStates] = useState({})
   const [activityReplyId, setActivityReplyId] = useState(null)
+  const [actionStates, setActionStates] = useState({})
 
   const connectionRequests = notifications.filter(n => n.type === 'connection_request' || n.type === 'connection_accepted')
   const eventReminders = notifications.filter(n => n.type === 'event_approaching')
   const reconnectNudges = notifications.filter(n => n.type === 'reconnect_nudge')
   const circleActivity = notifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
 
+  const setActionState = (id, state) => {
+    setActionStates(prev => ({ ...prev, [id]: state }))
+  }
+
   const renderNotifCard = (notif) => {
+    const actionState = actionStates[notif.id] ?? null
     return (
       <div key={notif.id} style={{
         backgroundColor: clr.white,
@@ -129,21 +135,55 @@ export default function Notifications() {
 
           {/* Inline Actions */}
           
-          {notif.type === 'connection_request' && (
+          {notif.type === 'connection_request' && actionState === 'accepted' && (
+            <div style={{ backgroundColor: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              ✓ Accepted
+            </div>
+          )}
+
+          {notif.type === 'connection_request' && actionState === 'declined' && (
+            <div style={{ backgroundColor: '#FEF2F2', color: '#DC2626', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              Declined
+            </div>
+          )}
+
+          {notif.type === 'connection_request' && actionState !== 'accepted' && actionState !== 'declined' && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => acceptConnection(notif.requestId, notif.id)}
+              <button
+                onClick={async () => {
+                  setActionState(notif.id, 'accepting')
+                  try {
+                    await acceptConnection(notif.requestId, notif.id)
+                    setActionState(notif.id, 'accepted')
+                  } catch (err) {
+                    console.error(err)
+                    setActionState(notif.id, null)
+                  }
+                }}
+                disabled={actionState === 'accepting' || actionState === 'declining'}
                 style={{
                   flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0',
-                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: actionState === 'accepting' || actionState === 'declining' ? 'not-allowed' : 'pointer', opacity: actionState === 'accepting' || actionState === 'declining' ? 0.7 : 1,
                 }}>
-                Accept
+                {actionState === 'accepting' ? 'Accepting...' : 'Accept'}
               </button>
-              <button onClick={() => declineConnection(notif.requestId, notif.id)}
+              <button
+                onClick={async () => {
+                  setActionState(notif.id, 'declining')
+                  try {
+                    await declineConnection(notif.requestId, notif.id)
+                    setActionState(notif.id, 'declined')
+                  } catch (err) {
+                    console.error(err)
+                    setActionState(notif.id, null)
+                  }
+                }}
+                disabled={actionState === 'accepting' || actionState === 'declining'}
                 style={{
                   flex: 1, backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 0',
-                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: actionState === 'accepting' || actionState === 'declining' ? 'not-allowed' : 'pointer', opacity: actionState === 'accepting' || actionState === 'declining' ? 0.7 : 1,
                 }}>
-                Decline
+                {actionState === 'declining' ? 'Declining...' : 'Decline'}
               </button>
             </div>
           )}
@@ -160,21 +200,43 @@ export default function Notifications() {
             </div>
           )}
 
-          {notif.type === 'event_approaching' && (
+          {notif.type === 'event_approaching' && actionState === 'checked_in' && (
+            <div style={{ backgroundColor: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              Got it
+            </div>
+          )}
+
+          {notif.type === 'event_approaching' && actionState === 'cant_make_it' && (
+            <div style={{ backgroundColor: '#FEF2F2', color: '#DC2626', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              Got it
+            </div>
+          )}
+
+          {notif.type === 'event_approaching' && actionState !== 'checked_in' && actionState !== 'cant_make_it' && (
              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => dismissNotification(notif.id)}
+                <button onClick={async () => {
+                  setActionState(notif.id, 'checking_in')
+                  setActionState(notif.id, 'checked_in')
+                  setTimeout(() => { dismissNotification(notif.id) }, 120)
+                }}
+                  disabled={actionState === 'checking_in' || actionState === 'declining_event'}
                   style={{
                     backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
                     borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                   }}>
-                  Check In
+                  {actionState === 'checking_in' ? 'Saving...' : 'Check In'}
                 </button>
-                <button onClick={() => dismissNotification(notif.id)}
+                <button onClick={async () => {
+                  setActionState(notif.id, 'declining_event')
+                  setActionState(notif.id, 'cant_make_it')
+                  setTimeout(() => { dismissNotification(notif.id) }, 120)
+                }}
+                  disabled={actionState === 'checking_in' || actionState === 'declining_event'}
                   style={{
                     backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 16px',
                     borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                   }}>
-                  Can't Make It
+                  {actionState === 'declining_event' ? 'Saving...' : "Can't Make It"}
                 </button>
              </div>
           )}
@@ -321,8 +383,8 @@ export default function Notifications() {
         margin: '0 auto',
         padding: '24px 20px 80px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingLeft: 4, paddingRight: 4 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0 }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24, minHeight: 34, paddingLeft: 4, paddingRight: 4 }}>
+          <h1 style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, pointerEvents: 'none' }}>
             Notifications
           </h1>
           {unreadCount > 0 && (

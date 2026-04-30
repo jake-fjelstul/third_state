@@ -61,6 +61,7 @@ export function AppProvider({ children }) {
   const [reconnectThresholdDays, setReconnectThresholdDays] = useState(21)
   const [searchRadius, setSearchRadius] = useState(10)
   const [pendingApplications, setPendingApplications] = useState([])
+  const [circleMembershipVersion, setCircleMembershipVersion] = useState(0)
 
   const [chatState, setChatState] = useState({}) // { [chatId]: { id, type, circleId, name, lastMessage, time, unread, memberCount } }
   const [chatStateLoading, setChatStateLoading] = useState(false)
@@ -108,6 +109,8 @@ export function AppProvider({ children }) {
     avatar: profile.avatar_url || '',
     intents: profile.intents || [],
     interests: profile.interests || [],
+    latitude: profile.latitude,
+    longitude: profile.longitude,
     stats: { circlesJoined: 0, meetupsAttended: 0, connections: 0 },
   }), [])
 
@@ -325,6 +328,11 @@ export function AppProvider({ children }) {
             const mapped = mapNotificationRow(payload.new)
             if (!mapped) return
             setNotifications(prev => prev.some(n => n.id === mapped.id) ? prev : [mapped, ...prev])
+            if (payload.new?.type === 'connection_accepted' && session?.user?.id) {
+              listMyConnections(session.user.id)
+                .then(list => setConnections(list))
+                .catch(err => console.error('[AppContext] refresh connections on connection_accepted failed', err))
+            }
           } else if (payload.eventType === 'UPDATE') {
             const mapped = mapNotificationRow(payload.new)
             if (!mapped) return
@@ -415,6 +423,7 @@ export function AppProvider({ children }) {
     setJoinedCircles(prev => prev.includes(circleId) ? prev : [...prev, circleId])
     try {
       await joinCircleDb({ userId: session.user.id, circleId })
+      setCircleMembershipVersion(v => v + 1)
       chargeBattery(15, 'Joined a new circle')
     } catch (err) {
       // rollback
@@ -430,6 +439,7 @@ export function AppProvider({ children }) {
     setJoinedCircles(p => p.filter(id => id !== circleId))
     try {
       await leaveCircleDb({ userId: session.user.id, circleId })
+      setCircleMembershipVersion(v => v + 1)
     } catch (err) {
       setJoinedCircles(prev) // rollback
       console.error('[AppContext] leaveCircle failed', err)
@@ -615,6 +625,11 @@ export function AppProvider({ children }) {
     })
   }
 
+  const resetDiscoverySwipes = useCallback(() => {
+    const today = new Date().toDateString()
+    setDiscoverySwipes({ date: today, person: 0, circle: 0, event: 0 })
+  }, [])
+
   // ---------- Connection Request Flow ----------
 
   const connectWithPerson = useCallback(async (person) => {
@@ -631,9 +646,11 @@ export function AppProvider({ children }) {
 
   const acceptConnection = useCallback(async (requestId, notificationId) => {
     await acceptConnectionRequest(requestId)
-    if (notificationId) await deleteNotifDb(notificationId)
-    // realtime will remove the notification; the connections list will refresh
-    // on next session reload — for instant feedback, refetch connections:
+    if (notificationId) {
+      setNotifications(prev => prev.filter(n => n.id !== notificationId))
+      try { await deleteNotifDb(notificationId) }
+      catch (err) { console.error('[AppContext] delete notification failed', err) }
+    }
     if (session?.user) {
       try {
         const list = await listMyConnections(session.user.id)
@@ -646,7 +663,11 @@ export function AppProvider({ children }) {
 
   const declineConnection = useCallback(async (requestId, notificationId) => {
     await declineConnectionRequest(requestId)
-    if (notificationId) await deleteNotifDb(notificationId)
+    if (notificationId) {
+      setNotifications(prev => prev.filter(n => n.id !== notificationId))
+      try { await deleteNotifDb(notificationId) }
+      catch (err) { console.error('[AppContext] delete notification failed', err) }
+    }
   }, [])
 
   const disconnectFromPerson = useCallback(async (personId) => {
@@ -719,6 +740,7 @@ export function AppProvider({ children }) {
   const approveApplication = useCallback(async (appId) => {
     await approveAppDb(appId)
     setPendingApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'approved' } : a))
+    setCircleMembershipVersion(v => v + 1)
   }, [])
 
   const declineApplication = useCallback(async (appId) => {
@@ -761,6 +783,8 @@ export function AppProvider({ children }) {
       markChatRead,
       discoverySwipes,
       recordSwipe,
+      resetDiscoverySwipes,
+      circleMembershipVersion,
       connections,
       connectWithPerson,
       disconnectFromPerson,
@@ -791,7 +815,7 @@ export function AppProvider({ children }) {
       profileLoading,
       signOut
     }),
-    [currentUser, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe],
+    [currentUser, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
