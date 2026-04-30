@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { circles } from '../data/mockData'
-
-const baseAvatar = (name) => `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(name)}`
+import { useState, useEffect } from 'react'
+import { getCircle } from '../lib/circles'
+import { getEvent } from '../lib/events'
+import { avatarFor } from '../lib/avatar'
+import { useCalendar } from '../hooks/useCalendar.js'
 
 const clr = {
   bg:       'var(--bg)',
@@ -20,15 +21,47 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
 
   const rsvpd = isRsvpd?.(event.id) ?? false
 
-  // Find organizer from circle data
-  const circle = event.circleId
-    ? circles.find(c => c.id === event.circleId)
-    : null
-  const organizer = circle?.organizer ?? null
+  const [organizer, setOrganizer] = useState(null)
+  const [hydratedAttendees, setHydratedAttendees] = useState(null)
+  const [hydratedAttendeesCount, setHydratedAttendeesCount] = useState(null)
+  const [addedToCalendar, setAddedToCalendar] = useState(false)
+  const { isConnected, addEventToGoogle, connect } = useCalendar()
+
+  useEffect(() => {
+    setAddedToCalendar(false)
+  }, [event?.id])
+
+  useEffect(() => {
+    // Only fetch if this is a real DB event (not a Google Calendar item).
+    if (!event?.id || event.source === 'google') {
+      setHydratedAttendees(null)
+      setHydratedAttendeesCount(null)
+      return
+    }
+    let cancelled = false
+    getEvent(event.id)
+      .then(full => {
+        if (cancelled || !full) return
+        setHydratedAttendees(full.attendees)
+        setHydratedAttendeesCount(full.attendeesCount)
+      })
+      .catch(err => console.error('[EventDetailModal] getEvent failed', err))
+    return () => { cancelled = true }
+  }, [event?.id, event?.source])
+  
+  useEffect(() => {
+    let cancelled = false
+    if (event?.circleId) {
+      getCircle(event.circleId).then(c => {
+        if (!cancelled && c?.organizer) setOrganizer(c.organizer)
+      }).catch(err => console.error('[EventDetailModal] getCircle failed', err))
+    }
+    return () => { cancelled = true }
+  }, [event?.circleId])
 
   // Attendees
-  const attendees = event.attendees ?? []
-  const attendeesCount = event.attendeesCount ?? attendees.length
+  const attendees = hydratedAttendees ?? event.attendees ?? []
+  const attendeesCount = hydratedAttendeesCount ?? event.attendeesCount ?? attendees.length
 
   // Format time nicely
   const displayTime = event.dateObj
@@ -135,7 +168,7 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
           {organizer && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <img
-                src={organizer.avatar}
+                src={avatarFor(organizer)}
                 alt={organizer.name}
                 style={{ width: 40, height: 40, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
               />
@@ -158,7 +191,7 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
                 {attendees.map((a, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <img
-                      src={a.avatar || baseAvatar(a.name || a)}
+                      src={avatarFor(typeof a === 'string' ? { name: a } : a)}
                       alt={a.name || a}
                       style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }}
                     />
@@ -207,6 +240,36 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
               </button>
             )}
           </div>
+        )}
+
+        {event.source !== 'google' && (
+          !isConnected ? (
+            <button type="button" onClick={connect} style={{
+              width: '100%', padding: '14px 0', borderRadius: 14, border: `1.5px solid ${clr.border}`,
+              background: clr.white, color: clr.textDark, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 12,
+            }}>
+              Connect Google Calendar to add this event
+            </button>
+          ) : addedToCalendar ? (
+            <div style={{ width: '100%', padding: '14px 0', borderRadius: 14, background: '#DCFCE7', color: '#059669', fontSize: 14, fontWeight: 700, textAlign: 'center', marginBottom: 12 }}>
+              ✓ Added to your calendar
+            </div>
+          ) : (
+            <button type="button" onClick={async () => {
+              try {
+                await addEventToGoogle(event)
+                setAddedToCalendar(true)
+              } catch (err) {
+                console.error('[EventDetailModal] addEventToGoogle failed', err)
+              }
+            }} style={{
+              width: '100%', padding: '14px 0', borderRadius: 14, border: 'none',
+              background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`, color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(91,95,239,0.35)', marginBottom: 12,
+            }}>
+              Add to Calendar
+            </button>
+          )
         )}
 
         {/* Close button */}

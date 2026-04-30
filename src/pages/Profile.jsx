@@ -1,13 +1,20 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
-import { circles, people } from '../data/mockData'
+import { listCirclesForUser } from '../lib/circles'
+import { updateProfile } from '../lib/auth'
 import EventDetailModal from '../components/EventDetailModal.jsx'
+import ImageUploader from '../components/ui/ImageUploader.jsx'
+import { uploadAvatar, deleteAvatar } from '../lib/storage'
+import { avatarFor } from '../lib/avatar'
+import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
 
 const INTERESTS = [
   'Rock Climbing','Hiking','Coffee','Startups','Photography','Chess',
   'Running','Yoga','Book Club','Tech','Art','Cooking','Music','Travel','Film','Gaming',
 ]
+
+const INTENTS = ['Find friends', 'Find events', 'Explore circles', 'Build routine']
 
 const clr = {
   bg:       'var(--bg)',
@@ -22,21 +29,81 @@ const clr = {
 }
 
 export default function Profile() {
-  const { currentUser, setCurrentUser, joinedCircles, meetups } = useAppContext()
+  const { currentUser, setCurrentUser, joinedCircles, meetups, connections, refreshProfile } = useAppContext()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState({
-    name: currentUser.name,
-    age:  currentUser.age ?? '',
-    city: currentUser.city ?? '',
-    bio:  currentUser.bio ?? '',
-    interests: currentUser.interests ?? [],
-    avatar: currentUser.avatar ?? '',
-  })
+  const [draft, setDraft] = useState({ name: '', age: '', city: '', bio: '', interests: [], intents: [], avatar: '' })
+  const [saving, setSaving] = useState(false)
 
-  const joinedCircleObjects = circles.filter((c) => joinedCircles.includes(c.id))
+  useEffect(() => {
+    if (!currentUser) return
+    setDraft({
+      name: currentUser?.name || '',
+      age: currentUser?.age ?? '',
+      city: currentUser?.city ?? '',
+      bio: currentUser?.bio ?? '',
+      interests: currentUser?.interests ?? [],
+      intents: currentUser?.intents ?? [],
+      avatar: currentUser?.avatar ?? '',
+    })
+  }, [currentUser])
+
+  const profileForCompleteness = useMemo(() => {
+    if (!currentUser) return {}
+    if (!editing) return currentUser
+    return {
+      ...currentUser,
+      city: draft.city,
+      bio: draft.bio,
+      interests: draft.interests,
+      intents: draft.intents,
+      avatar: draft.avatar,
+    }
+  }, [currentUser, editing, draft])
+
+  const completeness = useMemo(() => profileCompleteness(profileForCompleteness), [profileForCompleteness])
+  const missingKeySet = useMemo(() => new Set(completeness.missing.map((m) => m.key)), [completeness])
+
+  const stripEditQuery = useCallback(() => {
+    if (searchParams.get('edit')) navigate('/profile', { replace: true })
+  }, [navigate, searchParams])
+
+  const closeEditMode = useCallback(() => {
+    setEditing(false)
+    stripEditQuery()
+  }, [stripEditQuery])
+
+  useEffect(() => {
+    if (!currentUser) return
+    if (searchParams.get('edit') !== '1') return
+    setEditing(true)
+  }, [currentUser, searchParams])
+
+  useEffect(() => {
+    if (!editing || searchParams.get('edit') !== '1' || !currentUser) return
+    const first = profileCompleteness(currentUser).missing[0]?.key
+    if (!first) return
+    const id = `profile-edit-section-${first}`
+    const t = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 150)
+    return () => clearTimeout(t)
+  }, [editing, searchParams, currentUser])
+
+  const [joinedCircleObjects, setJoinedCircleObjects] = useState([])
+  
+  useEffect(() => {
+    if (!currentUser?.id) return
+    let cancelled = false
+    listCirclesForUser(currentUser?.id)
+      .then(list => { if (!cancelled) setJoinedCircleObjects(list) })
+      .catch(err => console.error('[Profile] listCirclesForUser failed', err))
+    return () => { cancelled = true }
+  }, [currentUser?.id, joinedCircles.length])
+
   const upcomingMeetups     = meetups.slice(0, 3)
-  const recentConnections   = people.slice(0, 5)
+  const recentConnections   = connections.slice(0, 5)
 
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [detailClosing, setDetailClosing] = useState(false)
@@ -51,21 +118,45 @@ export default function Profile() {
     setTimeout(() => { setSelectedEvent(null); setDetailClosing(false) }, 250)
   }
 
-  const handleSave = () => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      name: draft.name.trim() || prev.name,
-      age:  draft.age ? Number(draft.age) : prev.age,
-      city: draft.city.trim() || prev.city,
-      bio:  draft.bio.trim(),
-      interests: draft.interests,
-      avatar: draft.avatar,
-    }))
-    setEditing(false)
+  const handleSave = async () => {
+    if (!currentUser?.id || saving) return
+    setSaving(true)
+    try {
+      const row = await updateProfile(currentUser?.id, {
+        name: draft.name.trim(),
+        age: Number(draft.age) || null,
+        city: draft.city.trim() || null,
+        bio: draft.bio.trim() || null,
+        interests: draft.interests,
+        intents: draft.intents,
+        avatar_url: draft.avatar || null,
+      })
+      setCurrentUser(prev => ({
+        ...prev,
+        id: row.id,
+        name: row.name,
+        age: row.age,
+        city: row.city,
+        bio: row.bio,
+        avatar: row.avatar_url || '',
+        interests: row.interests || [],
+        intents: row.intents || [],
+      }))
+      await refreshProfile().catch(() => {})
+      setEditing(false)
+      stripEditQuery()
+      setToastMsg('Profile saved.')
+      setTimeout(() => setToastMsg(null), 2500)
+    } catch (err) {
+      console.error('[Profile] updateProfile failed', err)
+      setToastMsg('Could not save profile. Please try again.')
+      setTimeout(() => setToastMsg(null), 3000)
+    } finally {
+      setSaving(false)
+    }
   }
 
   /* ── Circle icon colors ── */
-  const circleAccents = ['#7B8FEF', '#F59E0B', '#10B981', '#F43F5E']
   const circleBgs     = ['#EEF0FF', '#FEF3C7', '#D1FAE5', '#FFE4E6']
 
   return (
@@ -95,7 +186,7 @@ export default function Profile() {
             </svg>
           </button>
           <span style={{ fontSize:17, fontWeight:700, color: clr.textDark }}>Profile</span>
-          <button type="button" onClick={() => setEditing(true)} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
+          <button type="button" onClick={() => navigate('/profile?edit=1', { replace: true })} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
             <svg width="20" height="20" fill="none" stroke={clr.indigo} strokeWidth="2" viewBox="0 0 24 24">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -107,10 +198,10 @@ export default function Profile() {
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'16px 24px 24px', textAlign:'center' }}>
           {/* Avatar with online dot */}
           <div style={{ position:'relative', marginBottom:16 }}>
-            {currentUser.avatar ? (
+            {currentUser?.avatar ? (
               <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
+                src={avatarFor(currentUser)}
+                alt={currentUser?.name}
                 style={{
                   width: 110, height: 110, borderRadius: '50%',
                   objectFit: 'cover',
@@ -127,7 +218,7 @@ export default function Profile() {
                 border: '4px solid #FFFFFF',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
               }}>
-                {currentUser.name ? currentUser.name[0].toUpperCase() : '?'}
+                {currentUser?.name ? currentUser?.name[0].toUpperCase() : '?'}
               </div>
             )}
             <div style={{
@@ -147,7 +238,7 @@ export default function Profile() {
             fontFamily: "'DM Serif Display', 'Georgia', serif",
             letterSpacing: '-0.02em',
           }}>
-            {currentUser.name}
+            {currentUser?.name}
           </h1>
 
           {/* Bio */}
@@ -158,16 +249,53 @@ export default function Profile() {
             maxWidth: 300,
             margin: 0,
           }}>
-            {currentUser.bio || `${currentUser.city} · ${currentUser.age}`}
+            {currentUser?.bio || `${currentUser?.city} · ${currentUser?.age}`}
           </p>
         </div>
+
+        {!completeness.isComplete && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            margin: '0 20px 20px',
+            padding: '14px 16px',
+            backgroundColor: clr.white,
+            borderRadius: 20,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          }}>
+            <ProfileProgressRing percent={completeness.percent} size={36} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: clr.textDark, margin: '0 0 4px 0' }}>
+                {completeness.score} of {completeness.max} filled
+                {completeness.missing[0] ? ` — ${completeness.missing[0].label}` : ''}
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/profile?edit=1', { replace: true })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: clr.indigo,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Edit profile
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Stats row ── */}
         <div style={{ display:'flex', gap:12, padding:'0 20px 28px', justifyContent:'center' }}>
           {[
-            { value: currentUser.stats?.circlesJoined  ?? joinedCircles.length, label:'CIRCLES',     route: '/circles' },
-            { value: currentUser.stats?.meetupsAttended ?? meetups.length,       label:'MEETUPS',     route: '/schedule' },
-            { value: currentUser.stats?.connections     ?? 85,                   label:'CONNECTIONS', id: 'connections-section' },
+            { value: currentUser?.stats?.circlesJoined  ?? joinedCircles.length, label:'CIRCLES',     route: '/circles' },
+            { value: currentUser?.stats?.meetupsAttended ?? meetups.length,       label:'MEETUPS',     route: '/schedule' },
+            { value: currentUser?.stats?.connections     ?? 85,                   label:'CONNECTIONS', id: 'connections-section' },
           ].map(({ value, label, route, id }) => (
             <div key={label} 
               onClick={() => {
@@ -199,7 +327,7 @@ export default function Profile() {
             My Interests
           </h2>
           <div style={{ display:'flex', flexWrap:'wrap', gap:10, justifyContent: 'center' }}>
-            {(currentUser.interests ?? []).map((interest) => (
+            {(currentUser?.interests ?? []).map((interest) => (
               <span key={interest} style={{
                 padding: '10px 18px',
                 borderRadius: 999,
@@ -318,7 +446,7 @@ export default function Profile() {
                 cursor: 'pointer',
               }}>
                 <img
-                  src={person.avatar}
+                  src={avatarFor(person)}
                   alt={person.name}
                   style={{ width:52, height:52, borderRadius:'50%', objectFit:'cover', marginBottom:8 }}
                 />
@@ -339,51 +467,81 @@ export default function Profile() {
       {editing && (
         <div style={{
           position:'fixed', inset:0, zIndex:50,
-          backgroundColor:'rgba(15,15,30,0.45)',
+          backgroundColor:'rgba(0,0,0,0.55)',
           display:'flex', alignItems:'center', justifyContent:'center',
           padding:'24px 16px',
         }}>
-          <div style={{
+          <div
+            className="profile-edit-modal"
+            style={{
             width:'100%', maxWidth:440,
+            maxHeight: '90vh',
+            overflowY: 'auto',
             backgroundColor: clr.white,
+            color: clr.textDark,
+            border: `1px solid ${clr.border}`,
             borderRadius: 28,
             padding: '28px 24px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          }}>
+            boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
+          }}
+          >
             <h2 style={{ fontSize:18, fontWeight:700, color: clr.textDark, margin:'0 0 20px 0' }}>
               Edit Profile
             </h2>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginBottom:20 }}>
-              <div style={{
-                width:80, height:80, borderRadius:'50%',
-                backgroundColor: clr.indigoLt,
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:28, fontWeight:700, color: clr.indigo,
-                marginBottom:12, overflow:'hidden', position:'relative',
-                border: `2px solid ${clr.indigo}`
-              }}>
-                {draft.avatar ? (
-                  <img src={draft.avatar} alt="Avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                ) : (
-                  draft.name ? draft.name[0].toUpperCase() : '?'
-                )}
-              </div>
-              <button type="button" style={{
-                padding:'6px 16px', borderRadius:999, border:`1.5px solid ${clr.border}`,
-                background:clr.white, fontSize:13, fontWeight:500, color:'#475569', cursor:'pointer', position:'relative'
-              }}>
-                Change Photo
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setDraft(d => ({ ...d, avatar: URL.createObjectURL(e.target.files[0]) }))
-                    }
-                  }} 
-                  style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer' }} 
-                />
-              </button>
+            <div
+              id="profile-edit-section-avatar"
+              style={{
+                display:'flex', flexDirection:'column', alignItems:'center', marginBottom:20,
+                ...(missingKeySet.has('avatar') ? {
+                  border: '1.5px solid var(--modal-suggest-border)',
+                  backgroundColor: 'var(--modal-suggest-bg)',
+                  borderRadius: 16,
+                  padding: 16,
+                } : {}),
+              }}
+            >
+              {missingKeySet.has('avatar') && (
+                <span style={{
+                  alignSelf: 'flex-end',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--modal-suggest-chip-text)',
+                  backgroundColor: 'var(--modal-suggest-chip-bg)',
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  marginBottom: 8,
+                }}>Suggested</span>
+              )}
+              <ImageUploader
+                currentUrl={draft.avatar || null}
+                shape="circle"
+                disabled={!editing}
+                fallback={
+                  <div style={{
+                    width: '100%', height: '100%', borderRadius: '50%',
+                    backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 28, fontWeight: 700, color: clr.indigo,
+                  }}>
+                    {draft.name ? draft.name[0].toUpperCase() : '?'}
+                  </div>
+                }
+                onUpload={(file) => uploadAvatar({ userId: currentUser.id, file })}
+                onChange={async (newUrl) => {
+                  setDraft(d => ({ ...d, avatar: newUrl }))
+                  try {
+                    await updateProfile(currentUser.id, { avatar_url: newUrl })
+                    await refreshProfile()
+                  } catch (err) {
+                    console.error('[Profile] avatar eager update failed', err)
+                  }
+                }}
+                onRemove={async () => {
+                  await deleteAvatar(currentUser.id)
+                  await updateProfile(currentUser.id, { avatar_url: null })
+                  await refreshProfile()
+                  setDraft(d => ({ ...d, avatar: '' }))
+                }}
+              />
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -410,29 +568,51 @@ export default function Profile() {
                   </div>
                 ))}
               </div>
-              {[
-                { label:'City', key:'city', type:'text', placeholder:'Austin, TX', rows:1 },
-              ].map(({ label, key, type, placeholder }) => (
-                <div key={key}>
-                  <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, marginBottom:6 }}>{label}</label>
-                  <input type={type} value={draft[key]}
-                    onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    style={{
-                      width:'100%', boxSizing:'border-box',
-                      padding:'10px 14px', borderRadius:12,
-                      border:`1.5px solid ${clr.border}`,
-                      backgroundColor: clr.bg,
-                      fontSize:14, color: clr.textDark,
-                      outline:'none', fontFamily:'inherit',
-                    }}
-                    onFocus={e => e.target.style.borderColor = clr.indigo}
-                    onBlur={e  => e.target.style.borderColor = clr.border}
-                  />
+              <div
+                id="profile-edit-section-city"
+                style={missingKeySet.has('city') ? {
+                  border: '1.5px solid var(--modal-suggest-border)',
+                  backgroundColor: 'var(--modal-suggest-bg)',
+                  borderRadius: 14,
+                  padding: 12,
+                } : {}}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, margin: 0 }}>City</label>
+                  {missingKeySet.has('city') && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--modal-suggest-chip-text)', backgroundColor: 'var(--modal-suggest-chip-bg)', padding: '2px 8px', borderRadius: 999 }}>Suggested</span>
+                  )}
                 </div>
-              ))}
-              <div>
-                <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, marginBottom:6 }}>Short bio</label>
+                <input type="text" value={draft.city}
+                  onChange={e => setDraft(d => ({ ...d, city: e.target.value }))}
+                  placeholder="Austin, TX"
+                  style={{
+                    width:'100%', boxSizing:'border-box',
+                    padding:'10px 14px', borderRadius:12,
+                    border:`1.5px solid ${clr.border}`,
+                    backgroundColor: clr.bg,
+                    fontSize:14, color: clr.textDark,
+                    outline:'none', fontFamily:'inherit',
+                  }}
+                  onFocus={e => e.target.style.borderColor = clr.indigo}
+                  onBlur={e  => e.target.style.borderColor = clr.border}
+                />
+              </div>
+              <div
+                id="profile-edit-section-bio"
+                style={missingKeySet.has('bio') ? {
+                  border: '1.5px solid var(--modal-suggest-border)',
+                  backgroundColor: 'var(--modal-suggest-bg)',
+                  borderRadius: 14,
+                  padding: 12,
+                } : {}}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, margin: 0 }}>Short bio</label>
+                  {missingKeySet.has('bio') && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--modal-suggest-chip-text)', backgroundColor: 'var(--modal-suggest-chip-bg)', padding: '2px 8px', borderRadius: 999 }}>Suggested</span>
+                  )}
+                </div>
                 <textarea rows={4} value={draft.bio}
                   onChange={e => setDraft(d => ({ ...d, bio: e.target.value }))}
                   placeholder="Share a few lines about what you're into..."
@@ -449,8 +629,21 @@ export default function Profile() {
                 />
               </div>
 
-              <div>
-                <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, marginBottom:8 }}>Interests</label>
+              <div
+                id="profile-edit-section-interests"
+                style={missingKeySet.has('interests') ? {
+                  border: '1.5px solid var(--modal-suggest-border)',
+                  backgroundColor: 'var(--modal-suggest-bg)',
+                  borderRadius: 14,
+                  padding: 12,
+                } : {}}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, margin: 0 }}>Interests</label>
+                  {missingKeySet.has('interests') && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--modal-suggest-chip-text)', backgroundColor: 'var(--modal-suggest-chip-bg)', padding: '2px 8px', borderRadius: 999 }}>Suggested</span>
+                  )}
+                </div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                   {INTERESTS.map((label) => {
                     const active = draft.interests.includes(label)
@@ -460,8 +653,8 @@ export default function Profile() {
                         type="button"
                         onClick={() => {
                           setDraft(d => {
-                            const newInts = d.interests.includes(label) 
-                              ? d.interests.filter(i => i !== label) 
+                            const newInts = d.interests.includes(label)
+                              ? d.interests.filter(i => i !== label)
                               : [...d.interests, label]
                             return { ...d, interests: newInts }
                           })
@@ -470,8 +663,58 @@ export default function Profile() {
                           padding: '6px 14px',
                           borderRadius: 999,
                           border: `1.5px solid ${active ? clr.indigo : clr.border}`,
-                          backgroundColor: active ? clr.indigoLt : clr.white,
-                          color: active ? clr.indigo : '#475569',
+                          backgroundColor: active ? clr.indigoLt : clr.bg,
+                          color: active ? clr.indigo : clr.textMid,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          outline: 'none',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div
+                id="profile-edit-section-intents"
+                style={missingKeySet.has('intents') ? {
+                  border: '1.5px solid var(--modal-suggest-border)',
+                  backgroundColor: 'var(--modal-suggest-bg)',
+                  borderRadius: 14,
+                  padding: 12,
+                } : {}}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ display:'block', fontSize:12, fontWeight:600, color: clr.textMid, margin: 0 }}>{'What you\'re looking for'}</label>
+                  {missingKeySet.has('intents') && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--modal-suggest-chip-text)', backgroundColor: 'var(--modal-suggest-chip-bg)', padding: '2px 8px', borderRadius: 999 }}>Suggested</span>
+                  )}
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                  {INTENTS.map((label) => {
+                    const active = draft.intents.includes(label)
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => {
+                          setDraft(d => {
+                            const next = d.intents.includes(label)
+                              ? d.intents.filter((i) => i !== label)
+                              : [...d.intents, label]
+                            return { ...d, intents: next }
+                          })
+                        }}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 999,
+                          border: `1.5px solid ${active ? clr.indigo : clr.border}`,
+                          backgroundColor: active ? clr.indigoLt : clr.bg,
+                          color: active ? clr.indigo : clr.textMid,
                           fontSize: 13,
                           fontWeight: 500,
                           cursor: 'pointer',
@@ -489,21 +732,22 @@ export default function Profile() {
             </div>
 
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:20 }}>
-              <button type="button" onClick={() => setEditing(false)} style={{
+              <button type="button" onClick={closeEditMode} style={{
                 padding:'10px 20px', borderRadius:999, border:'none',
                 background:'none', fontSize:14, fontWeight:500,
                 color: clr.textMid, cursor:'pointer',
               }}>
                 Cancel
               </button>
-              <button type="button" onClick={handleSave} style={{
+              <button type="button" disabled={saving} onClick={handleSave} style={{
                 padding:'10px 24px', borderRadius:999, border:'none',
-                background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
+                background: `linear-gradient(135deg, var(--indigo), #8B84FF)`,
                 color:'#fff', fontSize:14, fontWeight:600,
-                cursor:'pointer',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
                 boxShadow:'0 4px 14px rgba(91,95,239,0.35)',
               }}>
-                Save Changes
+                {saving ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -551,7 +795,7 @@ export default function Profile() {
               <p style={{ margin: 0, fontSize: 12, color: clr.indigo, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Message Preview</p>
               <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>
                 Hey! I'm using Third Space to find local meetups. Join me here:{' '}
-                <span style={{color: clr.indigo, textDecoration: 'underline'}}>https://third.space/join/{currentUser.name.split(' ')[0].toLowerCase()}</span>
+                <span style={{color: clr.indigo, textDecoration: 'underline'}}>https://third.space/join/{currentUser?.name?.split(' ')[0]?.toLowerCase()}</span>
               </p>
             </div>
 

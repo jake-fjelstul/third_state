@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
-import { people, circles } from '../data/mockData'
+import { listCircles } from '../lib/circles'
+import { useChatMessages } from '../hooks/useChatMessages.js'
+import { listChannels } from '../lib/chat.js'
+import { avatarFor } from '../lib/avatar'
  
 const clr = {
   bg:         'var(--bg)',
@@ -86,10 +89,36 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const location = useLocation()
   const [input, setInput] = useState('')
   const { name, avatar, online, isGroup } = normChat(chat)
-  const messages = chat.messages ?? []
-  
-  const { sendMessage, setChatState } = useAppContext()
+  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId } = useAppContext()
   const bottomRef = useRef(null)
+
+  const [channels, setChannels] = useState([])
+  const resolvedChannelId = channelId
+    ? (channels.find(c => c.name === channelId)?.id || null)
+    : null
+
+  useEffect(() => {
+    if (!baseId) return
+    listChannels(baseId)
+      .then(setChannels)
+      .catch(err => console.error('[ThreadView] listChannels failed', err))
+  }, [baseId])
+
+  useEffect(() => {
+    if (!baseId) return
+    markChatRead(baseId)
+  }, [baseId, markChatRead])
+
+  useEffect(() => {
+    if (!baseId) return
+    setCurrentlyOpenChatId(baseId)
+    return () => setCurrentlyOpenChatId(null)
+  }, [baseId, setCurrentlyOpenChatId])
+
+  const { messages, loading: msgsLoading } = useChatMessages({
+    chatId: baseId,
+    channelId: resolvedChannelId,
+  })
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -101,20 +130,10 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     }
   }, [location.state?.prefillText, chat.id])
 
-  useEffect(() => {
-    setChatState(prev => {
-      if (!prev[chat.id] || prev[chat.id].unread === 0) return prev
-      return {
-        ...prev,
-        [chat.id]: { ...prev[chat.id], unread: 0 }
-      }
-    })
-  }, [chat.id, setChatState])
-
   const handleSend = (e) => {
     e.preventDefault()
     if (!input.trim()) return
-    sendMessage(baseId || chat.id, input, channelId || 'general')
+    sendMessage(baseId || chat.id, input, resolvedChannelId)
     setInput('')
   }
  
@@ -152,11 +171,11 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       {/* Messages */}
       <div style={{ flex:1, overflowY:'auto', padding:'20px 16px', display:'flex', flexDirection:'column', gap:10 }}>
         {messages.map((msg, i) => {
-          const isMe = msg.sender === 'You'
+          const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
           return (
             <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
               {!isMe && isGroup && (
-                <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.sender}</span>
+                <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
               )}
               <div style={{
                 maxWidth: '72%',
@@ -216,8 +235,15 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
 }
 
 /* ── New Chat Modal (iPhone-style) ── */
-function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState }) {
+function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState, connections }) {
   const [contactSearch, setContactSearch] = useState('')
+  const [circles, setCircles] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    listCircles().then(list => { if (!cancelled) setCircles(list) })
+    return () => { cancelled = true }
+  }, [])
 
   const contacts = useMemo(() => {
     const seen = new Set()
@@ -238,16 +264,17 @@ function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState
     // People from existing DMs
     Object.values(chatState ?? {}).forEach(chat => {
       if (chat.type === 'dm' && chat.personId && !seen.has(chat.personId)) {
-        const person = people.find(p => p.id === chat.personId)
-        if (person) {
-          seen.add(person.id)
-          result.push(person)
-        }
+        seen.add(chat.personId)
+        result.push({
+          id: chat.personId,
+          name: chat.name || 'Unknown',
+          avatar: chat.avatar || ''
+        })
       }
     })
 
-    // Also include all people as fallback
-    people.forEach(p => {
+    // Also include connections as fallback
+    connections?.forEach(p => {
       if (!seen.has(p.id)) {
         seen.add(p.id)
         result.push(p)
@@ -255,7 +282,7 @@ function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState
     })
 
     return result
-  }, [joinedCircles, chatState, currentUser])
+  }, [joinedCircles, chatState, currentUser, circles, connections])
 
   const filtered = contactSearch.trim()
     ? contacts.filter(p => p.name.toLowerCase().includes(contactSearch.toLowerCase()))
@@ -322,7 +349,7 @@ function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState
                 }}
               >
                 <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <img src={person.avatar} alt={person.name} style={{
+                  <img src={avatarFor(person)} alt={person.name} style={{
                     width: 44, height: 44, borderRadius: '50%', objectFit: 'cover',
                   }}/>
                   {person.online && (
@@ -359,7 +386,7 @@ function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState
 export default function Chat() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { chatState, startDM, joinedCircles, currentUser } = useAppContext()
+  const { chatState, startDM, joinedCircles, currentUser, connections } = useAppContext()
   const [search, setSearch] = useState('')
   const [showCompose, setShowCompose] = useState(false)
 
@@ -395,42 +422,25 @@ export default function Chat() {
     if (channelId) {
       chat = {
         ...chat,
-        name: `${chat.name || chat.circleName || chat.title} #${channelId}`,
-        messages: (chat.messages || []).filter(m => (m.channelId || 'general') === channelId)
+        name: chat.name || chat.circleName || chat.title
       }
     }
 
     return <ThreadView chat={chat} baseId={baseId} channelId={channelId} onBack={() => navigate('/chat')} />
   }
 
-  const listItems = [];
-  Object.values(chatState).forEach(c => {
-    if (c.type === 'circle' || c.type === 'group' || !!c.circleName) {
-      const msgsByChannel = {};
-      (c.messages || []).forEach(m => {
-        const ch = m.channelId || 'general';
-        if (!msgsByChannel[ch]) msgsByChannel[ch] = [];
-        msgsByChannel[ch].push(m);
-      });
-      Object.entries(msgsByChannel).forEach(([ch, msgs]) => {
-        listItems.push({
-          ...c,
-          id: `${c.id}---${ch}`,
-          name: `${c.name || c.circleName || c.title} #${ch}`,
-          messages: msgs,
-        });
-      });
-    } else {
-      listItems.push(c);
+  const listItems = Object.values(chatState).filter(c => {
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      const n = normChat(c).name
+      return (n || '').toLowerCase().includes(q)
     }
-  });
+    return true
+  })
 
-  const filtered = listItems.filter(c => {
-    const { name } = normChat(c)
-    return name.toLowerCase().includes(search.toLowerCase())
-  }).sort((a,b) => {
-    const tA = new Date(`1970/01/01 ${normChat(a).time || '12:00 AM'}`).getTime() || 0
-    const tB = new Date(`1970/01/01 ${normChat(b).time || '12:00 AM'}`).getTime() || 0
+  const filtered = listItems.sort((a,b) => {
+    const tA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0
+    const tB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
     return tB - tA
   })
  
@@ -555,14 +565,19 @@ export default function Chat() {
       {showCompose && (
         <NewChatModal
           onClose={() => setShowCompose(false)}
-          onSelect={(person) => {
-            const chatId = startDM(person)
-            setShowCompose(false)
-            navigate(`/chat/${chatId}`)
+          onSelect={async (person) => {
+            try {
+              const chatId = await startDM(person)
+              setShowCompose(false)
+              navigate(`/chat/${chatId}`)
+            } catch (err) {
+              console.error('Failed to start DM', err)
+            }
           }}
           joinedCircles={joinedCircles}
           currentUser={currentUser}
           chatState={chatState}
+          connections={connections}
         />
       )}
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { avatarFor } from '../../lib/avatar'
 
 export default function ChatListItem({ chat }) {
   const isCircle = chat.type === 'circle'
@@ -12,7 +13,7 @@ export default function ChatListItem({ chat }) {
           <span>{chat.avatarEmoji}</span>
         ) : (
           <img
-            src={chat.avatarUrl}
+            src={avatarFor({ avatar: chat.avatarUrl, name: chat.title })}
             alt={chat.title}
             className="h-9 w-9 rounded-full object-cover"
           />

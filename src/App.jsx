@@ -1,8 +1,8 @@
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
-import { useEffect } from 'react'
 import { useAppContext } from './context/AppContext.jsx'
-import OnboardingPage from './pages/Onboarding.jsx'
+import { isProfileSessionFatalError } from './lib/auth.js'
+import AuthPage from './pages/Auth.jsx'
 import FeedPage from './pages/Feed.jsx'
 import CirclesPage from './pages/Circles.jsx'
 import CircleDetailPage from './pages/CircleDetail.jsx'
@@ -12,6 +12,7 @@ import ProfilePage from './pages/Profile.jsx'
 import UserProfilePage from './pages/UserProfile.jsx'
 import SettingsPage from './pages/Settings.jsx'
 import NotificationsPage from './pages/Notifications.jsx'
+import AuthCallbackPage from './pages/AuthCallback.jsx'
 const clr = {
   bg: 'var(--bg)',
   white: 'var(--white)',
@@ -138,6 +139,8 @@ function BottomNav() {
 
 /* ── Top nav bar — always fixed at top ── */
 function TopNav() {
+  const { notifications } = useAppContext()
+  const hasUnread = notifications.some(n => !n.isRead)
   const navigate = useNavigate()
   return (
     <nav style={{
@@ -167,7 +170,7 @@ function TopNav() {
           <button type="button" onClick={() => navigate('/notifications')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
             <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </button>
-          <div style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F59E0B' }}/>
+          {hasUnread && <div style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F59E0B' }}/>}
         </div>
       </div>
     </nav>
@@ -212,29 +215,51 @@ function ShellLayout() {
   )
 }
 
-/* ── Onboarding guard & Refresh Redirect ── */
-let isInitialMount = true
-
-function OnboardingGuard() {
-  const { onboardingComplete } = useAppContext()
+/* ── Auth Guard & Refresh Redirect ── */
+function AuthGuard() {
+  const navigate = useNavigate()
+  const { session, authLoading, currentUser, profileError, refreshProfile, signOut } = useAppContext()
   const location = useLocation()
+  const onAuthRoute = location.pathname === '/auth' || location.pathname === '/auth/callback'
 
-  if (!onboardingComplete && location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" replace />
+  const handleProfileRetry = async () => {
+    if (profileError && isProfileSessionFatalError(profileError)) {
+      await signOut().catch(() => {})
+      navigate('/auth', { replace: true })
+      return
+    }
+    await refreshProfile().catch(() => {})
   }
-  if (onboardingComplete && location.pathname === '/onboarding') {
+
+  if (authLoading || (session && !currentUser)) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: clr.bg,
+        color: clr.textMid,
+        fontSize: 14,
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0 }}>{profileError ? "Couldn't load your profile." : 'Loading…'}</p>
+          {profileError && (
+            <button type="button" onClick={() => handleProfileRetry()} style={{ marginTop: 12, border: 'none', borderRadius: 999, padding: '8px 16px', cursor: 'pointer' }}>
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (!session && !onAuthRoute) {
+    return <Navigate to="/auth" replace />
+  }
+  if (session && onAuthRoute) {
     return <Navigate to="/feed" replace />
   }
-
-  if (isInitialMount && onboardingComplete && location.pathname !== '/feed') {
-    isInitialMount = false
-    return <Navigate to="/feed" replace />
-  }
-
-  // Ensure it's false after first render
-  useEffect(() => {
-    isInitialMount = false
-  }, [])
 
   return <Outlet />
 }
@@ -243,8 +268,9 @@ function OnboardingGuard() {
 function App() {
   return (
     <Routes>
-      <Route element={<OnboardingGuard />}>
-        <Route path="/onboarding" element={<OnboardingPage />} />
+      <Route element={<AuthGuard />}>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<ShellLayout />}>
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/circles" element={<CirclesPage />} />
@@ -257,7 +283,7 @@ function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
       </Route>
     </Routes>
   )

@@ -1,12 +1,17 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
-import { people, circles, events } from '../data/mockData'
+import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
+import { profileCompleteness } from '../lib/profileCompleteness.jsx'
+import { listUpcomingEvents } from '../lib/events'
+import { listCircles } from '../lib/circles'
+import { listProfiles } from '../lib/profiles'
 import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import CreateWheel from '../components/CreateWheel.jsx'
 import TimePicker from '../components/TimePicker.jsx'
+import { avatarFor } from '../lib/avatar'
 
 const clr = {
   bg: 'var(--bg)',
@@ -55,7 +60,7 @@ function PersonCard({ person }) {
       cursor: 'pointer'
     }}>
       <div style={{ position: 'relative', marginBottom: 10 }}>
-        <img src={person.avatar} alt={person.name} style={{
+        <img src={avatarFor(person)} alt={person.name} style={{
           width: 56, height: 56, borderRadius: '50%', objectFit: 'cover',
         }} />
         {person.online && (
@@ -85,9 +90,14 @@ function PersonCard({ person }) {
         ))}
       </div>
       <button type="button"
-        onClick={() => {
-          const chatId = startDM(person)
-          navigate(`/chat/${chatId}`)
+        onClick={async (e) => {
+          e.stopPropagation()
+          try {
+            const chatId = await startDM(person)
+            navigate(`/chat/${chatId}`)
+          } catch (err) {
+            console.error('[Feed.PersonCard] startDM failed', err)
+          }
         }}
         style={{
           width: '100%', padding: '8px 0', borderRadius: 999,
@@ -146,7 +156,7 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
             {circle.interestTag}
           </span>
           <span style={{ fontSize: 11, color: clr.textLight }}>
-            {circle.memberCount ?? circle.members?.length ?? 0} members
+            {circle.memberCount ?? (circle.members || []).length ?? 0} members
           </span>
         </div>
       </div>
@@ -215,7 +225,7 @@ function EventCard({ event, idx, isRsvpd, onViewDetails }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
             <div style={{ display: 'flex' }}>
               {event.attendees.slice(0, 3).map((a, i) => (
-                <img key={i} src={a.avatar ?? `https://api.dicebear.com/7.x/notionists/svg?seed=${i}`} alt=""
+                <img key={i} src={avatarFor(a)} alt=""
                   style={{
                     width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                     border: `2px solid ${clr.white}`, marginLeft: i === 0 ? 0 : -8
@@ -396,8 +406,9 @@ function CreateCard({ action, onClick }) {
   )
 }
 
-function CreateModals({ show, onClose, onShowToast }) {
-  const { joinedCircles, startDM, sendMessage, joinCircle, addMeetup, currentUser } = useAppContext()
+function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
+  const navigate = useNavigate()
+  const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle } = useAppContext()
   const [coffeeSearch, setCoffeeSearch] = useState('')
   const [coffeeTarget, setCoffeeTarget] = useState(null)
   const [circlePrivacy, setCirclePrivacy] = useState('open')
@@ -405,6 +416,27 @@ function CreateModals({ show, onClose, onShowToast }) {
   const [coffeeTime, setCoffeeTime] = useState('10:00')
   const [hoopsEnabled, setHoopsEnabled] = useState(false)
   const [circleHoops, setCircleHoops] = useState([])
+  const [circles, setCircles] = useState([])
+  const [swipeStack, setSwipeStack] = useState(() => {
+    const unjoined = circles.filter(c => !joinedCircles.includes(c.id))
+    const unseen = unjoined.slice(discoverySwipes.circle)
+    return unseen.length ? unseen : unjoined // cycle back if empty
+  })
+
+  // Keep swipe stack updated when circles load
+  useEffect(() => {
+    const unjoined = circles.filter(c => !joinedCircles.includes(c.id))
+    const unseen = unjoined.slice(discoverySwipes.circle)
+    setSwipeStack(unseen.length ? unseen : unjoined)
+  }, [circles, joinedCircles, discoverySwipes.circle])
+  
+  useEffect(() => {
+    let cancelled = false
+    listCircles()
+      .then(list => { if (!cancelled) setCircles(list) })
+      .catch(err => console.error('[Feed] listCircles failed', err))
+    return () => { cancelled = true }
+  }, [])
 
   if (!show) return null
 
@@ -432,35 +464,32 @@ function CreateModals({ show, onClose, onShowToast }) {
 
   const content = () => {
     if (show === 'circle') return (
-      <form onSubmit={e => { 
+      <form onSubmit={async e => { 
         e.preventDefault(); 
         const name = e.target.elements.cName.value;
         const topic = e.target.elements.cTopic.value;
         const desc = e.target.elements.cDesc.value;
-        const newCircle = {
-          id: `circle-custom-${Date.now()}`,
-          name: name,
-          emoji: '✨',
-          city: currentUser?.city || 'Austin, TX',
-          type: circlePrivacy,
-          category: 'social',
-          interestTag: topic,
-          memberCount: 1,
-          coverGradient: 'from-indigo-500 via-purple-500 to-indigo-500',
-          description: desc,
-          vibe: 'Looking for group!',
-          rules: [],
-          organizer: { name: currentUser?.name, avatar: currentUser?.avatar, role: 'Organizer' },
-          members: [{ id: currentUser?.id, name: currentUser?.name, avatar: currentUser?.avatar }],
-          events: [],
-          hoops: hoopsEnabled ? circleHoops : [],
-          chatId: `chat-custom-${Date.now()}`,
-          chatPreview: []
-        };
-        circles.unshift(newCircle);
-        joinCircle(newCircle.id);
-        onClose(); 
-        onShowToast('Circle created successfully!') 
+        try {
+          const created = await createCircle({
+            name,
+            emoji: '✨',
+            city: currentUser?.city || 'Austin, TX',
+            type: circlePrivacy === 'private' ? 'private' : 'open',
+            category: 'social',
+            interestTag: topic,
+            coverGradient: 'from-indigo-500 via-sky-500 to-emerald-400',
+            description: desc,
+            vibe: 'Looking for group!',
+            rules: [],
+            hoops: hoopsEnabled ? circleHoops.filter(h => h.type === 'written' || h.type === 'multiplechoice') : [],
+          })
+          await refreshCircles?.()
+          onClose()
+          navigate(`/circles/${created.id}`)
+        } catch (err) {
+          console.error('[Feed.CreateModals] createCircle failed', err)
+          onShowToast('Could not create the circle. Please try again.')
+        }
       }}>
         <Handle /><Header title="Create a Circle" />
         <input required name="cName" placeholder="Circle Name" style={inputStyle} />
@@ -504,7 +533,7 @@ function CreateModals({ show, onClose, onShowToast }) {
       </form>
     )
     if (show === 'event') return (
-      <form onSubmit={e => { 
+      <form onSubmit={async e => { 
         e.preventDefault(); 
         const title = e.target.elements.eName.value;
         const date = e.target.elements.eDate.value;
@@ -512,25 +541,21 @@ function CreateModals({ show, onClose, onShowToast }) {
         const loc = e.target.elements.eLoc.value;
         const cid = e.target.elements.eCircle.value;
         
-        const circle = cid ? circles.find(c => c.id === cid) : null;
-        
-        const newMeetup = {
-          id: `event-custom-${Date.now()}`,
-          sourceEventId: `event-custom-${Date.now()}`,
-          title: title,
-          circleId: circle?.id || '',
-          circleName: circle?.name || 'Community Event',
-          date: date,
-          time: time,
-          location: loc,
-          notes: '',
-          attendees: [{ name: currentUser?.name, avatar: currentUser?.avatar }],
-          attendeesCount: 1
-        };
-        
-        addMeetup(newMeetup);
-        onClose(); 
-        onShowToast('Event created successfully!');
+        try {
+          await createEventAndRsvp({
+            circleId: cid || null,
+            title,
+            date,
+            time,
+            location: loc,
+            notes: '',
+          });
+          onClose(); 
+          onShowToast('Event created successfully!');
+        } catch (err) {
+          console.error('[Feed] create event failed', err);
+          alert('Sorry — something went wrong creating your event.');
+        }
       }}>
         <Handle /><Header title="Host an Event" />
         <input required name="eName" placeholder="Event Name" style={inputStyle} />
@@ -571,10 +596,15 @@ function CreateModals({ show, onClose, onShowToast }) {
     if (show === 'coffee') {
       const results = coffeeSearch.trim() ? people.filter(p => p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
       return (
-        <form onSubmit={e => {
+        <form onSubmit={async e => {
           e.preventDefault(); if (!coffeeTarget) return
-          const chatId = startDM(coffeeTarget); sendMessage(chatId, `Hey ${coffeeTarget.name.split(' ')[0]}! Want to grab a coffee sometime? ☕`)
-          onClose(); onShowToast('Invite sent!')
+          try {
+            const chatId = await startDM(coffeeTarget)
+            await sendMessage(chatId, `Hey ${coffeeTarget.name.split(' ')[0]}! Want to grab a coffee sometime? ☕`)
+            onClose(); onShowToast('Invite sent!')
+          } catch (err) {
+            console.error('[Feed.CreateModals] startDM failed', err)
+          }
         }}>
           <Handle /><Header title="Coffee Chat Invite" />
           {!coffeeTarget ? (
@@ -583,7 +613,7 @@ function CreateModals({ show, onClose, onShowToast }) {
               {results.length > 0 && <div style={{ padding: '8px 0', border: `1px solid ${clr.border}`, borderRadius: 16 }}>
                 {results.map(p => (
                   <div key={p.id} onClick={() => setCoffeeTarget(p)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer' }}>
-                    <img src={p.avatar} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                    <img src={avatarFor(p)} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
                     <span style={{ fontSize: 15, fontWeight: 600, color: clr.textDark }}>{p.name}</span>
                   </div>
                 ))}
@@ -592,7 +622,7 @@ function CreateModals({ show, onClose, onShowToast }) {
           ) : (
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, border: `1.5px solid ${clr.border}`, marginBottom: 16 }}>
-                <img src={coffeeTarget.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                <img src={avatarFor(coffeeTarget)} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
                 <span style={{ fontSize: 15, fontWeight: 600, color: clr.textDark, flex: 1 }}>{coffeeTarget.name}</span>
                 <button type="button" onClick={() => setCoffeeTarget(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: clr.textLight, cursor: 'pointer' }}>Change</button>
               </div>
@@ -718,7 +748,7 @@ function BatteryIcon({ percentage, color, glow }) {
 }
 
 function SocialBattery() {
-  const { batteryPoints, batteryHistory } = useAppContext()
+  const { batteryPoints } = useAppContext()
   const [showHistory, setShowHistory] = useState(false)
   const config = getBatteryConfig(batteryPoints)
 
@@ -803,28 +833,9 @@ function SocialBattery() {
           <p style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Recent Activity
           </p>
-          {batteryHistory.length === 0 ? (
-            <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
-              No activity yet — start socializing to charge up!
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[...batteryHistory].reverse().slice(0, 6).map((h, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: clr.bg, borderRadius: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 16 }}>{h.points > 0 ? '⚡' : '😴'}</span>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: clr.textDark, margin: 0 }}>{h.reason}</p>
-                      <p style={{ fontSize: 11, color: clr.textMid, margin: 0 }}>{h.date} · {h.time}</p>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: h.points > 0 ? '#10B981' : '#EF4444' }}>
-                    {h.points > 0 ? '+' : ''}{h.points}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+            Battery history now lives in the database and stays synced across devices.
+          </p>
         </div>
       )}
     </section>
@@ -838,6 +849,23 @@ export default function Feed() {
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  
+  const [people, setPeople] = useState([])
+  const [circles, setCircles] = useState([])
+  const [events, setEvents] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    listProfiles({ excludeUserId: currentUser?.id })
+      .then(list => { if (!cancelled) setPeople(list) })
+      .catch(err => console.error('[Feed] listProfiles failed', err))
+    listCircles()
+      .then(list => { if (!cancelled) setCircles(list) })
+      .catch(err => console.error('[Feed] listCircles failed', err))
+    listUpcomingEvents({ limit: 30 })
+      .then(list => { if (!cancelled) setEvents(list) })
+      .catch(err => console.error('[Feed] listUpcomingEvents failed', err))
+    return () => { cancelled = true }
+  }, [currentUser?.id])
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
 
@@ -854,7 +882,9 @@ export default function Feed() {
     }, 300)
   }
 
-  const firstName = currentUser.name?.split(' ')[0] ?? 'there'
+  const firstName = currentUser?.name?.split(' ')[0] ?? 'there'
+
+  const completeness = useMemo(() => profileCompleteness(currentUser || {}), [currentUser])
 
   const upcomingMeetups = useMemo(() => {
     return [...(meetups || [])]
@@ -887,7 +917,7 @@ export default function Feed() {
       circles: circles.filter(c => c.name.toLowerCase().includes(q) || c.interestTag?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)),
       events: events.filter(e => e.title.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q)),
     }
-  }, [searchQuery])
+  }, [searchQuery, people, circles, events])
 
   const getGreeting = () => {
     const h = new Date().getHours()
@@ -900,6 +930,7 @@ export default function Feed() {
     <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: "'DM Sans','Inter',sans-serif", paddingBottom: 110 }}>
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
+        <ProfileCompletionCard completeness={completeness} />
         {/* ── Greeting ── */}
         <div style={{ padding: '12px 0 16px' }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: clr.textDark, margin: '0 0 6px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display','Georgia',serif" }}>
@@ -951,7 +982,7 @@ export default function Feed() {
             <section style={{ marginBottom: 28 }}>
               <div style={{ height: 24, marginBottom: 14 }}></div>
               <CreateWheel onAction={(id) => {
-                if (id === 'lfg' && currentUser.privacy?.isPrivateProfile) {
+                if (id === 'lfg' && currentUser?.privacy?.isPrivateProfile) {
                   showToast('LFG posts are restricted to public profiles.')
                 } else {
                   setShowCreateModal(id)
@@ -968,7 +999,7 @@ export default function Feed() {
                   <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0 }}>Swipe through people, circles & events</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                  {people.slice(0, 3).map((p, i) => <img key={p.id} src={p.avatar} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid rgba(255,255,255,0.6)', marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i, position: 'relative' }} />)}
+                  {people.slice(0, 3).map((p, i) => <img key={p.id} src={avatarFor(p)} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid rgba(255,255,255,0.6)', marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i, position: 'relative' }} />)}
                   <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }}><svg width="16" height="16" fill="none" stroke="#FFFFFF" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></div>
                 </div>
               </button>
@@ -1013,7 +1044,14 @@ export default function Feed() {
         )}
       </div>
 
-      <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} />
+      <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} people={people} refreshCircles={async () => {
+        try {
+          const list = await listCircles()
+          setCircles(list)
+        } catch (err) {
+          console.error('[Feed] listCircles failed', err)
+        }
+      }} />
       {showDiscovery && <div style={{ position: 'fixed', inset: 0, zIndex: 200, animation: 'expandUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}><SwipeDiscovery onClose={() => setShowDiscovery(false)} /></div>}
       {toastMsg && <div style={{ position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)', background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap' }}>{toastMsg}</div>}
 

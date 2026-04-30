@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom'
+import { resolveCircleCover } from '../../lib/circleCover'
 
 export default function CircleCard({ circle, joined }) {
   const isPrivate = circle.type === 'private'
+  const cover = resolveCircleCover(circle)
 
   return (
     <Link
       to={`/circles/${circle.id}`}
       className="flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-100 transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div
-        className={`relative h-20 w-full bg-gradient-to-r ${circle.coverGradient}`}
-      >
+      <div className="relative h-20 w-full" style={{ background: cover.kind === 'gradient' ? cover.value : undefined }}>
+        {cover.kind === 'image' && <img src={cover.url} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/10 to-transparent" />
         <div className="absolute left-4 top-3 flex items-center gap-2 text-sm font-medium text-white">
           <span className="text-lg">{circle.emoji}</span>

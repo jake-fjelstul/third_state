@@ -1,6 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { people, circles, events } from '../../data/mockData'
+import { listCircles } from '../../lib/circles'
+import { listProfiles } from '../../lib/profiles'
+import { listUpcomingEvents } from '../../lib/events'
 import { useAppContext } from '../../context/AppContext.jsx'
+import { avatarFor } from '../../lib/avatar'
+import { resolveCircleCover } from '../../lib/circleCover'
 
 /* ── Colors (from app theme) ── */
 const clr = {
@@ -25,7 +29,7 @@ function DiscoveryCard({ card }) {
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         <div style={{ position:'relative', height:'55%' }}>
-          <img src={p.avatar} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          <img src={avatarFor(p)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           <div style={{
             position:'absolute', bottom:0, left:0, right:0, height:'40%',
             background:'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)'
@@ -56,6 +60,7 @@ function DiscoveryCard({ card }) {
 
   if (card.type === 'circle') {
     const c = card.data
+    const cover = resolveCircleCover(c)
     return (
       <div style={{
         height: 520, display:'flex', flexDirection:'column',
@@ -63,10 +68,11 @@ function DiscoveryCard({ card }) {
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         <div style={{
-          height: 160, background: 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)', // Or circle color
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:64
+          height: 160, background: cover.kind === 'gradient' ? cover.value : 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:64, position: 'relative', overflow: 'hidden'
         }}>
-          {c.emoji ?? '⭕'}
+          {cover.kind === 'image' && <img src={cover.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+          <span style={{ position: 'relative' }}>{c.emoji ?? '⭕'}</span>
         </div>
         <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column' }}>
           <div style={{ display:'inline-block', marginBottom:12 }}>
@@ -120,7 +126,7 @@ function DiscoveryCard({ card }) {
 }
 
 export default function SwipeDiscovery({ onClose }) {
-  const { joinCircle, startDM, sendMessage, discoverySwipes, recordSwipe, searchRadius } = useAppContext()
+  const { joinCircle, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius } = useAppContext()
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events'])
   const [cardIndex, setCardIndex] = useState(0)
   
@@ -136,6 +142,24 @@ export default function SwipeDiscovery({ onClose }) {
   const wheelAccumulator = useRef(0)
   const isSwiping = useRef(false)
   const wheelTimer = useRef(null)
+
+  const [circles, setCircles] = useState([])
+  const [people, setPeople] = useState([])
+  const [events, setEvents] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([listProfiles(), listCircles(), listUpcomingEvents({ limit: 50 })])
+      .then(([ppl, crc, evts]) => {
+        if (!cancelled) {
+          setPeople(ppl)
+          setCircles(crc)
+          setEvents(evts)
+        }
+      })
+      .catch(err => console.error('[SwipeDiscovery] load failed', err))
+    return () => { cancelled = true }
+  }, [])
 
   const toggleFilter = (f) => {
     setActiveFilters(prev => {
@@ -181,7 +205,7 @@ export default function SwipeDiscovery({ onClose }) {
     }
     return cards.sort(() => Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius])
+  }, [activeFilters, searchRadius, circles, people, events])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]
@@ -486,7 +510,7 @@ export default function SwipeDiscovery({ onClose }) {
           }}>
             <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <img src={currentMatchCard.data.avatar} alt="" style={{
+              <img src={avatarFor(currentMatchCard.data)} alt="" style={{
                 width: 72, height: 72, borderRadius: '50%',
                 objectFit: 'cover', margin: '0 auto 12px',
                 border: `3px solid ${clr.indigo}`,
@@ -534,9 +558,14 @@ export default function SwipeDiscovery({ onClose }) {
             />
 
             <button
-              onClick={() => {
-                const chatId = startDM(currentMatchCard.data)
-                sendMessage(chatId, draftMessage)
+              onClick={async () => {
+                try {
+                  connectWithPerson(currentMatchCard.data)
+                  const chatId = await startDM(currentMatchCard.data)
+                  await sendMessage(chatId, draftMessage)
+                } catch (err) {
+                  console.error('[SwipeDiscovery] connect/message failed', err)
+                }
                 setShowMessageDraft(false)
                 setCurrentMatchCard(null)
                 advanceCard()

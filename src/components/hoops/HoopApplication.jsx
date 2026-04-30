@@ -17,8 +17,6 @@ export default function HoopApplication({ circle, onClose }) {
   const { currentUser, submitApplication } = useAppContext()
   const [step, setStep] = useState(0) // 0=Overview, 1..N=Hoops, N+1=Review, N+2=Success
   const [responses, setResponses] = useState({})
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordProgress, setRecordProgress] = useState(0)
   
   const hoops = circle.hoops || []
   const totalSteps = hoops.length
@@ -31,39 +29,14 @@ export default function HoopApplication({ circle, onClose }) {
     setStep(s => s - 1)
   }
 
-  const handleSubmit = () => {
-    const appRecord = {
-      id: `app-${Date.now()}`,
-      circleId: circle.id,
-      applicantId: currentUser.id,
-      applicantName: currentUser.name,
-      applicantAvatar: currentUser.avatar,
-      responses: hoops.map(h => ({
-        hoopId: h.id,
-        type: h.type,
-        prompt: h.prompt,
-        response: responses[h.id]
-      })),
-      status: 'pending',
-      submittedAt: new Date().toISOString()
+  const handleSubmit = async () => {
+    try {
+      await submitApplication({ circle, responses })
+      setStep(totalSteps + 2) // Jump to Success
+    } catch (err) {
+      console.error('[HoopApplication] submit failed', err)
+      alert('Sorry — something went wrong submitting your application. Please try again.')
     }
-    submitApplication(appRecord)
-    setStep(totalSteps + 2) // Jump to Success
-  }
-
-  const simulateRecording = (hoopId) => {
-    setIsRecording(true)
-    setRecordProgress(0)
-    let p = 0
-    const int = setInterval(() => {
-      p += 10
-      setRecordProgress(p)
-      if (p >= 100) {
-        clearInterval(int)
-        setIsRecording(false)
-        setResponses(prev => ({ ...prev, [hoopId]: 'media_uploaded_mock.mp4' }))
-      }
-    }, 300)
   }
 
   const renderOverview = () => (
@@ -83,7 +56,7 @@ export default function HoopApplication({ circle, onClose }) {
               </div>
               <div>
                 <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 800, color: clr.indigo, textTransform: 'uppercase' }}>
-                  {h.type === 'written' ? 'Short Answer' : h.type === 'multiplechoice' ? 'Multiple Choice' : h.type === 'video' ? 'Video Intro' : 'Voice Intro'}
+                  {h.type === 'written' ? 'Short Answer' : 'Multiple Choice'}
                 </p>
                 <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: clr.textDark }}>{h.prompt}</p>
               </div>
@@ -112,7 +85,6 @@ export default function HoopApplication({ circle, onClose }) {
     let isValid = false
     if (h.type === 'written') isValid = currentResponse.length >= 10
     else if (h.type === 'multiplechoice') isValid = !!currentResponse
-    else if (h.type === 'video' || h.type === 'voice') isValid = currentResponse.includes('media_uploaded') || currentResponse.length >= 10
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -166,45 +138,6 @@ export default function HoopApplication({ circle, onClose }) {
             </div>
           )}
 
-          {(h.type === 'video' || h.type === 'voice') && (
-            <div>
-              <div style={{ width: '100%', padding: 40, borderRadius: 24, backgroundColor: clr.indigoLt, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px dashed ${clr.indigo}`, marginBottom: 24 }}>
-                {currentResponse === 'media_uploaded_mock.mp4' ? (
-                  <div style={{ textAlign: 'center', color: clr.indigo }}>
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: clr.indigo, color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 16px' }}>
-                      ✓
-                    </div>
-                    <p style={{ fontWeight: 800, margin: 0 }}>Recorded successfully!</p>
-                  </div>
-                ) : (
-                  <>
-                    <button 
-                      onClick={() => simulateRecording(h.id)}
-                      disabled={isRecording}
-                      style={{ width: 80, height: 80, borderRadius: '50%', backgroundColor: isRecording ? clr.border : '#EF4444', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 8px 24px rgba(239, 68, 68, 0.3)', marginBottom: 16 }}
-                    >
-                      <div style={{ width: 32, height: 32, borderRadius: isRecording ? 8 : '50%', backgroundColor: '#FFF', transition: 'all 0.2s ease' }} />
-                    </button>
-                    {isRecording ? (
-                      <p style={{ fontWeight: 700, color: clr.textDark, margin: 0 }}>Recording... {recordProgress}%</p>
-                    ) : (
-                      <p style={{ fontWeight: 700, color: clr.textDark, margin: 0 }}>Tap to record {h.type}</p>
-                    )}
-                  </>
-                )}
-              </div>
-              <p style={{ fontSize: 13, color: clr.textMid, textAlign: 'center', marginBottom: 12 }}>
-                *Media recording coming soon. For now, you can also answer in text below.
-              </p>
-              <textarea
-                value={currentResponse}
-                onChange={e => setResponses(prev => ({ ...prev, [h.id]: e.target.value }))}
-                placeholder="Or type your response..."
-                style={{ width: '100%', boxSizing: 'border-box', minHeight: 120, padding: 20, borderRadius: 20, border: `2px solid ${clr.border}`, backgroundColor: clr.white, fontSize: 16, color: clr.textDark, outline: 'none', resize: 'none' }}
-              />
-            </div>
-          )}
-
         </div>
         
         <div style={{ padding: 24, borderTop: `1px solid ${clr.border}`, backgroundColor: clr.white }}>
@@ -238,15 +171,9 @@ export default function HoopApplication({ circle, onClose }) {
             </div>
             <p style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: clr.textDark }}>{h.prompt}</p>
             <div style={{ padding: 16, backgroundColor: clr.white, borderRadius: 16, border: `1px solid ${clr.border}` }}>
-              {responses[h.id] === 'media_uploaded_mock.mp4' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: clr.indigo, fontWeight: 700 }}>
-                  <span>🎥</span> Media Attached
-                </div>
-              ) : (
-                <p style={{ margin: 0, fontSize: 15, color: clr.textMid, lineHeight: 1.5 }}>
-                  {responses[h.id]}
-                </p>
-              )}
+              <p style={{ margin: 0, fontSize: 15, color: clr.textMid, lineHeight: 1.5 }}>
+                {responses[h.id]}
+              </p>
             </div>
           </div>
         ))}

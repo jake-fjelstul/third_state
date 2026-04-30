@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
+import { listChannels } from '../lib/chat'
+import { avatarFor } from '../lib/avatar'
 
 const clr = {
   bg: 'var(--bg)',
@@ -15,20 +17,26 @@ const clr = {
 
 export default function Notifications() {
   const navigate = useNavigate()
-  const { notifications, setNotifications, startDM, sendMessage, connectWithPerson } = useAppContext()
+  const {
+    notifications,
+    dismissNotification,
+    markNotificationRead,
+    markAllNotificationsRead,
+    acceptConnection,
+    declineConnection,
+    startDM,
+    sendMessage,
+    currentUser,
+  } = useAppContext()
   
   const [drafts, setDrafts] = useState({})
   const [sentStates, setSentStates] = useState({})
   const [activityReplyId, setActivityReplyId] = useState(null)
 
-  const connectionRequests = notifications.filter(n => n.type === 'connection_request')
+  const connectionRequests = notifications.filter(n => n.type === 'connection_request' || n.type === 'connection_accepted')
   const eventReminders = notifications.filter(n => n.type === 'event_approaching')
   const reconnectNudges = notifications.filter(n => n.type === 'reconnect_nudge')
-  const circleActivity = notifications.filter(n => n.type === 'circle_activity')
-
-  const dismissNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
-  }
+  const circleActivity = notifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
 
   const renderNotifCard = (notif) => {
     return (
@@ -59,40 +67,60 @@ export default function Notifications() {
           }}>
             <span style={{ fontSize: '24px' }}>📅</span>
           </div>
+        ) : (notif.type === 'application_approved' || notif.type === 'application_declined') ? (
+          <div style={{
+            width: 48, height: 48, borderRadius: '12px',
+            backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '24px' }}>{notif.circle?.emoji || (notif.type === 'application_approved' ? '✅' : '❌')}</span>
+          </div>
         ) : notif.type === 'circle_activity' ? (
           <div style={{
             width: 48, height: 48, borderRadius: '12px', overflow: 'hidden', position: 'relative'
           }}>
-            <img src={notif.user.avatar} alt={notif.user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={avatarFor(notif.user)} alt={notif.user?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             <div style={{ position: 'absolute', bottom: -2, right: -2, background: clr.white, borderRadius: '50%', padding: 2 }}>
               <span style={{ fontSize: 10 }}>💬</span>
             </div>
           </div>
-        ) : (
+        ) : notif.user ? (
           <img
-            src={notif.user.avatar}
-            alt={notif.user.name}
+            src={avatarFor(notif.user)}
+            alt={notif.user?.name}
             style={{
               width: 48, height: 48, borderRadius: '50%',
               backgroundColor: clr.indigoLt, objectFit: 'cover'
             }}
           />
+        ) : (
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%',
+            backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '24px' }}>👤</span>
+          </div>
         )}
 
         {/* Content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: '0 0 4px', fontSize: 15, color: clr.textDark, lineHeight: 1.4, wordBreak: 'break-word' }}>
             {notif.type === 'connection_request' ? (
-              <><span style={{ fontWeight: 700 }}>{notif.user.name}</span> {notif.message}</>
+              <><span style={{ fontWeight: 700 }}>{notif.user?.name}</span> {notif.message}</>
+            ) : notif.type === 'connection_accepted' ? (
+              <><span style={{ fontWeight: 700 }}>{notif.user?.name}</span> {notif.message}</>
             ) : notif.type === 'reconnect_nudge' ? (
               <>
-                <span style={{ fontWeight: 700 }}>Catch up with {notif.user.name.split(' ')[0]}</span>
-                <div style={{ marginTop: 4 }}>{notif.message}</div>
+                <span style={{ fontWeight: 700 }}>Catch up with {notif.user?.name?.split(' ')[0]}</span>
+                <span style={{ display: 'block', marginTop: 4 }}>{notif.message}</span>
               </>
             ) : notif.type === 'circle_activity' ? (
-              <><span style={{ fontWeight: 700 }}>{notif.user.name}</span> {notif.message}</>
+              <><span style={{ fontWeight: 700 }}>{notif.user?.name}</span> {notif.message}</>
+            ) : notif.type === 'application_approved' || notif.type === 'application_declined' ? (
+              <><span style={{ fontWeight: 700 }}>{notif.circle?.name}</span> {notif.message}</>
+            ) : notif.type === 'event_approaching' ? (
+              <><span style={{ fontWeight: 700 }}>{notif.event?.title}</span> {notif.message}</>
             ) : (
-              <><span style={{ fontWeight: 700 }}>{notif.event.title}</span> {notif.message}</>
+              <>{notif.message}</>
             )}
           </p>
           <p style={{ margin: '0 0 12px', fontSize: 13, color: clr.textLight }}>
@@ -103,19 +131,31 @@ export default function Notifications() {
           
           {notif.type === 'connection_request' && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { connectWithPerson(notif.user.id); dismissNotification(notif.id) }}
+              <button onClick={() => acceptConnection(notif.requestId, notif.id)}
                 style={{
                   flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
                 }}>
                 Accept
               </button>
-              <button onClick={() => dismissNotification(notif.id)}
+              <button onClick={() => declineConnection(notif.requestId, notif.id)}
                 style={{
                   flex: 1, backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 0',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
                 }}>
                 Decline
+              </button>
+            </div>
+          )}
+
+          {notif.type === 'connection_accepted' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => dismissNotification(notif.id)}
+                style={{
+                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}>
+                Dismiss
               </button>
             </div>
           )}
@@ -154,16 +194,18 @@ export default function Notifications() {
                 ))}
               </div>
               <form 
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault()
                   const text = drafts[notif.id]
                   if (!text?.trim()) return
-                  
-                  const chatId = startDM({ id: notif.targetId, name: notif.user.name, avatar: notif.user.avatar })
-                  sendMessage(chatId, text.trim(), 'general')
-                  
-                  setSentStates(prev => ({ ...prev, [notif.id]: true }))
-                  setTimeout(() => dismissNotification(notif.id), 1200)
+                  try {
+                    const chatId = await startDM({ id: notif.targetId, name: notif.user.name, avatar: notif.user.avatar })
+                    await sendMessage(chatId, text.trim(), null)
+                    setSentStates(prev => ({ ...prev, [notif.id]: true }))
+                    setTimeout(() => dismissNotification(notif.id), 1200)
+                  } catch (err) {
+                    console.error('[Notifications] reconnect reply failed', err)
+                  }
                 }} 
                 style={{ display: 'flex', gap: 8, marginTop: 4 }}
               >
@@ -210,15 +252,20 @@ export default function Notifications() {
 
                {activityReplyId === notif.id && (
                   <form 
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault()
                       if (!drafts[notif.id]?.trim()) return
-                      
-                      const chatId = notif.circle?.chatId || `circle-${notif.circle.id}`
-                      sendMessage(chatId, drafts[notif.id].trim(), 'general')
-                      
-                      setSentStates(prev => ({ ...prev, [notif.id]: true }))
-                      setTimeout(() => dismissNotification(notif.id), 1200)
+                      try {
+                        const chatId = notif.chatId
+                        if (!chatId) return
+                        const channels = await listChannels(chatId)
+                        const general = channels.find(c => c.name === 'general')
+                        await sendMessage(chatId, drafts[notif.id].trim(), general?.id || null)
+                        setSentStates(prev => ({ ...prev, [notif.id]: true }))
+                        setTimeout(() => dismissNotification(notif.id), 1200)
+                      } catch (err) {
+                        console.error('[Notifications] circle reply failed', err)
+                      }
                     }} 
                     style={{ display: 'flex', gap: 8, marginTop: 4 }}
                   >
@@ -244,10 +291,24 @@ export default function Notifications() {
                )}
             </div>
           )}
+
+          {(notif.type === 'application_approved' || notif.type === 'application_declined') && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => dismissNotification(notif.id)}
+                style={{
+                  backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 16px',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}>
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
   }
+
+  const unreadCount = notifications.filter(n => !n.isRead).length
 
   return (
     <div style={{
@@ -260,9 +321,22 @@ export default function Notifications() {
         margin: '0 auto',
         padding: '24px 20px 80px',
       }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, marginBottom: 24, paddingLeft: 4 }}>
-          Notifications
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingLeft: 4, paddingRight: 4 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0 }}>
+            Notifications
+          </h1>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllNotificationsRead}
+              style={{
+                background: 'none', border: 'none', color: clr.indigo,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '4px 8px',
+              }}
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
 
         {notifications.length === 0 ? (
            <div style={{ padding: 40, textAlign: 'center' }}>

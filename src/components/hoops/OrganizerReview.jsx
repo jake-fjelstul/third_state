@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import { getProfileById } from '../../lib/profiles'
 
 const clr = {
   bg: '#F9FAFB',
@@ -18,10 +19,11 @@ const clr = {
 }
 
 export default function OrganizerReview({ circle }) {
-  const { pendingApplications, approveApplication, declineApplication, startDM, people } = useAppContext()
+  const { pendingApplications, approveApplication, declineApplication, startDM, loadApplicationsForCircle } = useAppContext()
   const navigate = useNavigate()
   
   const [filter, setFilter] = useState('pending') // 'all' | 'pending' | 'approved' | 'declined'
+  const [actingId, setActingId] = useState(null)
 
   const apps = pendingApplications.filter(a => a.circleId === circle.id)
   
@@ -29,6 +31,11 @@ export default function OrganizerReview({ circle }) {
     if (filter === 'all') return true
     return a.status === filter
   })
+
+  useEffect(() => {
+    if (!circle?.id) return
+    loadApplicationsForCircle(circle.id).catch(err => console.error('[OrganizerReview] load failed', err))
+  }, [circle?.id, loadApplicationsForCircle])
 
   // Format timestamp safely
   const timeSince = (isoString) => {
@@ -38,15 +45,18 @@ export default function OrganizerReview({ circle }) {
     return `${Math.floor(hours/24)}d ago`
   }
 
-  const handleMessage = (e, applicantId) => {
+  const handleMessage = async (e, applicantId) => {
     e.stopPropagation()
-    const person = people.find(p => p.id === applicantId)
-    // If it's a mock user not in 'people', we can mock a simple chat or just return
-    if (person) {
-      const chatId = startDM(person)
-      navigate(`/chat/${chatId}`)
-    } else {
-      alert('Mock user not explicitly defined in people array.')
+    try {
+      const person = await getProfileById(applicantId)
+      if (person) {
+        const chatId = await startDM(person)
+        navigate(`/chat/${chatId}`)
+      } else {
+        console.warn('[OrganizerReview] applicant profile not found', applicantId)
+      }
+    } catch (err) {
+      console.error('[OrganizerReview] startDM failed', err)
     }
   }
 
@@ -114,16 +124,7 @@ export default function OrganizerReview({ circle }) {
                 {app.responses.map((resp, i) => (
                   <div key={i} style={{ backgroundColor: clr.bg, padding: 12, borderRadius: 12 }}>
                     <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 800, color: clr.textLight, textTransform: 'uppercase' }}>{resp.prompt}</p>
-                    {resp.response === 'media_uploaded_mock.mp4' ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: clr.indigo, fontSize: 14, fontWeight: 700 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          ▶
-                        </div>
-                        {resp.type === 'video' ? 'Video Message' : 'Voice Note'} (0:15)
-                      </div>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>"{resp.response}"</p>
-                    )}
+                    <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>"{resp.response}"</p>
                   </div>
                 ))}
               </div>
@@ -131,11 +132,21 @@ export default function OrganizerReview({ circle }) {
               {/* Actions */}
               {app.status === 'pending' ? (
                 <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => approveApplication(app.id)} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: `linear-gradient(135deg, ${clr.green}, #0ea5e9)`, color: '#FFF', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <span>✓</span> Approve
+                  <button disabled={actingId === app.id} onClick={async () => {
+                    setActingId(app.id)
+                    try { await approveApplication(app.id) }
+                    catch(err) { console.error(err) }
+                    finally { setActingId(null) }
+                  }} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: `linear-gradient(135deg, ${clr.green}, #0ea5e9)`, color: '#FFF', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span>✓</span> {actingId === app.id ? 'Working…' : 'Approve'}
                   </button>
-                  <button onClick={() => declineApplication(app.id)} style={{ flex: 1, padding: 14, borderRadius: 12, border: `1.5px solid ${clr.red}`, background: 'transparent', color: clr.red, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <span>✕</span> Decline
+                  <button disabled={actingId === app.id} onClick={async () => {
+                    setActingId(app.id)
+                    try { await declineApplication(app.id) }
+                    catch(err) { console.error(err) }
+                    finally { setActingId(null) }
+                  }} style={{ flex: 1, padding: 14, borderRadius: 12, border: `1.5px solid ${clr.red}`, background: 'transparent', color: clr.red, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span>✕</span> {actingId === app.id ? 'Working…' : 'Decline'}
                   </button>
                 </div>
               ) : (

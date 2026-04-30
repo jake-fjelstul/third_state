@@ -76,7 +76,7 @@ export default function HoopBuilder({ hoops, onChange }) {
           <p style={{ margin: '0 0 16px', fontSize: 13, fontWeight: 800, color: clr.indigo, textTransform: 'uppercase' }}>Step {i + 1}</p>
           
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-            {['written', 'video', 'voice', 'multiplechoice'].map(t => (
+            {['written', 'multiplechoice'].map(t => (
               <button
                 key={t}
                 onClick={() => handleUpdate(h.id, 'type', t)}

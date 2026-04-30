@@ -18,6 +18,10 @@
   --textLight: #9CA3AF;
   --border: #E8E8EE;
   --green: #22C55E;
+  --modal-suggest-bg: rgba(245, 158, 11, 0.1);
+  --modal-suggest-border: rgba(217, 119, 6, 0.35);
+  --modal-suggest-chip-bg: rgba(254, 243, 199, 0.95);
+  --modal-suggest-chip-text: #B45309;
 }
 
 html.dark {
@@ -30,6 +34,10 @@ html.dark {
   --textLight: #6B7280;
   --border: #2D2D3D;
   --green: #22C55E;
+  --modal-suggest-bg: rgba(245, 158, 11, 0.12);
+  --modal-suggest-border: rgba(251, 191, 36, 0.45);
+  --modal-suggest-chip-bg: rgba(245, 158, 11, 0.22);
+  --modal-suggest-chip-text: #FCD34D;
 }
 
 body {
@@ -44,4 +52,11 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+/* Edit profile modal — theme-aware text fields */
+.profile-edit-modal input::placeholder,
+.profile-edit-modal textarea::placeholder {
+  color: var(--textLight);
+  opacity: 1;
 }

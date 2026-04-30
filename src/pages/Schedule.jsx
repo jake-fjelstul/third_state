@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { circles, meetups as mockMeetups } from '../data/mockData'
+import { listCircles } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
-import { useGoogleCalendar } from '../hooks/useGoogleCalendar.js'
+import { useCalendar } from '../hooks/useCalendar.js'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import TimePicker from '../components/TimePicker.jsx'
 
@@ -126,7 +126,7 @@ function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails }) {
             fontSize: 13, fontWeight: 600, cursor: added ? 'default' : 'pointer',
             transition: 'all 0.2s ease',
           }}>
-            {added ? '✓ Added' : 'Add to Google Cal'}
+            {added ? '✓ Added' : 'Add to Calendar'}
           </button>
         )}
         <button type="button" onClick={(e) => { e.stopPropagation(); onViewDetails(meetup); }} style={{
@@ -165,15 +165,22 @@ export default function Schedule() {
     }, 300)
   }
 
+  const [circles, setCircles] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    listCircles().then(list => { if (!cancelled) setCircles(list) })
+    return () => { cancelled = true }
+  }, [])
+
   const {
     isConfigured, isConnected, isLoading, googleEvents,
     connect, disconnect, addEventToGoogle,
-  } = useGoogleCalendar()
+  } = useCalendar()
 
-  const { meetups, addMeetup, joinedCircles, rsvpEvent, cancelRsvp, isRsvpd } = useAppContext()
+  const { meetups, createEventAndRsvp, joinedCircles, rsvpEvent, cancelRsvp, isRsvpd, currentUser } = useAppContext()
 
   const [form, setForm] = useState({
-    title: '', circleId: joinedCircles[0] ?? '',
+    title: '', circleId: '',
     date: '', time: '', location: '', notes: '',
   })
 
@@ -186,7 +193,7 @@ export default function Schedule() {
       ...m,
       source: 'thirdspace',
       color: clr.indigo,
-      dateObj: parseEventDate(m),
+      dateObj: m.dateObj || parseEventDate(m),
     }))
 
     const gcEvents = googleEvents.map(e => ({
@@ -220,28 +227,28 @@ export default function Schedule() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.circleId || !form.date || !form.time) return
-    const circle = circles.find((c) => c.id === form.circleId)
-    
-    const newMeetup = {
-      id: `custom-${Date.now()}`,
-      title: form.title,
-      circleId: form.circleId,
-      circleName: circle?.name ?? 'Circle',
-      date: form.date, time: form.time,
-      location: form.location || 'TBD',
-      notes: form.notes,
-      attendees: [],
-    }
 
-    addMeetup(newMeetup)
-    
-    if (addToGCal && isConnected) {
-      await addEventToGoogle(newMeetup)
-    }
+    try {
+      const event = await createEventAndRsvp({
+        circleId: form.circleId,
+        title: form.title,
+        date: form.date,
+        time: form.time,
+        location: form.location,
+        notes: form.notes,
+      })
 
-    setForm({ title:'', circleId: joinedCircles[0] ?? '', date:'', time:'', location:'', notes:'' })
-    setAddToGCal(false)
-    handleCloseForm()
+      if (addToGCal && isConnected) {
+        await addEventToGoogle(event)
+      }
+
+      setForm({ title:'', circleId: joinedCircles[0] ?? '', date:'', time:'', location:'', notes:'' })
+      setAddToGCal(false)
+      handleCloseForm()
+    } catch (err) {
+      console.error('[Schedule] create event failed', err)
+      alert('Sorry — something went wrong creating your event. Please try again.')
+    }
   }
 
   const inputStyle = {
@@ -569,8 +576,9 @@ export default function Schedule() {
                     onChange={e => setForm(f => ({ ...f, circleId: e.target.value }))}
                     style={{ ...inputStyle, appearance:'none', paddingRight:40, cursor:'pointer' }}
                   >
+                    <option value="" disabled>Select a circle...</option>
                     {joinedCircleOptions.length === 0
-                      ? <option value="">Join a circle to schedule</option>
+                      ? <option value="" disabled>Join a circle to schedule</option>
                       : joinedCircleOptions.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))
