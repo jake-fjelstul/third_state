@@ -43,6 +43,11 @@ export default function AssistantBar({ onSubmit, clr }) {
           padding: 2,
           overflow: 'hidden',
           isolation: 'isolate',
+          // iOS Safari does not reliably clip transformed children with
+          // overflow:hidden + border-radius alone.
+          clipPath: 'inset(0 round 24px)',
+          WebkitClipPath: 'inset(0 round 24px)',
+          transform: 'translateZ(0)',
           boxShadow: '0 0 28px rgba(123,111,255,0.18), 0 4px 16px rgba(0,0,0,0.08)',
         }}
       >
