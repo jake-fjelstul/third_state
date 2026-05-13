@@ -97,7 +97,7 @@ export default function LocationAutocomplete({
           borderRadius: 12,
           border: `1.5px solid ${clr?.border || '#E5E7EB'}`,
           backgroundColor: clr?.bg || '#FFF',
-          fontSize: 15,
+          fontSize: 16,
           color: clr?.textDark || '#111',
           outline: 'none',
           fontFamily: 'inherit',

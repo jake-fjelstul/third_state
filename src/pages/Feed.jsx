@@ -457,11 +457,17 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const bottomSheetStyle = {
     position: 'fixed', inset: 0, zIndex: 300,
     backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', alignItems: 'flex-end',
-    justifyContent: 'center'
+    justifyContent: 'center', overflow: 'hidden',
   }
   const sheetContentStyle = {
-    width: '100%', maxWidth: 500, backgroundColor: clr.white,
-    borderRadius: '24px 24px 0 0', padding: '24px 20px 48px',
+    width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
+    backgroundColor: clr.white,
+    borderRadius: '24px 24px 0 0',
+    padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
+    maxHeight: 'calc(100dvh - 16px)',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehavior: 'contain',
     animation: 'slideUp 0.25s ease',
   }
 
@@ -469,11 +475,11 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const Header = ({ title }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
       <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: clr.textDark }}>{title}</h3>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><svg width="24" height="24" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+      <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}><svg width="24" height="24" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
     </div>
   )
 
-  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16, border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15, color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16 }
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16, border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 16, color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16 }
   const submitStyle = { width: '100%', padding: '16px 0', borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(91,95,239,0.3)', marginTop: 8 }
 
   const content = () => {

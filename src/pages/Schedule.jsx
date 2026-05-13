@@ -325,7 +325,7 @@ export default function Schedule() {
     padding: '13px 16px', borderRadius: 12,
     border: `1.5px solid ${clr.border}`,
     backgroundColor: 'var(--bg, #F0F0F5)',
-    fontSize: 15, color: clr.textDark,
+    fontSize: 16, color: clr.textDark,
     outline: 'none', fontFamily: 'inherit',
   }
 
@@ -674,15 +674,19 @@ export default function Schedule() {
           backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 1000,
           display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
           alignItems: 'center',
+          overflow: 'hidden',
           animation: formClosing ? 'fadeOut 0.3s ease forwards' : 'fadeIn 0.3s ease forwards',
         }}>
           <div style={{
             backgroundColor: clr.white,
-            width: '100%', maxWidth: 500,
+            width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
             borderTopLeftRadius: 32, borderTopRightRadius: 32,
-            padding: '32px 24px', height: '85vh',
+            padding: '32px 24px calc(32px + env(safe-area-inset-bottom))',
+            maxHeight: 'calc(100dvh - 16px)',
             boxShadow: '0 -10px 40px rgba(0,0,0,0.1)',
             overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
             animation: formClosing ? 'slideDown 0.3s ease forwards' : 'slideUp 0.3s ease forwards',
           }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
