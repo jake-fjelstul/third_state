@@ -507,6 +507,45 @@ export default function Profile() {
                 </p>
               </div>
             ))}
+            <button
+              type="button"
+              onClick={() => navigate('/circles?tab=connections')}
+              style={{
+                flexShrink: 0,
+                backgroundColor: clr.white,
+                borderRadius: 20,
+                padding: '16px 14px',
+                textAlign: 'center',
+                width: 110,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                cursor: 'pointer',
+                border: 'none',
+                fontFamily: 'inherit',
+              }}
+            >
+              <div style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                backgroundColor: clr.indigoLt,
+                color: clr.indigo,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 8px',
+                fontSize: 26,
+                fontWeight: 700,
+                lineHeight: 1,
+              }}>
+                +
+              </div>
+              <p style={{ fontSize:13, fontWeight:600, color: clr.textDark, margin:'0 0 2px 0' }}>
+                See all
+              </p>
+              <p style={{ fontSize:11, color: clr.textMid, margin:0 }}>
+                Connections
+              </p>
+            </button>
           </div>
         </div>
 

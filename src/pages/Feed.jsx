@@ -827,13 +827,13 @@ function SocialBattery() {
         onClick={() => setShowHistory(h => !h)}
         style={{
           backgroundColor: clr.white,
-          borderRadius: 24,
+          borderRadius: showHistory ? '24px 24px 0 0' : 24,
           padding: '20px',
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           cursor: 'pointer',
-          transition: 'transform 0.15s ease',
+          transition: 'transform 0.15s ease, border-radius 0.2s ease',
         }}
-        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+        onMouseEnter={e => e.currentTarget.style.transform = showHistory ? 'translateY(0)' : 'translateY(-1px)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -894,7 +894,7 @@ function SocialBattery() {
         <div style={{
           backgroundColor: clr.white,
           borderRadius: '0 0 24px 24px',
-          marginTop: -8, paddingTop: 16,
+          marginTop: 0,
           padding: '16px 20px 20px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
           animation: 'slideDown 0.2s ease',
@@ -984,6 +984,34 @@ export default function Feed() {
   }, [currentUser?.id, circleMembershipVersion])
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
+
+  useEffect(() => {
+    if (!showCreateModal) return
+
+    const scrollY = window.scrollY
+    const body = document.body
+    const root = document.documentElement
+    const prevBodyOverflow = body.style.overflow
+    const prevBodyPosition = body.style.position
+    const prevBodyTop = body.style.top
+    const prevBodyWidth = body.style.width
+    const prevRootOverflow = root.style.overflow
+
+    body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+
+    return () => {
+      body.style.overflow = prevBodyOverflow
+      root.style.overflow = prevRootOverflow
+      body.style.position = prevBodyPosition
+      body.style.top = prevBodyTop
+      body.style.width = prevBodyWidth
+      window.scrollTo(0, scrollY)
+    }
+  }, [showCreateModal])
 
   // Event detail modal state
   const [selectedEvent, setSelectedEvent] = useState(null)

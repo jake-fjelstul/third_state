@@ -154,6 +154,34 @@ export default function Schedule() {
   const [formClosing, setFormClosing] = useState(false)
   const [addToGCal, setAddToGCal] = useState(false)
 
+  useEffect(() => {
+    if (!showForm) return
+
+    const scrollY = window.scrollY
+    const body = document.body
+    const root = document.documentElement
+    const prevBodyOverflow = body.style.overflow
+    const prevBodyPosition = body.style.position
+    const prevBodyTop = body.style.top
+    const prevBodyWidth = body.style.width
+    const prevRootOverflow = root.style.overflow
+
+    body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+
+    return () => {
+      body.style.overflow = prevBodyOverflow
+      root.style.overflow = prevRootOverflow
+      body.style.position = prevBodyPosition
+      body.style.top = prevBodyTop
+      body.style.width = prevBodyWidth
+      window.scrollTo(0, scrollY)
+    }
+  }, [showForm])
+
   // Event detail modal state
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [detailClosing, setDetailClosing] = useState(false)

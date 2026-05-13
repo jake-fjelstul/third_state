@@ -121,6 +121,11 @@ export default function AssistantBar({ onSubmit, clr }) {
                 backgroundColor: 'transparent',
                 fontFamily: 'inherit',
                 minWidth: 0,
+                padding: 0,
+                margin: 0,
+                lineHeight: '20px',
+                appearance: 'none',
+                WebkitAppearance: 'none',
               }}
             />
             <button
@@ -159,6 +164,7 @@ export default function AssistantBar({ onSubmit, clr }) {
                 fontSize: 12,
                 fontStyle: 'italic',
                 fontFamily: 'inherit',
+                lineHeight: '18px',
                 animation: 'exampleFade 0.4s ease',
                 opacity: 0.85,
                 width: '100%',
@@ -166,6 +172,8 @@ export default function AssistantBar({ onSubmit, clr }) {
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                appearance: 'none',
+                WebkitAppearance: 'none',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.85')}

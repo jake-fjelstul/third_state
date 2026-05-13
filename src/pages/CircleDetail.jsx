@@ -166,7 +166,7 @@ export default function CircleDetail() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '20px 20px 0',
           position: 'relative',
-          zIndex: 2,
+          zIndex: 20,
         }}>
           <button type="button" onClick={() => navigate(-1)} style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: 4,
@@ -178,7 +178,7 @@ export default function CircleDetail() {
           <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>
             {circle.name} {circle.emoji}
           </span>
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', zIndex: 21 }}>
             <button type="button" onClick={() => setShowDropdown(!showDropdown)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
               <svg width="20" height="20" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
                 <circle cx="12" cy="5" r="1" fill="#FFFFFF" />
@@ -197,7 +197,7 @@ export default function CircleDetail() {
                 boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                 padding: 4,
                 width: 140,
-                zIndex: 50,
+                zIndex: 1000,
               }}>
                 {isOrganizer && (
                   <button type="button" onClick={() => { setShowDropdown(false); setShowCoverUploader(true) }} style={{ width: '100%', padding: '10px 12px', backgroundColor: 'transparent', border: 'none', borderRadius: 8, textAlign: 'left', color: clr.textDark, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
@@ -220,10 +220,16 @@ export default function CircleDetail() {
                 {!isOrganizer && (
                   <button
                     type="button"
-                    onClick={() => {
-                      leaveCircle(circle.id)
-                      setShowDropdown(false)
-                      navigate('/circles')
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      try {
+                        await leaveCircle(circle.id)
+                        setShowDropdown(false)
+                        navigate('/circles')
+                      } catch (err) {
+                        console.error('[CircleDetail] leave circle failed', err)
+                      }
                     }}
                     style={{
                       width: '100%',
