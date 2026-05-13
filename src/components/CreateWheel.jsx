@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 // Generates an SVG path for an annular (donut) slice with parallel constant-width gaps.
 function getSlicePath(logicalStart, logicalEnd, gapWidth, innerR, outerR, cx, cy) {
@@ -70,6 +70,7 @@ export default function CreateWheel({ onAction }) {
   const [hovered, setHovered] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const svgRef = useRef(null);
+  const centerButtonRef = useRef(null);
   const pointerRef = useRef(null);
 
   const cx = 200;
@@ -80,6 +81,20 @@ export default function CreateWheel({ onAction }) {
   
   // mathematically perfectly spaced wedges with parallel edges making uniform equal-width gaps
   const slicePath = getSlicePath(-45, 45, gapWidth, innerR, outerR, cx, cy);
+
+  useEffect(() => {
+    const button = centerButtonRef.current;
+    if (!button) return undefined;
+
+    const preventScroll = (event) => {
+      event.preventDefault();
+    };
+
+    // iOS Safari only reliably pauses page scroll from a non-passive
+    // touchmove listener on an HTML element that started the gesture.
+    button.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => button.removeEventListener('touchmove', preventScroll);
+  }, []);
 
   // Math-based hovered slice detection solves all pointer/touch capturing issues!
   const getHoveredSlice = (clientX, clientY) => {
@@ -141,6 +156,10 @@ export default function CreateWheel({ onAction }) {
         setHovered(null);
         return;
       }
+
+      if (pointer.isCreateGesture) {
+        e.preventDefault();
+      }
     }
 
     const slice = getHoveredSlice(e.clientX, e.clientY);
@@ -195,6 +214,7 @@ export default function CreateWheel({ onAction }) {
         WebkitTapHighlightColor: 'transparent',
         WebkitUserSelect: 'none',
         userSelect: 'none',
+        position: 'relative',
       }}
     >
       <svg 
@@ -276,23 +296,39 @@ export default function CreateWheel({ onAction }) {
             transform: isDragging ? 'scale(0.92)' : 'scale(1)',
             transformOrigin: `${cx}px ${cy}px`,
             transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            pointerEvents: 'auto',
-            touchAction: 'none',
+            pointerEvents: 'none',
           }}
         >
           <circle cx={cx} cy={cy} r="76" fill="var(--bg)" stroke="var(--border)" strokeWidth="1.5" />
           <circle cx={cx} cy={cy} r="74" fill="none" stroke="var(--border)" strokeWidth="1" strokeOpacity="0.5" />
           <text x={cx} y={cy - 6} fill="var(--textDark)" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">TAP TO</text>
           <text x={cx} y={cy + 14} fill="var(--textDark)" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">CREATE</text>
-          <circle
-            cx={cx}
-            cy={cy}
-            r="76"
-            fill="transparent"
-            style={{ pointerEvents: 'all', touchAction: 'none' }}
-          />
         </g>
       </svg>
+      <button
+        ref={centerButtonRef}
+        type="button"
+        aria-label="Tap and drag to create"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: '38%',
+          aspectRatio: '1 / 1',
+          transform: 'translate(-50%, -50%)',
+          borderRadius: '50%',
+          border: 'none',
+          padding: 0,
+          background: 'transparent',
+          cursor: 'pointer',
+          touchAction: 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      />
     </div>
   );
 }
