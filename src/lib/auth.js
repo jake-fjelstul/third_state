@@ -128,16 +128,35 @@ export async function updateProfile(userId, patch) {
     return data
   }
 
-  try {
-    return await runUpdate(payload)
-  } catch (error) {
-    const missingLatitude = isMissingColumnError(error, 'latitude')
-    const missingLongitude = isMissingColumnError(error, 'longitude')
-    if (!missingLatitude && !missingLongitude) throw error
-
-    const fallbackPatch = { ...payload }
-    delete fallbackPatch.latitude
-    delete fallbackPatch.longitude
-    return await runUpdate(fallbackPatch)
+  let currentPatch = { ...payload }
+  let attempts = 0
+  
+  while (attempts < 3) {
+    try {
+      return await runUpdate(currentPatch)
+    } catch (error) {
+      const missingLat = isMissingColumnError(error, 'latitude')
+      const missingLon = isMissingColumnError(error, 'longitude')
+      const missingPriv = isMissingColumnError(error, 'privacy')
+      const missingNotifs = isMissingColumnError(error, 'notification_prefs')
+      const missingIntentAt = isMissingColumnError(error, 'intent_captured_at')
+      const missingIntentNote = isMissingColumnError(error, 'intent_note')
+      
+      if (!missingLat && !missingLon && !missingPriv && !missingNotifs && !missingIntentAt && !missingIntentNote) throw error
+      
+      if (missingLat || missingLon) {
+        delete currentPatch.latitude
+        delete currentPatch.longitude
+      }
+      if (missingPriv) {
+        delete currentPatch.privacy
+      }
+      if (missingNotifs) delete currentPatch.notification_prefs
+      if (missingIntentAt) delete currentPatch.intent_captured_at
+      if (missingIntentNote) delete currentPatch.intent_note
+      
+      attempts++
+    }
   }
+  throw new Error("Failed to update profile after multiple fallback attempts")
 }

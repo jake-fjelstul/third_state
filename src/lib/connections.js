@@ -25,21 +25,6 @@ export async function listMyConnections(userId) {
   return (data || []).map(mapConnectionRow)
 }
 
-export async function addConnection({ userId, connectedUserId }) {
-  const { error } = await supabase
-    .from('connections')
-    .insert({ user_id: userId, connected_user_id: connectedUserId })
-  if (error && error.code !== '23505') throw error // ignore unique-violation
-}
-
-export async function removeConnection({ userId, connectedUserId }) {
-  const { error } = await supabase
-    .from('connections')
-    .delete()
-    .eq('user_id', userId)
-    .eq('connected_user_id', connectedUserId)
-  if (error) throw error
-}
 
 export async function updateLastHangout({ userId, connectedUserId, when }) {
   const { error } = await supabase
@@ -82,5 +67,11 @@ export async function declineConnectionRequest(requestId) {
     .from('connection_requests')
     .update({ status: 'declined', responded_at: new Date().toISOString() })
     .eq('id', requestId)
+  if (error) throw error
+}
+
+export async function disconnectFrom(targetId) {
+  if (!targetId) return
+  const { error } = await supabase.rpc('disconnect_from', { p_target_id: targetId })
   if (error) throw error
 }

@@ -10,13 +10,12 @@ import { uploadAvatar, deleteAvatar } from '../lib/storage'
 import { avatarFor } from '../lib/avatar'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
 import { buildInviteMessage, classifyContact, createInvite } from '../lib/invites.js'
+import { INTENT_LABELS } from '../lib/intents.js'
 
 const INTERESTS = [
   'Rock Climbing','Hiking','Coffee','Startups','Photography','Chess',
   'Running','Yoga','Book Club','Tech','Art','Cooking','Music','Travel','Film','Gaming',
 ]
-
-const INTENTS = ['Find friends', 'Find events', 'Explore circles', 'Build routine']
 
 const clr = {
   bg:       'var(--bg)',
@@ -732,7 +731,7 @@ export default function Profile() {
                   )}
                 </div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                  {INTENTS.map((label) => {
+                  {INTENT_LABELS.map((label) => {
                     const active = draft.intents.includes(label)
                     return (
                       <button

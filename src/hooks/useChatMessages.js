@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { listMessages } from '../lib/chat'
+import { listMessages, mapMessageRow } from '../lib/chat'
 
 /**
  * Subscribes to new messages for a chat (optionally filtered to a channel).
@@ -59,17 +59,8 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
           setMessages(prev => {
             // de-dupe in case of optimistic-then-realtime echo
             if (prev.some(m => m.id === row.id)) return prev
-            return [...prev, {
-              id: row.id,
-              chatId: row.chat_id,
-              channelId: row.channel_id,
-              senderId: row.sender_id,
-              senderName,
-              senderAvatar,
-              text: row.text,
-              createdAt: row.created_at,
-              time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }]
+            const msg = mapMessageRow({ ...row, profiles: { id: row.sender_id, name: senderName, avatar_url: senderAvatar } })
+            return [...prev, msg]
           })
         }
       )

@@ -5,6 +5,7 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { useCalendar } from '../hooks/useCalendar.js'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import TimePicker from '../components/TimePicker.jsx'
+import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 
 // Color system
 const clr = {
@@ -182,7 +183,7 @@ export default function Schedule() {
 
   const [form, setForm] = useState({
     title: '', circleId: '',
-    date: '', time: '', location: '', notes: '',
+    date: '', time: '', location: null, notes: '',
   })
 
   // Calendar events
@@ -262,7 +263,10 @@ export default function Schedule() {
         title: form.title,
         date: form.date,
         time: form.time,
-        location: form.location,
+        location: form.location?.name || '',
+        locationLat: form.location?.lat,
+        locationLng: form.location?.lng,
+        locationAddress: form.location?.address,
         notes: form.notes,
       })
 
@@ -270,7 +274,7 @@ export default function Schedule() {
         await addEventToGoogle(event)
       }
 
-      setForm({ title:'', circleId: joinedCircles[0] ?? '', date:'', time:'', location:'', notes:'' })
+      setForm({ title:'', circleId: joinedCircles[0] ?? '', date:'', time:'', location:null, notes:'' })
       setAddToGCal(false)
       handleCloseForm()
     } catch (err) {
@@ -278,6 +282,15 @@ export default function Schedule() {
       alert('Sorry — something went wrong creating your event. Please try again.')
     }
   }
+
+  const upcomingMeetups = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return meetups.filter(m => {
+      const d = m.dateObj || parseEventDate(m)
+      return d ? d >= today : true
+    })
+  }, [meetups])
 
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
@@ -608,12 +621,12 @@ export default function Schedule() {
             </button>
           </div>
 
-          {meetups.length === 0 ? (
+          {upcomingMeetups.length === 0 ? (
             <p style={{ fontSize:14, color: clr.textMid }}>
               Once you RSVP to events or create your own, they'll land here.
             </p>
           ) : (
-            meetups.map(meetup => (
+            upcomingMeetups.map(meetup => (
               <MeetupCard 
                 key={meetup.id} 
                 meetup={meetup}
@@ -709,19 +722,16 @@ export default function Schedule() {
 
               <div>
                 <label style={labelStyle}>Location</label>
-                <div style={{ position:'relative' }}>
-                  <svg width="16" height="16" fill="none" stroke={clr.textLight} strokeWidth="2" viewBox="0 0 24 24"
-                    style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                  </svg>
-                  <input type="text" value={form.location}
-                    onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                    placeholder="Where are we meeting?" style={{ ...inputStyle, paddingLeft:40 }}
-                    onFocus={e => e.target.style.borderColor = clr.indigo}
-                    onBlur={e  => e.target.style.borderColor = clr.border}
-                  />
-                </div>
+                <LocationAutocomplete
+                  value={form.location}
+                  onChange={loc => setForm(f => ({ ...f, location: loc }))}
+                  biasNear={
+                    currentUser?.latitude != null && currentUser?.longitude != null
+                      ? { lat: currentUser.latitude, lng: currentUser.longitude }
+                      : undefined
+                  }
+                  clr={clr}
+                />
               </div>
 
               <div>

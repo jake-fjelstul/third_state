@@ -8,6 +8,7 @@ import CirclesPage from './pages/Circles.jsx'
 import CircleDetailPage from './pages/CircleDetail.jsx'
 import SchedulePage from './pages/Schedule.jsx'
 import ChatPage from './pages/Chat.jsx'
+import GamePlay from './pages/GamePlay.jsx'
 import ProfilePage from './pages/Profile.jsx'
 import UserProfilePage from './pages/UserProfile.jsx'
 import SettingsPage from './pages/Settings.jsx'
@@ -80,6 +81,8 @@ const NAV_ITEMS = [
 function BottomNav() {
   const location = useNavigate ? useLocation() : { pathname: '' }
   const navigate = useNavigate()
+  const { chatState } = useAppContext()
+  const hasUnreadChat = Object.values(chatState || {}).some(chat => chat.unread > 0)
 
   return (
     <nav style={{
@@ -121,8 +124,16 @@ function BottomNav() {
                 backgroundColor: active ? clr.indigoLt : 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background-color 0.15s ease',
+                position: 'relative',
               }}>
                 <Icon active={active} />
+                {to === '/chat' && hasUnreadChat && (
+                  <div style={{
+                    position: 'absolute', top: 8, right: 8,
+                    width: 8, height: 8, borderRadius: '50%',
+                    backgroundColor: '#EF4444', border: `1.5px solid ${active ? clr.indigoLt : clr.white}`
+                  }} />
+                )}
               </div>
               {/* Active dot */}
               <div style={{
@@ -181,17 +192,17 @@ function TopNav() {
 /* ── Shell layout wrapping all authenticated pages ── */
 function ShellLayout() {
   const location = useLocation()
-  // Hide top/bottom nav when inside a chat thread (e.g. /chat/some-id)
-  const isChatThread = /^\/chat\/.+/.test(location.pathname)
+  // Hide top nav when inside a chat thread or game
+  const hideTopNav = /^\/chat\/.+/.test(location.pathname) || /^\/game\/.+/.test(location.pathname)
 
   return (
     <>
-      {/* Top nav bar — hidden in chat threads */}
-      {!isChatThread && <TopNav />}
+      {/* Top nav bar — hidden in chat threads and games */}
+      {!hideTopNav && <TopNav />}
 
       <div style={{
         minHeight: '100vh',
-        paddingTop: isChatThread ? 0 : 60, /* space for top nav bar */
+        paddingTop: hideTopNav ? 0 : 60, /* space for top nav bar */
         paddingBottom: 80, /* space for bottom tab bar */
         backgroundColor: clr.bg,
         display: 'flex',
@@ -281,6 +292,7 @@ function App() {
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:id" element={<ChatPage />} />
+          <Route path="/game/:gameId" element={<GamePlay />} />
           <Route path="/user/:id" element={<UserProfilePage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />

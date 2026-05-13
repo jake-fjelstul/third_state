@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 // ---------- mappers ----------
 
-function mapMessageRow(row) {
+export function mapMessageRow(row) {
   if (!row) return null
   return {
     id: row.id,
@@ -12,11 +12,23 @@ function mapMessageRow(row) {
     senderName: row.profiles?.name || row.sender_name || '',
     senderAvatar: row.profiles?.avatar_url || '',
     text: row.text,
+    kind: row.kind || 'text',
+    payload: row.payload || null,
     createdAt: row.created_at,
     time: row.created_at
       ? new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : '',
   }
+}
+
+const MESSAGE_SELECT_FULL = 'id, chat_id, channel_id, sender_id, text, kind, payload, created_at, profiles:sender_id(id, name, avatar_url)'
+const MESSAGE_SELECT_BASE = 'id, chat_id, channel_id, sender_id, text, created_at, profiles:sender_id(id, name, avatar_url)'
+
+function isMissingGamesColumns(error) {
+  const code = error?.code;
+  if (code !== 'PGRST204' && code !== 'PGRST200' && code !== '42703') return false
+  const message = String(error?.message || '')
+  return message.includes('kind') || message.includes('payload')
 }
 
 function mapChatSummaryRow(row) {
@@ -97,33 +109,77 @@ export async function createChannel(chatId, name) {
 
 export async function listMessages(chatId, { channelId = null, limit = 100 } = {}) {
   if (!chatId) return []
-  let q = supabase
-    .from('messages')
-    .select('id, chat_id, channel_id, sender_id, text, created_at, profiles:sender_id(id, name, avatar_url)')
-    .eq('chat_id', chatId)
-    .order('created_at', { ascending: true })
-    .limit(limit)
-  if (channelId) q = q.eq('channel_id', channelId)
-  else q = q.is('channel_id', null)
-  const { data, error } = await q
+  
+  const buildQuery = (selectCols) => {
+    let q = supabase
+      .from('messages')
+      .select(selectCols)
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: true })
+      .limit(limit)
+    if (channelId) q = q.eq('channel_id', channelId)
+    else q = q.is('channel_id', null)
+    return q
+  }
+
+  let data, error;
+  try {
+    const res = await buildQuery(MESSAGE_SELECT_FULL)
+    data = res.data
+    error = res.error
+    if (error && isMissingGamesColumns(error)) throw error
+  } catch (err) {
+    if (isMissingGamesColumns(err)) {
+      const res = await buildQuery(MESSAGE_SELECT_BASE)
+      data = res.data
+      error = res.error
+    } else {
+      error = err
+    }
+  }
+  
   if (error) throw error
   return (data || []).map(mapMessageRow)
 }
 
-export async function sendMessage({ userId, chatId, channelId = null, text }) {
+export async function sendMessage({ userId, chatId, channelId = null, text, kind = 'text', payload = null }) {
   if (!userId || !chatId || !text?.trim()) return null
-  const { data, error } = await supabase
-    .from('messages')
-    .insert({
-      chat_id: chatId,
-      channel_id: channelId,
-      sender_id: userId,
-      text: text.trim(),
-    })
-    .select('id, chat_id, channel_id, sender_id, text, created_at, profiles:sender_id(id, name, avatar_url)')
-    .single()
-  if (error) throw error
-  return mapMessageRow(data)
+  
+  const insertPayload = {
+    chat_id: chatId,
+    channel_id: channelId,
+    sender_id: userId,
+    text: text.trim(),
+  }
+  if (kind !== 'text') {
+    insertPayload.kind = kind
+    insertPayload.payload = payload
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .insert(insertPayload)
+      .select(MESSAGE_SELECT_FULL)
+      .single()
+      
+    if (error && isMissingGamesColumns(error)) throw error
+    if (error) throw error
+    return mapMessageRow(data)
+  } catch (err) {
+    if (isMissingGamesColumns(err)) {
+      delete insertPayload.kind
+      delete insertPayload.payload
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(insertPayload)
+        .select(MESSAGE_SELECT_BASE)
+        .single()
+      if (error) throw error
+      return mapMessageRow(data)
+    }
+    throw err
+  }
 }
 
 export async function markRead({ userId, chatId }) {

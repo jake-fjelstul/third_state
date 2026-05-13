@@ -18,6 +18,9 @@ function mapEventRow(row) {
     date,
     time,
     location: row.location || '',
+    locationLat: row.location_lat ?? null,
+    locationLng: row.location_lng ?? null,
+    locationAddress: row.location_address ?? '',
     notes: row.notes || '',
     createdBy: row.created_by,
     attendeesCount: row.attendees_count ?? 0,
@@ -131,25 +134,36 @@ function combineDateTimeToIso(date, time) {
   return local.toISOString()
 }
 
-export async function createEvent({ userId, circleId, title, date, time, startsAt, location, notes }) {
+export async function createEvent({ userId, circleId, title, date, time, startsAt, location, locationLat, locationLng, locationAddress, notes }) {
   const iso = startsAt || combineDateTimeToIso(date, time)
   if (!iso) throw new Error('Event must have a valid date/time')
-  const { data, error } = await supabase
-    .from('events')
-    .insert({
-      circle_id: circleId,
-      title,
-      starts_at: iso,
-      location: location || null,
-      notes: notes || null,
-      created_by: userId,
-    })
-    .select('*, circles(name)')
-    .single()
-  if (error) throw error
+
+  const row = {
+    circle_id: circleId,
+    title,
+    starts_at: iso,
+    location: location || null,
+    location_lat: locationLat ?? null,
+    location_lng: locationLng ?? null,
+    location_address: locationAddress || null,
+    notes: notes || null,
+    created_by: userId,
+  }
+
+  let res = await supabase.from('events').insert(row).select('*, circles(name)').single()
+  
+  if (res.error && res.error.code === 'PGRST204') {
+    // Fallback if migration hasn't run
+    delete row.location_lat
+    delete row.location_lng
+    delete row.location_address
+    res = await supabase.from('events').insert(row).select('*, circles(name)').single()
+  }
+
+  if (res.error) throw res.error
   // Auto-RSVP creator
-  await supabase.from('event_attendees').insert({ event_id: data.id, user_id: userId })
-  return mapEventRow({ ...data, attendees_count: 1 })
+  await supabase.from('event_attendees').insert({ event_id: res.data.id, user_id: userId })
+  return mapEventRow({ ...res.data, attendees_count: 1 })
 }
 
 export async function rsvp({ userId, eventId }) {

@@ -4,18 +4,22 @@ import { useNavigate } from 'react-router-dom'
 import { getProfileById } from '../../lib/profiles'
 
 const clr = {
-  bg: '#F9FAFB',
-  white: '#FFFFFF',
-  textDark: '#111827',
-  textMid: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  indigo: '#5B5FEF',
-  indigoLt: '#F0F0FF',
-  green: '#10B981',
-  greenLt: '#D1FAE5',
-  red: '#EF4444',
-  redLt: '#FEE2E2',
+  bg:        '#181922',
+  panel:     '#1E1F2B',
+  panelAlt:  '#23243A',
+  inputBg:   '#2A2B3D',
+  border:    '#363849',
+  textDark:  '#E2E4F0',
+  textMid:   '#8B8FA3',
+  textLight: '#5C5F73',
+  indigo:    '#7B6FFF',
+  indigoLt:  'rgba(123, 111, 255, 0.18)',
+  white:     '#FFFFFF',
+  amber:     '#F59E0B',
+  green:     '#34D399',
+  greenLt:   'rgba(52, 211, 153, 0.18)',
+  red:       '#F87171',
+  redLt:     'rgba(248, 113, 113, 0.18)',
 }
 
 export default function OrganizerReview({ circle }) {
@@ -76,7 +80,7 @@ export default function OrganizerReview({ circle }) {
             onClick={() => setFilter(f)}
             style={{
               padding: '8px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap',
-              backgroundColor: filter === f ? clr.textDark : clr.white,
+              backgroundColor: filter === f ? clr.textDark : clr.panel,
               color: filter === f ? clr.bg : clr.textMid,
               boxShadow: filter === f ? '0 4px 12px rgba(0,0,0,0.1)' : `0 0 0 1px ${clr.border} inset`,
               transition: 'all 0.2s ease'
@@ -95,7 +99,7 @@ export default function OrganizerReview({ circle }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {filteredApps.map(app => (
-            <div key={app.id} style={{ backgroundColor: clr.white, borderRadius: 20, padding: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.04)', border: `1px solid ${clr.border}` }}>
+            <div key={app.id} style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.04)', border: `1px solid ${clr.border}` }}>
               {/* Header */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                 <img src={app.applicantAvatar} alt="avatar" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />

@@ -150,6 +150,16 @@ export async function createCircle({ userId, name, emoji, city, type, category, 
     .select()
     .single()
   if (error) throw error
+
+  const { error: memberError } = await supabase
+    .from('circle_members')
+    .insert({
+      circle_id: data.id,
+      user_id: userId,
+      role: 'organizer',
+    })
+  if (memberError) console.error('[createCircle] Failed to add organizer to circle_members', memberError)
+
   return mapCircleRow(data)
 }
 

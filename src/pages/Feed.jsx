@@ -12,6 +12,12 @@ import EventDetailModal from '../components/EventDetailModal.jsx'
 import CreateWheel from '../components/CreateWheel.jsx'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
+import OnboardingModal from '../components/feed/OnboardingModal.jsx'
+import { listBatteryHistory, relativeTime } from '../lib/battery.js'
+import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
+import { buildMapsUrl } from '../lib/geocoding.js'
+import AssistantBar from '../components/feed/AssistantBar.jsx'
+import AssistantModal from '../components/assistant/AssistantModal.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -406,7 +412,7 @@ function CreateCard({ action, onClick }) {
   )
 }
 
-function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
+function CreateModals({ show, onClose, onShowToast, people, connections, refreshCircles }) {
   const navigate = useNavigate()
   const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle } = useAppContext()
   const [coffeeSearch, setCoffeeSearch] = useState('')
@@ -417,6 +423,14 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
   const [hoopsEnabled, setHoopsEnabled] = useState(false)
   const [circleHoops, setCircleHoops] = useState([])
   const [circles, setCircles] = useState([])
+
+  const [eventLocation, setEventLocation] = useState(null)
+  const [coffeeLocation, setCoffeeLocation] = useState(null)
+  const [lfgLocation, setLfgLocation] = useState(null)
+
+  const biasNear = (currentUser?.latitude != null && currentUser?.longitude != null)
+    ? { lat: currentUser.latitude, lng: currentUser.longitude }
+    : undefined
   const [swipeStack, setSwipeStack] = useState(() => {
     const unjoined = circles.filter(c => !joinedCircles.includes(c.id))
     const unseen = unjoined.slice(discoverySwipes.circle)
@@ -429,7 +443,7 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
     const unseen = unjoined.slice(discoverySwipes.circle)
     setSwipeStack(unseen.length ? unseen : unjoined)
   }, [circles, joinedCircles, discoverySwipes.circle])
-  
+
   useEffect(() => {
     let cancelled = false
     listCircles()
@@ -464,8 +478,8 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
 
   const content = () => {
     if (show === 'circle') return (
-      <form onSubmit={async e => { 
-        e.preventDefault(); 
+      <form onSubmit={async e => {
+        e.preventDefault();
         const name = e.target.elements.cName.value;
         const topic = e.target.elements.cTopic.value;
         const desc = e.target.elements.cDesc.value;
@@ -533,24 +547,27 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
       </form>
     )
     if (show === 'event') return (
-      <form onSubmit={async e => { 
-        e.preventDefault(); 
+      <form onSubmit={async e => {
+        e.preventDefault();
         const title = e.target.elements.eName.value;
         const date = e.target.elements.eDate.value;
         const time = e.target.elements.eTime.value;
-        const loc = e.target.elements.eLoc.value;
         const cid = e.target.elements.eCircle.value;
-        
+
         try {
           await createEventAndRsvp({
             circleId: cid || null,
             title,
             date,
             time,
-            location: loc,
+            location: eventLocation?.name || '',
+            locationLat: eventLocation?.lat ?? null,
+            locationLng: eventLocation?.lng ?? null,
+            locationAddress: eventLocation?.address || '',
             notes: '',
           });
-          onClose(); 
+          setEventLocation(null);
+          onClose();
           onShowToast('Event created successfully!');
         } catch (err) {
           console.error('[Feed] create event failed', err);
@@ -559,21 +576,29 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
       }}>
         <Handle /><Header title="Host an Event" />
         <input required name="eName" placeholder="Event Name" style={inputStyle} />
-        
+
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
-            <input required name="eDate" type="date" onClick={(e) => { try { e.target.showPicker() } catch(err){} }} style={{ ...inputStyle, marginBottom: 0 }} />
+            <input required name="eDate" type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{ ...inputStyle, marginBottom: 0 }} />
           </div>
         </div>
-        
+
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Start Time</label>
           <TimePicker value={eventTime} onChange={setEventTime} />
           <input type="hidden" name="eTime" value={eventTime} />
         </div>
 
-        <input required name="eLoc" placeholder="Location" style={inputStyle} />
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Location</label>
+          <LocationAutocomplete
+            value={eventLocation}
+            onChange={setEventLocation}
+            biasNear={biasNear}
+            clr={clr}
+          />
+        </div>
         <select name="eCircle" style={inputStyle}>
           <option value="">No specific circle (Community Event)</option>
           {joinedCircles.map(id => { const c = circles.find(x => x.id === id); return c ? <option key={id} value={id}>{c.name}</option> : null })}
@@ -583,24 +608,37 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
       </form>
     )
     if (show === 'lfg') return (
-      <form onSubmit={e => { e.preventDefault(); onClose(); onShowToast('LFG posted!') }}>
+      <form onSubmit={e => { e.preventDefault(); setLfgLocation(null); onClose(); onShowToast('LFG posted!') }}>
+        {/* Intentionally a stub per requirements; persistence out of scope */}
         <Handle /><Header title="Looking For Group" />
         <input required placeholder="What do you want to do? (Grab coffee, shoot hoops...)" style={inputStyle} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           {["Right now", "In 1hr", "This evening", "Custom"].map(t => <span key={t} style={{ padding: '8px 14px', borderRadius: 999, border: `1.5px solid ${clr.border}`, fontSize: 13, fontWeight: 600, color: clr.textMid }}>{t}</span>)}
         </div>
-        <input required placeholder="Where? (Neighborhood, park, etc)" style={inputStyle} />
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Where</label>
+          <LocationAutocomplete
+            value={lfgLocation}
+            onChange={setLfgLocation}
+            biasNear={biasNear}
+            clr={clr}
+          />
+        </div>
         <button type="submit" style={{ ...submitStyle, background: `linear-gradient(135deg, #F59E0B, #FCD34D)`, color: '#FFF', boxShadow: '0 6px 20px rgba(245,158,11,0.3)' }}>Post LFG →</button>
       </form>
     )
     if (show === 'coffee') {
-      const results = coffeeSearch.trim() ? people.filter(p => p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
+      const results = coffeeSearch.trim() ? connections.filter(p => p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
       return (
         <form onSubmit={async e => {
           e.preventDefault(); if (!coffeeTarget) return
           try {
+            const locTxt = coffeeLocation?.name
+              ? `\n\n📍 ${coffeeLocation.name}${coffeeLocation.address ? '\n' + coffeeLocation.address.split(',').slice(0, 2).join(',') : ''}\n${buildMapsUrl(coffeeLocation)}`
+              : ''
             const chatId = await startDM(coffeeTarget)
-            await sendMessage(chatId, `Hey ${coffeeTarget.name.split(' ')[0]}! Want to grab a coffee sometime? ☕`)
+            await sendMessage(chatId, `Hey ${coffeeTarget.name.split(' ')[0]}! Want to grab a coffee sometime? ☕${locTxt}`)
+            setCoffeeLocation(null); setCoffeeTarget(null); setCoffeeSearch('');
             onClose(); onShowToast('Invite sent!')
           } catch (err) {
             console.error('[Feed.CreateModals] startDM failed', err)
@@ -610,6 +648,16 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
           {!coffeeTarget ? (
             <div style={{ marginBottom: 16 }}>
               <input placeholder="Who do you want to meet?" value={coffeeSearch} onChange={e => setCoffeeSearch(e.target.value)} style={inputStyle} autoFocus />
+              {coffeeSearch.trim() && connections.length === 0 && (
+                <div style={{ padding: '12px 16px', fontSize: 13, color: clr.textMid }}>
+                  You haven't connected with anyone yet. Connect with someone first, then invite them for coffee.
+                </div>
+              )}
+              {coffeeSearch.trim() && connections.length > 0 && results.length === 0 && (
+                <div style={{ padding: '12px 16px', fontSize: 13, color: clr.textMid }}>
+                  No matching connections. Try a different name.
+                </div>
+              )}
               {results.length > 0 && <div style={{ padding: '8px 0', border: `1px solid ${clr.border}`, borderRadius: 16 }}>
                 {results.map(p => (
                   <div key={p.id} onClick={() => setCoffeeTarget(p)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer' }}>
@@ -629,17 +677,25 @@ function CreateModals({ show, onClose, onShowToast, people, refreshCircles }) {
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
-                  <input required type="date" onClick={(e) => { try { e.target.showPicker() } catch(err){} }} style={{ ...inputStyle, marginBottom: 0 }} />
+                  <input required type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{ ...inputStyle, marginBottom: 0 }} />
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Time</label>
                 <TimePicker value={coffeeTime} onChange={setCoffeeTime} />
                 <input type="hidden" name="cTime" value={coffeeTime} />
               </div>
 
-              <input required placeholder="Location suggestion (e.g. Ritual Cafe)" style={inputStyle} />
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Where</label>
+                <LocationAutocomplete
+                  value={coffeeLocation}
+                  onChange={setCoffeeLocation}
+                  biasNear={biasNear}
+                  clr={clr}
+                />
+              </div>
               <textarea placeholder="Add a short note... (optional)" rows={2} style={{ ...inputStyle, resize: 'none' }} />
             </div>
           )}
@@ -748,9 +804,22 @@ function BatteryIcon({ percentage, color, glow }) {
 }
 
 function SocialBattery() {
-  const { batteryPoints } = useAppContext()
+  const { batteryPoints, currentUser } = useAppContext()
   const [showHistory, setShowHistory] = useState(false)
+  const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const config = getBatteryConfig(batteryPoints)
+
+  useEffect(() => {
+    if (!showHistory || !currentUser?.id) return
+    let cancelled = false
+    setHistoryLoading(true)
+    listBatteryHistory(currentUser.id, 3)
+      .then(rows => { if (!cancelled) setHistory(rows) })
+      .catch(err => console.error('[SocialBattery] history load failed', err))
+      .finally(() => { if (!cancelled) setHistoryLoading(false) })
+    return () => { cancelled = true }
+  }, [showHistory, currentUser?.id, batteryPoints])
 
   return (
     <section style={{ marginBottom: 24 }}>
@@ -833,9 +902,51 @@ function SocialBattery() {
           <p style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Recent Activity
           </p>
-          <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
-            Battery history now lives in the database and stays synced across devices.
-          </p>
+
+          {historyLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{ height: 44, borderRadius: 14, backgroundColor: clr.bg, animation: 'pulse 1.4s ease-in-out infinite' }} />
+              ))}
+            </div>
+          ) : history.length === 0 ? (
+            <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+              No activity yet. Join a circle, RSVP to an event, or send a message to start moving the needle.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {history.map(h => {
+                const positive = h.points >= 0
+                const sign = positive ? '+' : '−'
+                const absVal = Math.abs(h.points)
+                const pillBg = positive ? '#DCFCE7' : '#FEE2E2'
+                const pillFg = positive ? '#059669' : '#DC2626'
+                return (
+                  <div key={h.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 12px', borderRadius: 14,
+                    backgroundColor: clr.bg,
+                  }}>
+                    <span style={{
+                      fontSize: 13, fontWeight: 800,
+                      color: pillFg, backgroundColor: pillBg,
+                      padding: '4px 10px', borderRadius: 999, minWidth: 48, textAlign: 'center',
+                    }}>
+                      {sign}{absVal}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {h.reason}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: clr.textLight }}>
+                        {relativeTime(h.createdAt)} · battery now {h.result}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -845,11 +956,16 @@ function SocialBattery() {
 /* ── Main Feed ── */
 export default function Feed() {
   const navigate = useNavigate()
-  const { currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd, circleMembershipVersion } = useAppContext()
+  const {
+    currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd, circleMembershipVersion,
+    startDM, recentInviter, clearRecentInviter, skipIntentCapture, updateMyIntents, connections
+  } = useAppContext()
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
-  
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const [assistantPrompt, setAssistantPrompt] = useState(null) // null = closed, string = open
+
   const [people, setPeople] = useState([])
   const [circles, setCircles] = useState([])
   const [events, setEvents] = useState([])
@@ -887,7 +1003,10 @@ export default function Feed() {
   const completeness = useMemo(() => profileCompleteness(currentUser || {}), [currentUser])
 
   const upcomingMeetups = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
     return [...(meetups || [])]
+      .filter(m => new Date(m.date) >= today)
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .slice(0, 3)
   }, [meetups])
@@ -904,6 +1023,12 @@ export default function Feed() {
       @keyframes expandUp { from { transform: scale(0.92) translateY(40px); opacity: 0; border-radius: 24px; } to { transform: scale(1) translateY(0); opacity: 1; border-radius: 0; } }
       @keyframes fadeToast { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(20px); } }
       @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.5 } }
+      @keyframes stepIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes celebrationPop { 0% { opacity: 0; transform: scale(0.95); } 60% { transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+      @keyframes shimmerSpin { to { transform: rotate(360deg); } }
+      @keyframes sparkleTwinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.92); } }
+      @keyframes exampleFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     `
     document.head.appendChild(style)
     return () => document.head.removeChild(style)
@@ -936,7 +1061,7 @@ export default function Feed() {
           <h1 style={{ fontSize: 26, fontWeight: 800, color: clr.textDark, margin: '0 0 6px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display','Georgia',serif" }}>
             {getGreeting()}, {firstName} 👋
           </h1>
-          <p style={{ fontSize: 14, color: clr.textMid, margin: 0, lineHeight: 1.6 }}>Curating people, circles, and meetups that feel like you.</p>
+          <p style={{ fontSize: 14, color: clr.textMid, margin: 0, lineHeight: 1.6 }}>Join or create circles and meet your people.</p>
         </div>
 
         {/* ── Search Bar ── */}
@@ -989,6 +1114,7 @@ export default function Feed() {
                 }
               }} />
             </section>
+
             <section>
               <div style={{ height: 24, marginBottom: 14 }}></div>
               <button type="button" onClick={() => setShowDiscovery(true)} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -1005,7 +1131,12 @@ export default function Feed() {
               </button>
             </section>
 
-            <div style={{ marginTop: 32 }}>
+            {/* ── Assistant Bar ── */}
+            <div style={{ marginTop: 24 }}>
+              <AssistantBar clr={clr} onSubmit={(text) => setAssistantPrompt(text)} />
+            </div>
+
+            <div>
               <SocialBattery />
             </div>
 
@@ -1044,7 +1175,7 @@ export default function Feed() {
         )}
       </div>
 
-      <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} people={people} refreshCircles={async () => {
+      <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} people={people} connections={connections} refreshCircles={async () => {
         try {
           const list = await listCircles()
           setCircles(list)
@@ -1054,6 +1185,15 @@ export default function Feed() {
       }} />
       {showDiscovery && <div style={{ position: 'fixed', inset: 0, zIndex: 200, animation: 'expandUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}><SwipeDiscovery onClose={() => setShowDiscovery(false)} /></div>}
       {toastMsg && <div style={{ position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)', background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap' }}>{toastMsg}</div>}
+
+      {/* ── Assistant Modal ── */}
+      {assistantPrompt !== null && (
+        <AssistantModal
+          initialPrompt={assistantPrompt}
+          clr={clr}
+          onClose={() => setAssistantPrompt(null)}
+        />
+      )}
 
       {/* Event Detail Modal */}
       {selectedEvent && (
@@ -1066,6 +1206,22 @@ export default function Feed() {
           onCancelRsvp={(evtId) => cancelRsvp(evtId)}
         />
       )}
+
+      {/* Modals for Phase 2 */}
+      {/* Onboarding Modal */}
+      {(() => {
+        if (!currentUser || onboardingDismissed) return null
+        const needsCelebration = !!recentInviter
+        const needsIntent = currentUser.intentCapturedAt == null && !window.localStorage.getItem(`ts_intent_${currentUser.id}`)
+        if (!needsCelebration && !needsIntent) return null
+        return (
+          <OnboardingModal
+            inviter={recentInviter || null}
+            showIntent={needsIntent}
+            onClose={() => setOnboardingDismissed(true)}
+          />
+        )
+      })()}
     </div>
   )
 }

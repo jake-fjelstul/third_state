@@ -6,6 +6,7 @@ import {
   createEvent,
 } from '../lib/events'
 import { supabase } from '../lib/supabase'
+import { updatePrivacy, defaultPrivacy } from '../lib/profiles'
 import {
   fetchProfileForUser,
   isProfileSessionFatalError,
@@ -13,10 +14,10 @@ import {
 } from '../lib/auth'
 import {
   listMyConnections,
-  removeConnection,
   sendConnectionRequest,
   acceptConnectionRequest,
   declineConnectionRequest,
+  disconnectFrom,
 } from '../lib/connections'
 import {
   listMyCircleIds,
@@ -35,14 +36,9 @@ import {
   markRead as markReadDb,
   startDM as startDmDb,
 } from '../lib/chat'
-import {
-  listNotifications,
-  markRead as markNotifReadDb,
-  markAllRead as markAllNotifsReadDb,
-  deleteNotification as deleteNotifDb,
-  mapNotificationRow,
-} from '../lib/notifications'
+import { listNotifications, markRead as markNotifReadDb, markAllRead as markAllNotifsReadDb, deleteNotification as deleteNotifDb, mapNotificationRow } from '../lib/notifications'
 import { redeemInvite } from '../lib/invites'
+import { createChatGame, commitGameMove, resignGame } from '../lib/games'
 
 const AppContext = createContext(null)
 
@@ -55,6 +51,7 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [recentInviter, setRecentInviter] = useState(null)
   const [meetups, setMeetups] = useState([])         // events the user has RSVP'd to (full event objects)
   const [rsvpdEventIds, setRsvpdEventIds] = useState(new Set()) // O(1) lookup for isRsvpd
   const [theme, setTheme] = useState('dark')
@@ -110,9 +107,13 @@ export function AppProvider({ children }) {
     bio: profile.bio,
     avatar: profile.avatar_url || '',
     intents: profile.intents || [],
+    intentCapturedAt: profile.intentCapturedAt || null,
+    intentNote: profile.intentNote || '',
     interests: profile.interests || [],
     latitude: profile.latitude,
     longitude: profile.longitude,
+    privacy: profile.privacy ?? defaultPrivacy(),
+    notificationPrefs: profile.notificationPrefs,
     stats: { circlesJoined: 0, meetupsAttended: 0, connections: 0 },
   }), [])
 
@@ -245,10 +246,17 @@ export function AppProvider({ children }) {
         const pending = window.localStorage.getItem(PENDING_INVITE_KEY)
         if (!pending) return
         try {
-          await redeemInvite(pending)
+          const inviterId = await redeemInvite(pending)
           window.localStorage.removeItem(PENDING_INVITE_KEY)
           const list = await listMyConnections(session.user.id)
-          if (!cancelled) setConnections(list)
+          if (!cancelled) {
+            setConnections(list)
+            if (inviterId) {
+              const { getProfileById } = await import('../lib/profiles')
+              const inviterProfile = await getProfileById(inviterId)
+              if (inviterProfile) setRecentInviter(inviterProfile)
+            }
+          }
         } catch (err) {
           console.warn('[AppContext] pending invite redeem failed', err)
           window.localStorage.removeItem(PENDING_INVITE_KEY)
@@ -453,6 +461,69 @@ export function AppProvider({ children }) {
     await authSignOut()
     resetLocalAuthState()
   }
+
+  const updateMyPrivacy = useCallback(async (patch) => {
+    if (!currentUser?.id) return
+    setCurrentUser(prev => prev ? {
+      ...prev,
+      privacy: { ...prev.privacy, ...patch }
+    } : prev)
+    try {
+      await updatePrivacy(currentUser.id, patch)
+    } catch (err) {
+      console.error('[AppContext] updateMyPrivacy failed', err)
+      refreshProfile().catch(() => {})
+      throw err
+    }
+  }, [currentUser?.id, refreshProfile])
+
+  const updateMyNotificationPrefs = useCallback(async (patch) => {
+    if (!currentUser?.id) return
+    setCurrentUser(prev => prev ? {
+      ...prev,
+      notificationPrefs: { ...prev.notificationPrefs, ...patch }
+    } : prev)
+    try {
+      const { updateNotificationPrefs } = await import('../lib/profiles')
+      await updateNotificationPrefs(currentUser.id, patch)
+    } catch (err) {
+      console.error('[AppContext] updateMyNotificationPrefs failed', err)
+      refreshProfile().catch(() => {})
+      throw err
+    }
+  }, [currentUser?.id, refreshProfile])
+
+  const updateMyIntents = useCallback(async ({ intents, note }) => {
+    if (!currentUser?.id) return
+    const now = new Date().toISOString()
+    setCurrentUser(prev => prev ? { ...prev, intents, intentNote: note, intentCapturedAt: now } : prev)
+    try { window.localStorage.setItem(`ts_intent_${currentUser.id}`, '1') } catch (e) {}
+    try {
+      const { saveIntents } = await import('../lib/profiles')
+      await saveIntents(currentUser.id, { intents, note })
+    } catch (err) {
+      console.error('[AppContext] updateMyIntents failed', err)
+      refreshProfile().catch(() => {})
+      throw err
+    }
+  }, [currentUser?.id, refreshProfile])
+
+  const skipIntentCapture = useCallback(async () => {
+    if (!currentUser?.id) return
+    const now = new Date().toISOString()
+    setCurrentUser(prev => prev ? { ...prev, intentCapturedAt: now } : prev)
+    try { window.localStorage.setItem(`ts_intent_${currentUser.id}`, '1') } catch (e) {}
+    try {
+      const { saveIntents } = await import('../lib/profiles')
+      await saveIntents(currentUser.id, { intents: currentUser.intents || [], note: currentUser.intentNote || '' })
+    } catch (err) {
+      console.error('[AppContext] skipIntentCapture failed', err)
+      refreshProfile().catch(() => {})
+      throw err
+    }
+  }, [currentUser?.id, currentUser?.intents, currentUser?.intentNote, refreshProfile])
+
+  const clearRecentInviter = useCallback(() => setRecentInviter(null), [])
 
   const joinCircle = useCallback(async (circleId) => {
     if (!session?.user) return
@@ -708,17 +779,17 @@ export function AppProvider({ children }) {
   }, [])
 
   const disconnectFromPerson = useCallback(async (personId) => {
-    if (!session?.user || !personId) return
-    const prevConn = connections
-    setConnections(p => p.filter(c => c.id !== personId))
+    if (!currentUser?.id || !personId) return
     try {
-      await removeConnection({ userId: session.user.id, connectedUserId: personId })
+      await disconnectFrom(personId)
+      // Refresh connections from the DB so the UI re-renders correctly
+      const list = await listMyConnections(currentUser.id)
+      setConnections(list)
     } catch (err) {
-      setConnections(prevConn) // rollback
       console.error('[AppContext] disconnectFromPerson failed', err)
       throw err
     }
-  }, [session, connections])
+  }, [currentUser])
 
   // ---------- Notification Handlers ----------
 
@@ -799,10 +870,27 @@ export function AppProvider({ children }) {
     throw new Error('Discord import is coming soon.')
   }, [])
 
+  const startChatGame = useCallback(async ({ chatId, gameType }) => {
+    return await createChatGame({ chatId, gameType })
+  }, [])
+
+  const makeGameMove = useCallback(async ({ gameId, newState, declaredWinner = null }) => {
+    return await commitGameMove({ gameId, newState, declaredWinner })
+  }, [])
+
+  const forfeitGame = useCallback(async (gameId) => {
+    return await resignGame(gameId)
+  }, [])
+
   const value = useMemo(
     () => ({
       currentUser,
       setCurrentUser,
+      recentInviter,
+      clearRecentInviter,
+      updateMyIntents,
+      skipIntentCapture,
+      updateMyNotificationPrefs,
       joinedCircles,
       createCircle,
       meetups,
@@ -837,6 +925,7 @@ export function AppProvider({ children }) {
       setReconnectThresholdDays,
       searchRadius,
       setSearchRadius,
+      updateMyPrivacy,
       importDiscordServer,
       pendingApplications,
       submitApplication,
@@ -851,9 +940,12 @@ export function AppProvider({ children }) {
       session,
       authLoading,
       profileLoading,
-      signOut
+      signOut,
+      startChatGame,
+      makeGameMove,
+      forfeitGame
     }),
-    [currentUser, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, makeGameMove, forfeitGame],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

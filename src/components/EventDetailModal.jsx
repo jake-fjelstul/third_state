@@ -3,6 +3,7 @@ import { getCircle } from '../lib/circles'
 import { getEvent } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
 import { useCalendar } from '../hooks/useCalendar.js'
+import { buildMapsUrl } from '../lib/geocoding'
 
 const clr = {
   bg:       'var(--bg)',
@@ -145,24 +146,44 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
           </div>
 
           {/* Location */}
-          {event.location && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 12,
-                backgroundColor: '#FEF3C7',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <svg width="18" height="18" fill="none" stroke={clr.amber} strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
+          {event.location && (() => {
+            const url = buildMapsUrl({
+              lat: event.locationLat, lng: event.locationLng,
+              name: event.location, address: event.locationAddress,
+            })
+            return (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  textDecoration: 'none',
+                }}
+              >
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  backgroundColor: '#FEF3C7',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <svg width="18" height="18" fill="none" stroke={clr.amber} strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: clr.textDark, margin: 0 }}>Location</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {event.location}
+                    {event.locationAddress ? ` · ${event.locationAddress.split(',').slice(0, 2).join(',')}` : ''}
+                  </p>
+                </div>
+                <svg width="18" height="18" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                  <path d="M7 17L17 7M17 7H8M17 7v9" />
                 </svg>
-              </div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: clr.textDark, margin: 0 }}>Location</p>
-                <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>{event.location}</p>
-              </div>
-            </div>
-          )}
+              </a>
+            )
+          })()}
 
           {/* Organizer */}
           {organizer && (

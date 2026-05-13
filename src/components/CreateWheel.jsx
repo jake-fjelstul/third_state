@@ -36,16 +36,16 @@ const SLICES = [
     id: 'circle',
     title: 'New Circle',
     desc: 'Start a community',
-    emoji: '📅',
-    gradient: ['#FB7185', '#E11D48'],
+    emoji: '🔵',
+    gradient: ['#FB7185', '#E11D48'], // Rose
     angle: 0
   },
   {
     id: 'event',
     title: 'New Event',
     desc: 'Host a meetup',
-    emoji: '🔵',
-    gradient: ['#34D399', '#0D9488'],
+    emoji: '📅',
+    gradient: ['#34D399', '#059669'], // Emerald
     angle: 90
   },
   {
@@ -53,7 +53,7 @@ const SLICES = [
     title: 'LFG',
     desc: "I'm free now",
     emoji: '⚡',
-    gradient: ['#FCD34D', '#F59E0B'],
+    gradient: ['#FBBF24', '#D97706'], // Amber
     angle: 180
   },
   {
@@ -61,7 +61,7 @@ const SLICES = [
     title: 'Coffee Chat',
     desc: '1:1 meetup',
     emoji: '☕',
-    gradient: ['#818CF8', '#5B5FEF'],
+    gradient: ['#818CF8', '#4F46E5'], // Indigo
     angle: 270
   }
 ];
@@ -176,9 +176,12 @@ export default function CreateWheel({ onAction }) {
               <stop offset="100%" stopColor={s.gradient[1]} />
             </linearGradient>
           ))}
+          <filter id="wheel-shadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="4" stdDeviation="12" floodOpacity="0.05" />
+          </filter>
         </defs>
 
-        <circle cx={cx} cy={cy} r="200" fill="#1C1C1E" />
+        <circle cx={cx} cy={cy} r="200" fill="var(--white)" filter="url(#wheel-shadow)" />
 
         {/* Slices Group - Expands dynamically when center ring is dragged/clicked */}
         <g 
@@ -238,10 +241,10 @@ export default function CreateWheel({ onAction }) {
             pointerEvents: 'none',
           }}
         >
-          <circle cx={cx} cy={cy} r="76" fill="rgba(40,40,44,0.85)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
-          <circle cx={cx} cy={cy} r="74" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-          <text x={cx} y={cy - 6} fill="#FFFFFF" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">TAP TO</text>
-          <text x={cx} y={cy + 14} fill="#FFFFFF" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">CREATE</text>
+          <circle cx={cx} cy={cy} r="76" fill="var(--bg)" stroke="var(--border)" strokeWidth="1.5" />
+          <circle cx={cx} cy={cy} r="74" fill="none" stroke="var(--border)" strokeWidth="1" strokeOpacity="0.5" />
+          <text x={cx} y={cy - 6} fill="var(--textDark)" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">TAP TO</text>
+          <text x={cx} y={cy + 14} fill="var(--textDark)" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">CREATE</text>
         </g>
       </svg>
     </div>

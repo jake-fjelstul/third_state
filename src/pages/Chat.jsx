@@ -5,6 +5,9 @@ import { listCircles } from '../lib/circles'
 import { useChatMessages } from '../hooks/useChatMessages.js'
 import { listChannels } from '../lib/chat.js'
 import { avatarFor } from '../lib/avatar'
+import GameMessageCard from '../components/games/GameMessageCard.jsx'
+import GamePicker from '../components/games/GamePicker.jsx'
+import SoloGameModal from '../components/games/SoloGameModal.jsx'
  
 const clr = {
   bg:         'var(--bg)',
@@ -88,8 +91,10 @@ function normChat(chat) {
 function ThreadView({ chat, baseId, channelId, onBack }) {
   const location = useLocation()
   const [input, setInput] = useState('')
+  const [showGamePicker, setShowGamePicker] = useState(false)
+  const [showSoloModal, setShowSoloModal] = useState(null)
   const { name, avatar, online, isGroup } = normChat(chat)
-  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId } = useAppContext()
+  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame } = useAppContext()
   const bottomRef = useRef(null)
 
   const [channels, setChannels] = useState([])
@@ -172,6 +177,19 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       <div style={{ flex:1, overflowY:'auto', padding:'20px 16px', display:'flex', flexDirection:'column', gap:10 }}>
         {messages.map((msg, i) => {
           const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
+          if (msg.kind === 'game') {
+            return (
+              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                {!isMe && isGroup && (
+                  <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                )}
+                <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                  {msg.time ?? ''}
+                </span>
+              </div>
+            )
+          }
           return (
             <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
               {!isMe && isGroup && (
@@ -205,6 +223,40 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
         display: 'flex', alignItems: 'center', gap: 10,
         flexShrink: 0,
       }}>
+        {chat.type === 'dm' && (
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowGamePicker(true)}
+              style={{
+                width: 42, height: 42, borderRadius: '50%', border: `1.5px solid ${clr.border}`,
+                backgroundColor: clr.white,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0, fontSize: 18,
+              }}
+              aria-label="Start a game"
+            >
+              🎮
+            </button>
+            {showGamePicker && (
+              <GamePicker
+                anchor="bottom-left"
+                opponent={{ id: chat.personId || chat.id, name: chat.name, firstName: chat.name?.split(' ')[0], avatar: chat.avatar }}
+                chatId={baseId || chat.id}
+                onChallenge={async (gameType) => {
+                  try {
+                    await startChatGame({ chatId: baseId || chat.id, gameType })
+                    setShowGamePicker(false)
+                  } catch (err) {
+                    console.error('Failed to start game', err)
+                  }
+                }}
+                onSoloSelected={(gt) => { setShowGamePicker(false); setShowSoloModal({ gameType: gt }) }}
+                onClose={() => setShowGamePicker(false)}
+              />
+            )}
+          </div>
+        )}
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -230,6 +282,13 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
           </svg>
         </button>
       </form>
+
+      {showSoloModal && (
+        <SoloGameModal
+          gameType={showSoloModal.gameType}
+          onClose={() => setShowSoloModal(null)}
+        />
+      )}
     </div>
   )
 }
@@ -389,6 +448,8 @@ export default function Chat() {
   const { chatState, startDM, joinedCircles, currentUser, connections } = useAppContext()
   const [search, setSearch] = useState('')
   const [showCompose, setShowCompose] = useState(false)
+  const [showGamePicker, setShowGamePicker] = useState(false)
+  const [showSoloModal, setShowSoloModal] = useState(null)
 
   if (id) {
     let chat = null;
@@ -454,9 +515,29 @@ export default function Chat() {
       fontFamily: "'DM Sans','Inter',sans-serif",
     }}>
  
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, padding: '16px 20px 16px', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif", textAlign: 'center' }}>
-        Chat
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 16px' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif" }}>
+          Chat
+        </h1>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setShowGamePicker(true)} style={{
+            padding: '6px 12px', borderRadius: 16, border: `1.5px solid ${clr.border}`,
+            backgroundColor: clr.white, color: clr.textDark, fontSize: 13, fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
+          }}>
+            <span style={{ fontSize: 16 }}>🎮</span> Games
+          </button>
+          {showGamePicker && (
+            <GamePicker
+              anchor="top-right"
+              opponent={null}
+              chatId={null}
+              onSoloSelected={(gt) => { setShowGamePicker(false); setShowSoloModal({ gameType: gt }) }}
+              onClose={() => setShowGamePicker(false)}
+            />
+          )}
+        </div>
+      </div>
 
       {/* ── Search bar + Compose ── */}
       <div style={{ padding:'0 20px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -578,6 +659,13 @@ export default function Chat() {
           currentUser={currentUser}
           chatState={chatState}
           connections={connections}
+        />
+      )}
+
+      {showSoloModal && (
+        <SoloGameModal
+          gameType={showSoloModal.gameType}
+          onClose={() => setShowSoloModal(null)}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listProfiles } from '../lib/profiles'
 import { listCircles, listJoinedCircleMembers } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
@@ -420,7 +420,11 @@ export default function Circles() {
   const navigate = useNavigate()
   const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion } = useAppContext()
 
-  const [activeTab, setActiveTab] = useState('circles')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const validTabs = ['circles', 'connections', 'network']
+  const tabFromUrl = searchParams.get('tab')
+  const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'circles'
+  const setActiveTab = (tab) => setSearchParams({ tab }, { replace: true })
   const [circleOrder, setCircleOrder] = useState(joinedCircles)
   const [isEditMode, setIsEditMode] = useState(false)
   const [draggingId, setDraggingId] = useState(null)
@@ -482,32 +486,6 @@ export default function Circles() {
         sharedCircles: joinedCircles
           .map((cid) => circles.find((c) => c.id === cid))
           .filter((c) => c && (c.members || []).some((m) => m.id === person.id)),
-      })
-    })
-
-    joinedCircles.forEach((circleId) => {
-      const circle = circles.find((c) => c.id === circleId)
-      ;(circle?.members || []).forEach((member) => {
-        if (seen.has(member.id) || member.id === currentUser?.id) return
-        seen.add(member.id)
-        result.push({
-          ...member,
-          score: getInteractionScore(member, chatState, circles, joinedCircles),
-          sharedCircles: [circle].filter(Boolean),
-        })
-      })
-    })
-
-    Object.values(chatState ?? {}).forEach((chat) => {
-      if (chat.type !== 'dm' || !chat.personId) return
-      if (seen.has(chat.personId) || chat.personId === currentUser?.id) return
-      const person = people.find((p) => p.id === chat.personId)
-      if (!person) return
-      seen.add(person.id)
-      result.push({
-        ...person,
-        score: getInteractionScore(person, chatState, circles, joinedCircles),
-        sharedCircles: [],
       })
     })
 

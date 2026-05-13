@@ -378,16 +378,23 @@ export default function Notifications() {
       backgroundColor: clr.bg,
       fontFamily: "'DM Sans', 'Inter', sans-serif",
     }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 20px 0' }}>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
+          <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
       <div style={{
         maxWidth: '500px',
         margin: '0 auto',
-        padding: '24px 20px 80px',
+        padding: '12px 20px 80px',
       }}>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24, minHeight: 34, paddingLeft: 4, paddingRight: 4 }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24, minHeight: 34 }}>
           <h1 style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, pointerEvents: 'none' }}>
             Notifications
           </h1>
-          {unreadCount > 0 && (
+          {unreadCount > 0 ? (
             <button
               onClick={markAllNotificationsRead}
               style={{
@@ -397,7 +404,7 @@ export default function Notifications() {
             >
               Mark all read
             </button>
-          )}
+          ) : <div />}
         </div>
 
         {notifications.length === 0 ? (

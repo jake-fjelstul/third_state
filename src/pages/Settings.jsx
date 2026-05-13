@@ -17,10 +17,8 @@ const clr = {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, importDiscordServer, signOut } = useAppContext()
+  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, importDiscordServer, signOut, updateMyPrivacy, updateMyNotificationPrefs } = useAppContext()
   const { isConnected: isCalendarConnected, isLoading: calendarLoading, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
-  const [notifyConnections, setNotifyConnections] = useState(true)
-  const [notifyEvents, setNotifyEvents] = useState(true)
   const [showDiscordImport, setShowDiscordImport] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
   const [discordServerName, setDiscordServerName] = useState('')
@@ -189,7 +187,7 @@ export default function Settings() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 cursor: 'pointer',
-              }} onClick={() => setNotifyConnections(!notifyConnections)}>
+              }} onClick={() => updateMyNotificationPrefs({ connections: !(currentUser?.notificationPrefs?.connections ?? true) })}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Connection Requests</p>
                   <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
@@ -202,14 +200,14 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: notifyConnections ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.connections ?? true) ? clr.indigo : clr.border,
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
                   <div style={{
                     position: 'absolute',
                     top: 2,
-                    left: notifyConnections ? 24 : 2,
+                    left: (currentUser?.notificationPrefs?.connections ?? true) ? 24 : 2,
                     width: 24,
                     height: 24,
                     borderRadius: '50%',
@@ -222,11 +220,12 @@ export default function Settings() {
 
               <div style={{
                 padding: '20px',
+                borderBottom: `1px solid ${clr.border}`,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 cursor: 'pointer',
-              }} onClick={() => setNotifyEvents(!notifyEvents)}>
+              }} onClick={() => updateMyNotificationPrefs({ events: !(currentUser?.notificationPrefs?.events ?? true) })}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Events Approaching</p>
                   <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
@@ -239,14 +238,53 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: notifyEvents ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.events ?? true) ? clr.indigo : clr.border,
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
                   <div style={{
                     position: 'absolute',
                     top: 2,
-                    left: notifyEvents ? 24 : 2,
+                    left: (currentUser?.notificationPrefs?.events ?? true) ? 24 : 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
+              </div>
+
+              {/* Reconnect Nudges Toggle */}
+              <div style={{
+                padding: '20px',
+                borderBottom: `1px solid ${clr.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }} onClick={() => updateMyNotificationPrefs({ reconnect_nudges: !(currentUser?.notificationPrefs?.reconnect_nudges ?? true) })}>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Reconnect Nudges</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    Remind me to catch up with friends
+                  </p>
+                </div>
+
+                {/* Toggle Switch */}
+                <div style={{
+                  width: 50,
+                  height: 28,
+                  borderRadius: 999,
+                  backgroundColor: (currentUser?.notificationPrefs?.reconnect_nudges ?? true) ? clr.indigo : clr.border,
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: (currentUser?.notificationPrefs?.reconnect_nudges ?? true) ? 24 : 2,
                     width: 24,
                     height: 24,
                     borderRadius: '50%',
@@ -265,15 +303,16 @@ export default function Settings() {
                 alignItems: 'center',
               }}>
                 <div>
-                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Reconnect Nudges</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Nudge Frequency</p>
                   <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
-                    Remind me to catch up after
+                    How long before we nudge you?
                   </p>
                 </div>
 
                 <select 
                   value={reconnectDraft}
                   onChange={(e) => setReconnectDraft(Number(e.target.value))}
+                  disabled={!(currentUser?.notificationPrefs?.reconnect_nudges ?? true)}
                   style={{
                     padding: '8px 12px',
                     borderRadius: '8px',
@@ -284,7 +323,8 @@ export default function Settings() {
                     fontWeight: 600,
                     outline: 'none',
                     fontFamily: 'inherit',
-                    cursor: 'pointer'
+                    cursor: (currentUser?.notificationPrefs?.reconnect_nudges ?? true) ? 'pointer' : 'not-allowed',
+                    opacity: (currentUser?.notificationPrefs?.reconnect_nudges ?? true) ? 1 : 0.5
                   }}
                 >
                   <option value={7}>1 Week</option>
@@ -349,7 +389,7 @@ export default function Settings() {
                 cursor: 'pointer',
               }} onClick={() => {
                 const isPrivate = !(currentUser?.privacy?.isPrivateProfile ?? false);
-                setCurrentUser(prev => ({ ...prev, privacy: { ...(prev?.privacy || {}), isPrivateProfile: isPrivate } }));
+                updateMyPrivacy({ isPrivateProfile: isPrivate })
               }}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Private Profile</p>
@@ -389,7 +429,7 @@ export default function Settings() {
                     alignItems: 'center',
                     cursor: 'pointer',
                   }} onClick={() => {
-                    setCurrentUser(prev => ({ ...prev, privacy: { ...(prev?.privacy || {}), [key]: !val } }));
+                    updateMyPrivacy({ [key]: !val })
                   }}>
                     <div>
                       <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>{label}</p>

@@ -6,6 +6,7 @@ import { useAppContext } from '../context/AppContext.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import HoopApplication from '../components/hoops/HoopApplication.jsx'
 import OrganizerReview from '../components/hoops/OrganizerReview.jsx'
+import { buildMapsUrl } from '../lib/geocoding'
 import { useChatMessages } from '../hooks/useChatMessages.js'
 import { listChannels, createChannel as createChannelApi } from '../lib/chat.js'
 import { avatarFor } from '../lib/avatar'
@@ -503,7 +504,7 @@ export default function CircleDetail() {
             {/* Stats row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
-                { value: circle.memberCount ?? (circle.members || []).length ?? 0, label: 'MEMBERS' },
+                { value: circle.members ? circle.members.length : (circle.memberCount || 0), label: 'MEMBERS' },
                 { value: (circle.events || []).length ?? 0, label: 'UPCOMING' },
               ].map(({ value, label }) => (
                 <div key={label} style={{
@@ -521,107 +522,144 @@ export default function CircleDetail() {
 
         {/* MEMBERS */}
         {activeTab === 'members' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Invite Button */}
-            <button
-              onClick={() => setShowInviteModal(true)}
-              style={{
-                width: '100%', padding: '16px', borderRadius: 20,
-                border: `1.5px dashed ${clr.indigo}`, backgroundColor: clr.indigoLt,
-                color: clr.indigo, fontSize: 15, fontWeight: 700,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-              }}
-            >
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <line x1="20" y1="8" x2="20" y2="14" />
-                <line x1="23" y1="11" x2="17" y2="11" />
+          !isJoined ? (
+            <div style={{ backgroundColor: clr.white, borderRadius: 20, padding: 32, textAlign: 'center', border: `1.5px dashed ${clr.border}` }}>
+              <svg width="32" height="32" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24" style={{ marginBottom: 12 }}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              Invite Connections
-            </button>
+              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Members are private</h3>
+              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>Join this circle to see who's part of it.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Invite Button */}
+              <button
+                onClick={() => setShowInviteModal(true)}
+                style={{
+                  width: '100%', padding: '16px', borderRadius: 20,
+                  border: `1.5px dashed ${clr.indigo}`, backgroundColor: clr.indigoLt,
+                  color: clr.indigo, fontSize: 15, fontWeight: 700,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                }}
+              >
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+                Invite Connections
+              </button>
 
-            {/* Members List */}
-            <div style={{
-              backgroundColor: clr.white, borderRadius: 20,
-              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {(circle.members || []).map((member) => (
-                  <div key={member.id} onClick={() => navigate(`/user/${member.id}`)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    backgroundColor: clr.bg, borderRadius: 14,
-                    padding: '10px 12px', cursor: 'pointer'
-                  }}>
-                    <img src={avatarFor(member)} alt={member.name} style={{
-                      width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
-                    }} />
-                    <span style={{
-                      fontSize: 13, fontWeight: 600, color: clr.textDark,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+              {/* Members List */}
+              <div style={{
+                backgroundColor: clr.white, borderRadius: 20,
+                padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {(circle.members || []).map((member) => (
+                    <div key={member.id} onClick={() => navigate(`/user/${member.id}`)} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      backgroundColor: clr.bg, borderRadius: 14,
+                      padding: '10px 12px', cursor: 'pointer'
                     }}>
-                      {member.name}
-                    </span>
-                  </div>
-                ))}
+                      <img src={avatarFor(member)} alt={member.name} style={{
+                        width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
+                      }} />
+                      <span style={{
+                        fontSize: 13, fontWeight: 600, color: clr.textDark,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      }}>
+                        {member.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )
         )}
 
         {/* EVENTS */}
         {activeTab === 'events' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {(!(circle.events || []).length) ? (
-              <p style={{ fontSize: 14, color: clr.textMid, padding: 20 }}>No upcoming events yet.</p>
-            ) : (circle.events || []).map((event) => {
-              const going = isRsvpd(event.id)
-              return (
-                <div key={event.id} onClick={() => openEventDetail(event)} style={{
-                  backgroundColor: clr.white, borderRadius: 20,
-                  padding: '18px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-                  cursor: 'pointer',
-                }}>
-                  {/* Date block */}
-                  <div style={{
-                    width: 52, flexShrink: 0, textAlign: 'center',
-                    backgroundColor: going ? '#DCFCE7' : clr.indigoLt, borderRadius: 14, padding: '10px 6px',
+          !isJoined ? (
+            <div style={{ backgroundColor: clr.white, borderRadius: 20, padding: 32, textAlign: 'center', border: `1.5px dashed ${clr.border}` }}>
+              <svg width="32" height="32" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24" style={{ marginBottom: 12 }}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Events are members-only</h3>
+              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>Join {circle.name} to see upcoming meetups.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(!(circle.events || []).length) ? (
+                <p style={{ fontSize: 14, color: clr.textMid, padding: 20 }}>No upcoming events yet.</p>
+              ) : (circle.events || []).map((event) => {
+                const going = isRsvpd(event.id)
+                return (
+                  <div key={event.id} onClick={() => openEventDetail(event)} style={{
+                    backgroundColor: clr.white, borderRadius: 20,
+                    padding: '18px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                    cursor: 'pointer',
                   }}>
-                    <p style={{ fontSize: 22, fontWeight: 800, color: going ? '#059669' : clr.indigo, margin: 0, lineHeight: 1 }}>
-                      {event.date?.split(' ')[1] ?? event.date?.split('-')[2] ?? '—'}
-                    </p>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: going ? '#059669' : clr.indigo, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {event.date?.split(' ')[0] ?? 'Mar'}
-                    </p>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{event.title}</p>
-                    <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>{event.time} · {event.location}</p>
-                  </div>
-                  {going ? (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); cancelRsvp(event.id); }} style={{
-                      padding: '9px 18px', borderRadius: 999, border: 'none',
-                      background: '#FEE2E2',
-                      color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                      flexShrink: 0,
+                    {/* Date block */}
+                    <div style={{
+                      width: 52, flexShrink: 0, textAlign: 'center',
+                      backgroundColor: going ? '#DCFCE7' : clr.indigoLt, borderRadius: 14, padding: '10px 6px',
                     }}>
-                      Cancel
-                    </button>
-                  ) : (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); openEventDetail(event); }} style={{
-                      padding: '9px 18px', borderRadius: 999, border: 'none',
-                      background: `linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
-                      color: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                      flexShrink: 0,
-                    }}>
-                      Details
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                      <p style={{ fontSize: 22, fontWeight: 800, color: going ? '#059669' : clr.indigo, margin: 0, lineHeight: 1 }}>
+                        {event.date?.split(' ')[1] ?? event.date?.split('-')[2] ?? '—'}
+                      </p>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: going ? '#059669' : clr.indigo, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {event.date?.split(' ')[0] ?? 'Mar'}
+                      </p>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{event.title}</p>
+                      <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>
+                        {event.time} ·{' '}
+                        {event.locationLat != null ? (
+                          <a
+                            onClick={(e) => e.stopPropagation()}
+                            href={buildMapsUrl({ lat: event.locationLat, lng: event.locationLng, name: event.location, address: event.locationAddress })}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: clr.indigo, textDecoration: 'none', fontWeight: 600 }}
+                          >
+                            {event.location}
+                          </a>
+                        ) : (
+                          event.location
+                        )}
+                      </p>
+                    </div>
+                    {going ? (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); cancelRsvp(event.id); }} style={{
+                        padding: '9px 18px', borderRadius: 999, border: 'none',
+                        background: '#FEE2E2',
+                        color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        flexShrink: 0,
+                      }}>
+                        Cancel
+                      </button>
+                    ) : (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openEventDetail(event); }} style={{
+                        padding: '9px 18px', borderRadius: 999, border: 'none',
+                        background: `linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
+                        color: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        flexShrink: 0,
+                      }}>
+                        Details
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )
         )}
 
         {/* CHAT — Discord-style inline experience */}
