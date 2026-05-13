@@ -70,6 +70,7 @@ export default function CreateWheel({ onAction }) {
   const [hovered, setHovered] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const svgRef = useRef(null);
+  const pointerRef = useRef(null);
 
   const cx = 200;
   const cy = 200;
@@ -111,38 +112,74 @@ export default function CreateWheel({ onAction }) {
 
   const handlePointerDown = (e) => {
     const slice = getHoveredSlice(e.clientX, e.clientY);
+    pointerRef.current = {
+      id: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startSlice: slice,
+      isCreateGesture: slice === 'CENTER',
+      moved: false,
+      verticalScroll: false,
+    };
     if (slice === 'CENTER') {
       setIsDragging(true);
+      e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
     } 
   };
 
   const handlePointerMove = (e) => {
+    const pointer = pointerRef.current;
+    if (pointer?.id === e.pointerId) {
+      const dx = e.clientX - pointer.startX;
+      const dy = e.clientY - pointer.startY;
+      const moved = Math.hypot(dx, dy) > 10;
+      pointer.moved = pointer.moved || moved;
+      pointer.verticalScroll = pointer.verticalScroll || (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx));
+
+      if (pointer.verticalScroll && !pointer.isCreateGesture) {
+        setHovered(null);
+        return;
+      }
+    }
+
     const slice = getHoveredSlice(e.clientX, e.clientY);
     setHovered(slice === 'CENTER' ? null : slice);
   };
 
   const handlePointerUp = (e) => {
     const slice = getHoveredSlice(e.clientX, e.clientY);
+    const pointer = pointerRef.current;
+    const isSamePointer = pointer?.id === e.pointerId;
+    const isIntentionalTap = isSamePointer && !pointer.moved;
     
     if (isDragging) {
       setIsDragging(false);
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
       if (slice && slice !== 'CENTER') {
         onAction(slice);
       }
       setHovered(null);
     } else {
-      if (slice && slice !== 'CENTER') {
+      if (slice && slice !== 'CENTER' && isIntentionalTap) {
         onAction(slice);
       }
     }
+    pointerRef.current = null;
   };
 
   const handlePointerLeave = (e) => {
     if (!isDragging) {
       setHovered(null);
     }
+  };
+
+  const handlePointerCancel = () => {
+    pointerRef.current = null;
+    setIsDragging(false);
+    setHovered(null);
   };
 
   return (
@@ -152,7 +189,7 @@ export default function CreateWheel({ onAction }) {
         justifyContent: 'center', 
         alignItems: 'center', 
         margin: '30px auto',
-        touchAction: 'none',
+        touchAction: 'pan-y',
         width: '100%',
         maxWidth: 380,
         WebkitTapHighlightColor: 'transparent',
@@ -163,11 +200,12 @@ export default function CreateWheel({ onAction }) {
       <svg 
         ref={svgRef}
         viewBox="0 0 400 400" 
-        style={{ width: '100%', height: 'auto', aspectRatio: '1 / 1', overflow: 'visible', cursor: 'pointer', display: 'block', WebkitTapHighlightColor: 'transparent' }}
+        style={{ width: '100%', height: 'auto', aspectRatio: '1 / 1', overflow: 'visible', cursor: 'pointer', display: 'block', WebkitTapHighlightColor: 'transparent', touchAction: 'pan-y' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
+        onPointerCancel={handlePointerCancel}
       >
         <defs>
           {SLICES.map(s => (
@@ -238,13 +276,21 @@ export default function CreateWheel({ onAction }) {
             transform: isDragging ? 'scale(0.92)' : 'scale(1)',
             transformOrigin: `${cx}px ${cy}px`,
             transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
+            touchAction: 'none',
           }}
         >
           <circle cx={cx} cy={cy} r="76" fill="var(--bg)" stroke="var(--border)" strokeWidth="1.5" />
           <circle cx={cx} cy={cy} r="74" fill="none" stroke="var(--border)" strokeWidth="1" strokeOpacity="0.5" />
           <text x={cx} y={cy - 6} fill="var(--textDark)" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">TAP TO</text>
           <text x={cx} y={cy + 14} fill="var(--textDark)" fontSize="13" fontWeight="800" textAnchor="middle" letterSpacing="0.05em">CREATE</text>
+          <circle
+            cx={cx}
+            cy={cy}
+            r="76"
+            fill="transparent"
+            style={{ pointerEvents: 'all', touchAction: 'none' }}
+          />
         </g>
       </svg>
     </div>
