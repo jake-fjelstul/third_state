@@ -1,8 +1,10 @@
 import { useAppContext } from '../context/AppContext.jsx'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { updateProfile } from '../lib/auth'
 import { useCalendar } from '../hooks/useCalendar.js'
 import { useNavigate } from 'react-router-dom'
+import { listMyBlocks } from '../lib/moderation'
+import { avatarFor } from '../lib/avatar'
 
 const clr = {
   bg:       'var(--bg)',
@@ -17,7 +19,7 @@ const clr = {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, importDiscordServer, signOut, updateMyPrivacy, updateMyNotificationPrefs } = useAppContext()
+  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, importDiscordServer, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById } = useAppContext()
   const { isConnected: isCalendarConnected, isLoading: calendarLoading, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
   const [showDiscordImport, setShowDiscordImport] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
@@ -27,6 +29,26 @@ export default function Settings() {
   const [toastMessage, setToastMessage] = useState('')
   const [radiusDraft, setRadiusDraft] = useState(searchRadius)
   const [reconnectDraft, setReconnectDraft] = useState(reconnectThresholdDays)
+
+  const [blockedUsers, setBlockedUsers] = useState([])
+  const [loadingBlocks, setLoadingBlocks] = useState(false)
+  const [unblockingId, setUnblockingId] = useState(null)
+
+  const fetchBlockedUsers = useCallback(async () => {
+    setLoadingBlocks(true)
+    try {
+      const list = await listMyBlocks()
+      setBlockedUsers(list)
+    } catch (err) {
+      console.error('[Settings] listMyBlocks failed', err)
+    } finally {
+      setLoadingBlocks(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchBlockedUsers()
+  }, [fetchBlockedUsers, blockedUserIds])
 
   const handleToggleTheme = async () => {
     if (!currentUser?.id) return
@@ -452,6 +474,115 @@ export default function Settings() {
                 )
               })}
 
+            </div>
+          </div>
+
+          {/* Blocked Users Section */}
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+              Blocked users
+            </h2>
+            <div style={{
+              backgroundColor: clr.white,
+              borderRadius: 20,
+              padding: '20px',
+              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+            }}>
+              {loadingBlocks && blockedUsers.length === 0 ? (
+                <p style={{ fontSize: 14, color: clr.textMid, margin: 0 }}>Loading blocked users...</p>
+              ) : blockedUsers.length === 0 ? (
+                <p style={{ fontSize: 14, color: clr.textMid, margin: 0 }}>You haven't blocked anyone.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {blockedUsers.map(user => (
+                    <div
+                      key={user.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                        <img
+                          src={avatarFor({ avatar_url: user.avatar, name: user.name })}
+                          alt={user.name}
+                          style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {user.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={unblockingId === user.id}
+                        onClick={async () => {
+                          setUnblockingId(user.id)
+                          try {
+                            await unblockUserById(user.id)
+                            await fetchBlockedUsers()
+                          } catch (err) {
+                            console.error('[Settings] unblock failed', err)
+                          } finally {
+                            setUnblockingId(null)
+                          }
+                        }}
+                        style={{
+                          minHeight: 44,
+                          padding: '8px 18px',
+                          borderRadius: 999,
+                          border: `1.5px solid ${clr.indigo}`,
+                          backgroundColor: clr.indigoLt,
+                          color: clr.indigo,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: unblockingId === user.id ? 'not-allowed' : 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {unblockingId === user.id ? 'Unblocking...' : 'Unblock'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Safety Section */}
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+              Safety
+            </h2>
+            <div style={{
+              backgroundColor: clr.white,
+              borderRadius: 20,
+              padding: '20px',
+              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+            }}>
+              <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 14px 0', lineHeight: 1.6 }}>
+                Report harassment, spam, or unsafe behavior from any profile or message. We review all reports within 24 hours.
+              </p>
+              <a
+                href="mailto:support@third-space-app.com"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  minHeight: 44,
+                  padding: '8px 16px',
+                  borderRadius: 999,
+                  backgroundColor: clr.bg,
+                  color: clr.indigo,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  border: `1px solid ${clr.border}`,
+                }}
+              >
+                ✉️ Contact support
+              </a>
             </div>
           </div>
 

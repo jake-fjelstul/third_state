@@ -9,6 +9,7 @@ import { resolveCircleCover } from '../lib/circleCover'
 import { getAvailabilityForUser, checkConflictAt, computeFreeSlots } from '../lib/availability'
 import { getConnectionStats } from '../lib/connectionStats'
 import TimePicker from '../components/TimePicker.jsx'
+import ReportModal from '../components/moderation/ReportModal.jsx'
 
 const clr = {
   bg:       'var(--bg)',
@@ -40,8 +41,12 @@ function formatConnectionDate(iso) {
 export default function UserProfile() {
   const { id }     = useParams()
   const navigate   = useNavigate()
-  const { connections, connectWithPerson, disconnectFromPerson, startDM, sendMessage, currentUser, blockedUserIds } = useAppContext()
+  const { connections, connectWithPerson, disconnectFromPerson, startDM, sendMessage, currentUser, blockedUserIds, blockUserById, unblockUserById } = useAppContext()
   const [person, setPerson] = useState(null)
+  const [showActionMenu, setShowActionMenu] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false)
+  const [blocking, setBlocking] = useState(false)
   const [personLoading, setPersonLoading] = useState(true)
   const [personCircles, setPersonCircles] = useState([])
   const [connecting, setConnecting] = useState(false)
@@ -232,14 +237,39 @@ export default function UserProfile() {
     return <div style={{ padding:40, textAlign:'center', color:clr.textMid, fontFamily:"'DM Sans',sans-serif" }}>User not found.</div>
   }
 
+  const isBlocked = !!(person?.id && blockedUserIds?.includes(person.id))
+
   return (
     <div style={{ minHeight:'100vh', backgroundColor:clr.bg, paddingBottom:100, fontFamily:"'DM Sans',sans-serif" }}>
-      <div style={{ padding:'20px 24px 0', display:'flex', justifyContent:'space-between' }}>
-        <button onClick={() => navigate(-1)} style={{ background:'none', border:'none', cursor:'pointer' }}>
+      <div style={{ padding:'20px 24px 0', display:'flex', justifyContent:'space-between', alignItems: 'center' }}>
+        <button onClick={() => navigate(-1)} aria-label="Go back" style={{ background:'none', border:'none', cursor:'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
+
+        {!isSelf && (
+          <button
+            onClick={() => setShowActionMenu(!showActionMenu)}
+            aria-label="More options"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              minWidth: 44,
+              minHeight: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="1.5" fill={clr.textDark} />
+              <circle cx="12" cy="12" r="1.5" fill={clr.textDark} />
+              <circle cx="12" cy="19" r="1.5" fill={clr.textDark} />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div style={{ padding: '24px 20px', textAlign:'center' }}>
@@ -680,6 +710,232 @@ export default function UserProfile() {
         .free-chip:hover { background: ${clr.indigoLt} !important; }
       `}
       </style>
+      {/* Overflow Action Menu */}
+      {showActionMenu && (
+        <div
+          onClick={() => setShowActionMenu(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 900,
+            backgroundColor: 'rgba(15,15,30,0.4)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 500,
+              backgroundColor: clr.white,
+              borderRadius: '24px 24px 0 0',
+              padding: '20px 20px calc(24px + env(safe-area-inset-bottom))',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              animation: 'slideUp 0.25s ease-out forwards',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <div style={{ width: 36, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
+            </div>
+
+            <button
+              onClick={() => {
+                setShowActionMenu(false)
+                setShowReportModal(true)
+              }}
+              style={{
+                width: '100%',
+                minHeight: 48,
+                borderRadius: 14,
+                border: 'none',
+                backgroundColor: clr.bg,
+                color: clr.textDark,
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              🚩 Report {person?.name ? person.name.split(' ')[0] : 'User'}
+            </button>
+
+            {isBlocked ? (
+              <button
+                onClick={async () => {
+                  setShowActionMenu(false)
+                  try {
+                    await unblockUserById(person.id)
+                  } catch (err) {
+                    console.error('[UserProfile] unblock failed', err)
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  minHeight: 48,
+                  borderRadius: 14,
+                  border: 'none',
+                  backgroundColor: clr.indigoLt,
+                  color: clr.indigo,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                🔓 Unblock {person?.name ? person.name.split(' ')[0] : 'User'}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setShowActionMenu(false)
+                  setShowBlockConfirm(true)
+                }}
+                style={{
+                  width: '100%',
+                  minHeight: 48,
+                  borderRadius: 14,
+                  border: 'none',
+                  backgroundColor: '#FEE2E2',
+                  color: '#DC2626',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                🚫 Block {person?.name ? person.name.split(' ')[0] : 'User'}
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowActionMenu(false)}
+              style={{
+                width: '100%',
+                minHeight: 48,
+                borderRadius: 14,
+                border: `1.5px solid ${clr.border}`,
+                backgroundColor: clr.white,
+                color: clr.textMid,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginTop: 4,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Block Confirmation Modal */}
+      {showBlockConfirm && (
+        <div
+          onClick={() => setShowBlockConfirm(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(15,15,30,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 400,
+              backgroundColor: clr.white,
+              borderRadius: 24,
+              padding: '24px 20px',
+              boxSizing: 'border-box',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>🚫</div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: 20, fontWeight: 800, color: clr.textDark, textAlign: 'center' }}>
+              Block {person?.name}?
+            </h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: 14, color: clr.textMid, lineHeight: 1.5, textAlign: 'center' }}>
+              Block {person?.name}? They won't be able to see your profile, message you, or find you in Third Space. You won't see them either. Any existing connection will be removed.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => setShowBlockConfirm(false)}
+                disabled={blocking}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  borderRadius: 999,
+                  border: `1.5px solid ${clr.border}`,
+                  backgroundColor: clr.white,
+                  color: clr.textDark,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={blocking}
+                onClick={async () => {
+                  setBlocking(true)
+                  try {
+                    await blockUserById(person.id)
+                    setShowBlockConfirm(false)
+                    navigate(-1)
+                  } catch (err) {
+                    console.error('[UserProfile] block user failed', err)
+                    setBlocking(false)
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  borderRadius: 999,
+                  border: 'none',
+                  backgroundColor: '#DC2626',
+                  color: '#FFFFFF',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: blocking ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(220,38,38,0.3)',
+                }}
+              >
+                {blocking ? 'Blocking...' : 'Block'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={person?.id}
+        subjectName={person?.name}
+      />
     </div>
   )
 }
