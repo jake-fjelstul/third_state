@@ -169,7 +169,7 @@ function DiscoveryCard({ card }) {
 }
 
 export default function SwipeDiscovery({ onClose }) {
-  const { joinCircle, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser, connections, joinedCircles, isRsvpd } = useAppContext()
+  const { joinCircle, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser, connections, joinedCircles, isRsvpd, blockedUserIds } = useAppContext()
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events'])
   const [cardIndex, setCardIndex] = useState(0)
   
@@ -234,6 +234,7 @@ export default function SwipeDiscovery({ onClose }) {
           .filter(p => {
             if (p.id === currentUser?.id) return false
             if (connections.some(c => c.id === p.id)) return false
+            if (blockedUserIds?.includes(p.id)) return false
             const dist = personDistanceTo(p)
             return dist == null || dist <= searchRadius
           })
@@ -270,7 +271,7 @@ export default function SwipeDiscovery({ onClose }) {
 
     return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius, circles, people, events, currentUser])
+  }, [activeFilters, searchRadius, circles, people, events, currentUser, blockedUserIds])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]

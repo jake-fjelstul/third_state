@@ -414,7 +414,7 @@ function CreateCard({ action, onClick }) {
 
 function CreateModals({ show, onClose, onShowToast, people, connections, refreshCircles }) {
   const navigate = useNavigate()
-  const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle } = useAppContext()
+  const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle, blockedUserIds } = useAppContext()
   const [coffeeSearch, setCoffeeSearch] = useState('')
   const [coffeeTarget, setCoffeeTarget] = useState(null)
   const [circlePrivacy, setCirclePrivacy] = useState('open')
@@ -634,7 +634,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
       </form>
     )
     if (show === 'coffee') {
-      const results = coffeeSearch.trim() ? connections.filter(p => p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
+      const results = coffeeSearch.trim() ? connections.filter(p => !blockedUserIds?.includes(p.id) && p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
       return (
         <form onSubmit={async e => {
           e.preventDefault(); if (!coffeeTarget) return
@@ -964,7 +964,7 @@ export default function Feed() {
   const navigate = useNavigate()
   const {
     currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd, circleMembershipVersion,
-    startDM, recentInviter, clearRecentInviter, skipIntentCapture, updateMyIntents, connections
+    startDM, recentInviter, clearRecentInviter, skipIntentCapture, updateMyIntents, connections, blockedUserIds
   } = useAppContext()
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1071,12 +1071,13 @@ export default function Feed() {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null
     const q = searchQuery.toLowerCase()
+    const activeBlockedIds = blockedUserIds || []
     return {
-      people: people.filter(p => p.name.toLowerCase().includes(q) || p.interests?.some(i => i.toLowerCase().includes(q)) || p.bio?.toLowerCase().includes(q)),
+      people: people.filter(p => !activeBlockedIds.includes(p.id) && (p.name.toLowerCase().includes(q) || p.interests?.some(i => i.toLowerCase().includes(q)) || p.bio?.toLowerCase().includes(q))),
       circles: circles.filter(c => c.name.toLowerCase().includes(q) || c.interestTag?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)),
       events: events.filter(e => e.title.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q)),
     }
-  }, [searchQuery, people, circles, events])
+  }, [searchQuery, people, circles, events, blockedUserIds])
 
   const getGreeting = () => {
     const h = new Date().getHours()
@@ -1159,7 +1160,7 @@ export default function Feed() {
                   <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0 }}>Swipe through people, circles & events</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                  {people.slice(0, 3).map((p, i) => <img key={p.id} src={avatarFor(p)} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid rgba(255,255,255,0.6)', marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i, position: 'relative' }} />)}
+                  {people.filter(p => !blockedUserIds?.includes(p.id)).slice(0, 3).map((p, i) => <img key={p.id} src={avatarFor(p)} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid rgba(255,255,255,0.6)', marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i, position: 'relative' }} />)}
                   <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }}><svg width="16" height="16" fill="none" stroke="#FFFFFF" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></div>
                 </div>
               </button>

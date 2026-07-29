@@ -165,6 +165,7 @@ function useDarkMode() {
 function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onSelectNode, selectedNode }) {
   const isDark = useDarkMode()
   const [hoveredNode, setHoveredNode] = useState(null)
+  const { blockedUserIds } = useAppContext()
 
   const colors = isDark ? {
     bg: '#0F0F1A', card: '#1A1A2E', ring: '#2A2A3E', edge: '#818CF8', youBorder: '#5B5FEF', glow1: 'rgba(129,140,248,0.2)', glow2: 'rgba(129,140,248,0.1)', circleNodeBg: '#1E1E3F', circleNodeBorder: '#818CF8', personNodeBg: '#1E1E2E', personNodeBorder: '#2A2A4E', labelYou: '#F0F0FF', labelOther: '#9CA3AF', tooltipBg: '#252540',
@@ -227,8 +228,9 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
     activeCircles.forEach(c => middleRingRaw.push({ type: 'circle_node', data: c }))
 
     const personMap = new Map()
+    const activeBlockedIds = blockedUserIds || []
     joinedCircleObjs.forEach(c => {
-      const members = (c.members || []).slice(0, 4)
+      const members = (c.members || []).filter(m => !activeBlockedIds.includes(m.id)).slice(0, 4)
       members.forEach(m => {
         if (!personMap.has(m.id)) personMap.set(m.id, { data: m, connections: [], matchFilter: false })
         personMap.get(m.id).connections.push(c)
@@ -294,7 +296,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
     })
 
     return { nodes, edges, hiddenCount }
-  }, [joinedCircles, filter, currentUser, circles])
+  }, [joinedCircles, filter, currentUser, circles, blockedUserIds])
 
   const getEdgeOpacity = (edge) => {
     const fromNode = graphData.nodes.find(n => n.id === edge.from)
@@ -418,7 +420,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
 
 export default function Circles() {
   const navigate = useNavigate()
-  const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion } = useAppContext()
+  const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion, blockedUserIds } = useAppContext()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const validTabs = ['circles', 'connections', 'network']
@@ -476,9 +478,10 @@ export default function Circles() {
   const rankedConnections = useMemo(() => {
     const seen = new Set()
     const result = []
+    const activeBlockedIds = blockedUserIds || []
 
     connections.forEach((person) => {
-      if (seen.has(person.id) || person.id === currentUser?.id) return
+      if (seen.has(person.id) || person.id === currentUser?.id || activeBlockedIds.includes(person.id)) return
       seen.add(person.id)
       result.push({
         ...person,
@@ -490,7 +493,7 @@ export default function Circles() {
     })
 
     return result.sort((a, b) => b.score - a.score)
-  }, [connections, joinedCircles, chatState, circles, currentUser?.id, people])
+  }, [connections, joinedCircles, chatState, circles, currentUser?.id, people, blockedUserIds])
 
   const filteredConnections = useMemo(() => {
     return rankedConnections.filter(person => {

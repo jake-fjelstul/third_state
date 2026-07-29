@@ -70,7 +70,7 @@ export default function CircleDetail() {
     reloadCircle()
   }, [reloadCircle])
 
-  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion } = useAppContext()
+  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds } = useAppContext()
 
   useEffect(() => {
     reloadCircle()
@@ -564,7 +564,7 @@ export default function CircleDetail() {
                 padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
               }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {(circle.members || []).map((member) => (
+                  {(circle.members || []).filter(member => !blockedUserIds?.includes(member.id)).map((member) => (
                     <div key={member.id} onClick={() => navigate(`/user/${member.id}`)} style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       backgroundColor: clr.bg, borderRadius: 14,
@@ -734,9 +734,9 @@ export default function CircleDetail() {
             />
 
             <div style={{ overflowY: 'auto', flex: 1, msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-              {connections
-                .filter(p => p.name.toLowerCase().includes(inviteSearch.toLowerCase()))
-                .slice(0, 10)
+                  {connections
+                    .filter(p => !blockedUserIds?.includes(p.id) && p.name.toLowerCase().includes(inviteSearch.toLowerCase()))
+                    .slice(0, 10)
                 .map(p => {
                   const alreadyMember = circle.members?.some(m => m.id === p.id)
                   return (

@@ -40,7 +40,7 @@ function formatConnectionDate(iso) {
 export default function UserProfile() {
   const { id }     = useParams()
   const navigate   = useNavigate()
-  const { connections, connectWithPerson, disconnectFromPerson, startDM, sendMessage, currentUser } = useAppContext()
+  const { connections, connectWithPerson, disconnectFromPerson, startDM, sendMessage, currentUser, blockedUserIds } = useAppContext()
   const [person, setPerson] = useState(null)
   const [personLoading, setPersonLoading] = useState(true)
   const [personCircles, setPersonCircles] = useState([])
@@ -68,18 +68,30 @@ export default function UserProfile() {
 
   useEffect(() => {
     if (!id) return
+    const activeBlockedIds = blockedUserIds || []
+    if (activeBlockedIds.includes(id)) {
+      setPerson(null)
+      setPersonCircles([])
+      setPersonLoading(false)
+      return
+    }
     let cancelled = false
     setPersonLoading(true)
     Promise.all([getProfileById(id), listCirclesForUser(id)])
       .then(([prof, crc]) => {
         if (cancelled) return
-        setPerson(prof)
-        setPersonCircles(crc)
+        if (activeBlockedIds.includes(prof?.id)) {
+          setPerson(null)
+          setPersonCircles([])
+        } else {
+          setPerson(prof)
+          setPersonCircles(crc)
+        }
       })
       .catch(err => console.error('[UserProfile] load failed', err))
       .finally(() => { if (!cancelled) setPersonLoading(false) })
     return () => { cancelled = true }
-  }, [id])
+  }, [id, blockedUserIds])
 
   const isConnected = connections.some(c => c.id === person?.id)
   const isSelf = person?.id === currentUser?.id

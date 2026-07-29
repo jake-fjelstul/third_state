@@ -20,7 +20,10 @@ function matchesTopic(item, topic, fields) {
 
 export async function handleFindPeople({ topic, ctx }) {
   const all = await listProfiles({ excludeUserId: ctx.currentUser?.id })
-  const filtered = all.filter(p => matchesTopic(p, topic, ['name', 'bio', 'interests', 'city']))
+  const activeBlockedIds = ctx.blockedUserIds || []
+  const filtered = all
+    .filter(p => !activeBlockedIds.includes(p.id))
+    .filter(p => matchesTopic(p, topic, ['name', 'bio', 'interests', 'city']))
   if (filtered.length === 0) {
     return [
       assistantText(`I couldn't find anyone${topic ? ` matching "${topic}"` : ''} right now. Try a broader search, or check out Discover for a wider net.`),

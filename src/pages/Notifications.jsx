@@ -27,6 +27,7 @@ export default function Notifications() {
     startDM,
     sendMessage,
     currentUser,
+    blockedUserIds,
   } = useAppContext()
   
   const [drafts, setDrafts] = useState({})
@@ -34,10 +35,17 @@ export default function Notifications() {
   const [activityReplyId, setActivityReplyId] = useState(null)
   const [actionStates, setActionStates] = useState({})
 
-  const connectionRequests = notifications.filter(n => n.type === 'connection_request' || n.type === 'connection_accepted')
-  const eventReminders = notifications.filter(n => n.type === 'event_approaching')
-  const reconnectNudges = notifications.filter(n => n.type === 'reconnect_nudge')
-  const circleActivity = notifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
+  const activeBlockedIds = blockedUserIds || []
+  const visibleNotifications = notifications.filter(n => {
+    if (n.user?.id && activeBlockedIds.includes(n.user.id)) return false
+    if (n.targetId && activeBlockedIds.includes(n.targetId)) return false
+    return true
+  })
+
+  const connectionRequests = visibleNotifications.filter(n => n.type === 'connection_request' || n.type === 'connection_accepted')
+  const eventReminders = visibleNotifications.filter(n => n.type === 'event_approaching')
+  const reconnectNudges = visibleNotifications.filter(n => n.type === 'reconnect_nudge')
+  const circleActivity = visibleNotifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
 
   const setActionState = (id, state) => {
     setActionStates(prev => ({ ...prev, [id]: state }))
@@ -370,7 +378,7 @@ export default function Notifications() {
     )
   }
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
+  const unreadCount = visibleNotifications.filter(n => !n.isRead).length
 
   return (
     <div style={{
@@ -407,7 +415,7 @@ export default function Notifications() {
           ) : <div />}
         </div>
 
-        {notifications.length === 0 ? (
+        {visibleNotifications.length === 0 ? (
            <div style={{ padding: 40, textAlign: 'center' }}>
              <p style={{ fontSize: 15, color: clr.textLight }}>You have no notifications yet.</p>
            </div>

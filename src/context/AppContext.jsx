@@ -39,6 +39,7 @@ import {
 import { listNotifications, markRead as markNotifReadDb, markAllRead as markAllNotifsReadDb, deleteNotification as deleteNotifDb, mapNotificationRow } from '../lib/notifications'
 import { redeemInvite } from '../lib/invites'
 import { createChatGame, commitGameMove, resignGame } from '../lib/games'
+import { blockUser, unblockUser, listBlockedUserIds } from '../lib/moderation'
 
 const AppContext = createContext(null)
 
@@ -66,6 +67,7 @@ export function AppProvider({ children }) {
   const [chatStateLoading, setChatStateLoading] = useState(false)
   const [currentlyOpenChatId, setCurrentlyOpenChatId] = useState(null)
   const [profileError, setProfileError] = useState(null)
+  const [blockedUserIds, setBlockedUserIds] = useState([])
 
   const [discoverySwipes, setDiscoverySwipes] = useState(() => {
     return { date: new Date().toDateString(), person: 0, circle: 0, event: 0 }
@@ -159,6 +161,15 @@ export function AppProvider({ children }) {
       console.error('[AppContext] refreshConnections failed', err)
     }
   }, [session?.user?.id])
+
+  useEffect(() => {
+    if (!currentUser?.id) { setBlockedUserIds([]); return }
+    let cancelled = false
+    listBlockedUserIds()
+      .then(ids => { if (!cancelled) setBlockedUserIds(ids) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [currentUser?.id])
 
   // Load profile whenever session changes
   useEffect(() => {
@@ -791,6 +802,19 @@ export function AppProvider({ children }) {
     }
   }, [currentUser])
 
+  const blockUserById = useCallback(async (targetId) => {
+    await blockUser(targetId)
+    const ids = await listBlockedUserIds().catch(() => [])
+    setBlockedUserIds(ids)
+    await refreshConnections().catch(() => {})
+  }, [refreshConnections])
+
+  const unblockUserById = useCallback(async (targetId) => {
+    await unblockUser(targetId)
+    const ids = await listBlockedUserIds().catch(() => [])
+    setBlockedUserIds(ids)
+  }, [])
+
   // ---------- Notification Handlers ----------
 
   const dismissNotification = useCallback(async (notificationId) => {
@@ -943,9 +967,12 @@ export function AppProvider({ children }) {
       signOut,
       startChatGame,
       makeGameMove,
-      forfeitGame
+      forfeitGame,
+      blockedUserIds,
+      blockUserById,
+      unblockUserById
     }),
-    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, makeGameMove, forfeitGame],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
