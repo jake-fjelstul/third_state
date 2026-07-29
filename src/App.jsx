@@ -15,6 +15,7 @@ import SettingsPage from './pages/Settings.jsx'
 import NotificationsPage from './pages/Notifications.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
+import { PrivacyPolicy, Terms } from './pages/Legal.jsx'
 const clr = {
   bg: 'var(--bg)',
   white: 'var(--white)',
@@ -282,6 +283,8 @@ function App() {
   return (
     <Routes>
       <Route path="/invite/:token" element={<InviteLandingPage />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route element={<AuthGuard />}>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
