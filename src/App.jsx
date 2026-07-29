@@ -16,6 +16,7 @@ import NotificationsPage from './pages/Notifications.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
 import { PrivacyPolicy, Terms } from './pages/Legal.jsx'
+import LandingPage from './pages/Landing.jsx'
 const clr = {
   bg: 'var(--bg)',
   white: 'var(--white)',
@@ -175,7 +176,7 @@ function TopNav() {
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <button type="button" onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button type="button" onClick={() => navigate('/feed')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
           <svg width="28" height="28" viewBox="0 0 56 56" fill="none"><circle cx="22" cy="28" r="14" stroke={clr.indigo} strokeWidth="3.5" fill="none"/><circle cx="34" cy="28" r="14" stroke={clr.indigo} strokeWidth="3.5" fill="none"/></svg>
           <span style={{ fontSize: 17, fontWeight: 800, color: clr.textDark }}>Third Space</span>
         </button>
@@ -282,6 +283,7 @@ function AuthGuard() {
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/invite/:token" element={<InviteLandingPage />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
