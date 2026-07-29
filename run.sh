@@ -8,12 +8,14 @@ echo "▶️  Third Space dev runner"
 echo "   Working directory: $(pwd)"
 echo
 
-if [ -f package-lock.json ]; then
-  echo "📦 Installing dependencies with npm ci (clean, lockfile-based install)…"
-  npm ci
-else
-  echo "📦 Installing dependencies with npm install…"
-  npm install
+if [ ! -f node_modules/.bin/vite ]; then
+  if [ -f package-lock.json ]; then
+    echo "📦 Installing dependencies with npm ci…"
+    SUPABASE_SKIP_POSTINSTALL=1 npm ci --ignore-scripts
+  else
+    echo "📦 Installing dependencies with npm install…"
+    SUPABASE_SKIP_POSTINSTALL=1 npm install --ignore-scripts
+  fi
 fi
 
 echo

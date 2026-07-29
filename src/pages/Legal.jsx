@@ -275,3 +275,65 @@ export function Terms() {
     </LegalLayout>
   )
 }
+
+export function Support() {
+  return (
+    <LegalLayout>
+      <h1 style={styles.title}>Support</h1>
+      <div style={styles.subtitle}>Last updated: July 29, 2026</div>
+
+      <h2 style={styles.h2}>Contact us</h2>
+      <p style={styles.p}>
+        Questions, bug reports, or account issues:{' '}
+        <a href="mailto:support@third-space-app.com" style={styles.emailLink}>
+          support@third-space-app.com
+        </a>
+      </p>
+      <p style={styles.p}>We respond within 2 business days.</p>
+
+      <h2 style={styles.h2}>Report a safety concern</h2>
+      <p style={styles.p}>
+        If someone on Third Space is harassing you, spamming, or behaving unsafely, you can report them directly in the app. Open their profile, tap the menu in the top right, and choose Report. You can also report an individual message by pressing and holding it.
+      </p>
+      <p style={styles.p}>
+        We review every report within 24 hours and take action including warnings, content removal, and account termination.
+      </p>
+      <p style={styles.p}>
+        If you are in immediate danger, contact your local emergency services.
+      </p>
+
+      <h2 style={styles.h2}>Block someone</h2>
+      <p style={styles.p}>
+        To stop all contact with another user, open their profile, tap the menu in the top right, and choose Block. Blocking is mutual — neither of you will be able to see or contact the other. You can manage blocked users any time from Settings.
+      </p>
+
+      <h2 style={styles.h2}>Delete your account</h2>
+      <p style={styles.p}>
+        Open Settings and choose Delete Account. This permanently removes your profile, messages, connections, and circle memberships. This cannot be undone. If you have trouble, email us at{' '}
+        <a href="mailto:support@third-space-app.com" style={styles.emailLink}>
+          support@third-space-app.com
+        </a>{' '}
+        and we will remove your account within 5 business days.
+      </p>
+
+      <h2 style={styles.h2}>Common questions</h2>
+      <p style={styles.p}>
+        <strong>How do I connect my Google Calendar?</strong><br />
+        Open the Schedule tab and tap Connect Google Calendar. We use your calendar only to display your existing events alongside Third Space meetups and to add Third Space events when you choose to. You can disconnect at any time.
+      </p>
+      <p style={styles.p}>
+        <strong>How does the battery work?</strong><br />
+        Your battery reflects real-world activity. Attending meetups and connecting with people charges it. It drains slowly during inactivity.
+      </p>
+      <p style={styles.p}>
+        <strong>Why can&apos;t I join a circle?</strong><br />
+        Some circles are private and require an application. Answer the questions the organizer set and they will review your request.
+      </p>
+      <p style={styles.p}>
+        <strong>I forgot my password.</strong><br />
+        On the sign-in screen, choose Forgot password and follow the emailed link.
+      </p>
+    </LegalLayout>
+  )
+}
+

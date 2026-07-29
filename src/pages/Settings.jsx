@@ -1,6 +1,6 @@
 import { useAppContext } from '../context/AppContext.jsx'
 import { useState, useEffect, useCallback } from 'react'
-import { updateProfile } from '../lib/auth'
+import { updateProfile, deleteMyAccount } from '../lib/auth'
 import { useCalendar } from '../hooks/useCalendar.js'
 import { useNavigate } from 'react-router-dom'
 import { listMyBlocks } from '../lib/moderation'
@@ -33,6 +33,11 @@ export default function Settings() {
   const [blockedUsers, setBlockedUsers] = useState([])
   const [loadingBlocks, setLoadingBlocks] = useState(false)
   const [unblockingId, setUnblockingId] = useState(null)
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const fetchBlockedUsers = useCallback(async () => {
     setLoadingBlocks(true)
@@ -567,25 +572,47 @@ export default function Settings() {
               <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 14px 0', lineHeight: 1.6 }}>
                 Report harassment, spam, or unsafe behavior from any profile or message. We review all reports within 24 hours.
               </p>
-              <a
-                href="mailto:support@third-space-app.com"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  minHeight: 44,
-                  padding: '8px 16px',
-                  borderRadius: 999,
-                  backgroundColor: clr.bg,
-                  color: clr.indigo,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  border: `1px solid ${clr.border}`,
-                }}
-              >
-                ✉️ Contact support
-              </a>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a
+                  href="mailto:support@third-space-app.com"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    minHeight: 44,
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    backgroundColor: clr.bg,
+                    color: clr.indigo,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    border: `1px solid ${clr.border}`,
+                  }}
+                >
+                  ✉️ Contact support
+                </a>
+                <button
+                  type="button"
+                  onClick={() => navigate('/support')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    minHeight: 44,
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    backgroundColor: clr.bg,
+                    color: clr.indigo,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    border: `1px solid ${clr.border}`,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ❓ Help and support
+                </button>
+              </div>
             </div>
           </div>
 
@@ -667,13 +694,28 @@ export default function Settings() {
             Account
           </h2>
           <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 2px 14px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-            <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => signOut()}>
+            <div style={{ padding: '20px', borderBottom: `1px solid ${clr.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => signOut()}>
               <div>
                 <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: '#E11D48' }}>Sign Out</p>
                 <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>Log out of this device</p>
               </div>
               <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#FFE4E6', color: '#E11D48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </div>
+            </div>
+
+            <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => {
+              setShowDeleteModal(true)
+              setDeleteConfirmInput('')
+              setDeleteError('')
+              setIsDeleting(false)
+            }}>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: '#DC2626' }}>Delete Account</p>
+                <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>Permanently erase your account and all data</p>
+              </div>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
               </div>
             </div>
           </div>
@@ -743,6 +785,152 @@ export default function Settings() {
         </div>
       )}
 
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div
+          onClick={() => {
+            if (!isDeleting) {
+              setShowDeleteModal(false)
+              setDeleteConfirmInput('')
+              setDeleteError('')
+            }
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(15,15,30,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            fontFamily: "'DM Sans', 'Inter', sans-serif",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 400,
+              backgroundColor: clr.white,
+              borderRadius: 24,
+              padding: '24px 20px',
+              boxSizing: 'border-box',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>⚠️</div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: 20, fontWeight: 800, color: clr.textDark, textAlign: 'center' }}>
+              Delete your account?
+            </h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: clr.textMid, lineHeight: 1.5, textAlign: 'center' }}>
+              This permanently deletes your profile, messages, connections, circle memberships, and event history. This cannot be undone.
+            </p>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: clr.textMid, marginBottom: 6 }}>
+                Type DELETE to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmInput}
+                onChange={(e) => {
+                  setDeleteConfirmInput(e.target.value)
+                  if (deleteError) setDeleteError('')
+                }}
+                disabled={isDeleting}
+                placeholder="DELETE"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '12px 16px',
+                  borderRadius: 14,
+                  border: `1.5px solid ${clr.border}`,
+                  backgroundColor: clr.bg,
+                  fontSize: 15,
+                  color: clr.textDark,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+
+            {deleteError && (
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  backgroundColor: '#FEE2E2',
+                  color: '#DC2626',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {deleteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeleteConfirmInput('')
+                  setDeleteError('')
+                }}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  borderRadius: 999,
+                  border: `1.5px solid ${clr.border}`,
+                  backgroundColor: clr.white,
+                  color: clr.textDark,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmInput !== 'DELETE' || isDeleting}
+                onClick={async () => {
+                  if (deleteConfirmInput !== 'DELETE' || isDeleting) return
+                  setIsDeleting(true)
+                  setDeleteError('')
+                  try {
+                    await deleteMyAccount()
+                    await signOut()
+                    navigate('/', { replace: true })
+                  } catch (err) {
+                    console.error('[Settings] deleteMyAccount failed', err)
+                    setDeleteError(err.message || 'Failed to delete account. Please try again.')
+                    setIsDeleting(false)
+                  }
+                }}
+                style={{
+                  flex: 1.2,
+                  minHeight: 48,
+                  borderRadius: 999,
+                  border: 'none',
+                  backgroundColor: deleteConfirmInput === 'DELETE' && !isDeleting ? '#DC2626' : clr.border,
+                  color: '#FFFFFF',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: deleteConfirmInput === 'DELETE' && !isDeleting ? 'pointer' : 'not-allowed',
+                  boxShadow: deleteConfirmInput === 'DELETE' && !isDeleting ? '0 4px 14px rgba(220,38,38,0.3)' : 'none',
+                  opacity: deleteConfirmInput === 'DELETE' && !isDeleting ? 1 : 0.6,
+                }}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

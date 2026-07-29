@@ -130,6 +130,12 @@ export async function signOut() {
   if (error) throw error
 }
 
+export async function deleteMyAccount() {
+  const { error } = await supabase.rpc('delete_my_account')
+  if (error) throw error
+  await supabase.auth.signOut().catch(() => {})
+}
+
 export async function resetPassword(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/auth?reset=1`,

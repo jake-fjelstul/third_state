@@ -357,6 +357,7 @@ export default function LandingPage() {
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link to="/privacy" style={{ color: 'var(--textMid)', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }} className="hover-link">Privacy Policy</Link>
             <Link to="/terms" style={{ color: 'var(--textMid)', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }} className="hover-link">Terms of Service</Link>
+            <Link to="/support" style={{ color: 'var(--textMid)', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }} className="hover-link">Support</Link>
             <a href="mailto:support@third-space-app.com" style={{ color: 'var(--textMid)', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }} className="hover-link">Contact Support</a>
           </div>
           <span style={{ color: 'var(--textLight)', fontSize: '13px' }}>&copy; 2026 Third Space</span>
