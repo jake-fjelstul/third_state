@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import { checkContent } from '../../lib/contentFilter'
 
 const clr = {
   bg: 'var(--bg)',
@@ -100,6 +101,11 @@ export default function HoopBuilder({ hoops, onChange }) {
             placeholder="e.g., Why do you want to join?"
             style={{ width: '100%', boxSizing: 'border-box', padding: '12px 16px', borderRadius: 12, border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15, color: clr.textDark, outline: 'none', marginBottom: 16 }}
           />
+          {h.prompt && !checkContent(h.prompt).ok && (
+            <p style={{ color: clr.red, fontSize: 12, marginTop: -12, marginBottom: 12, fontWeight: 600 }}>
+              {checkContent(h.prompt).reason}
+            </p>
+          )}
 
           {h.type === 'multiplechoice' && (
             <div>

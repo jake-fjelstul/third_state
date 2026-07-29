@@ -561,6 +561,9 @@ export default function Settings() {
               padding: '20px',
               boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
             }}>
+              <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 10px 0', lineHeight: 1.6 }}>
+                Third Space automatically filters hate speech and explicit content from messages, profiles, and circles.
+              </p>
               <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 14px 0', lineHeight: 1.6 }}>
                 Report harassment, spam, or unsafe behavior from any profile or message. We review all reports within 24 hours.
               </p>

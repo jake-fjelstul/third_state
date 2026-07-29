@@ -18,6 +18,7 @@ import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { buildMapsUrl } from '../lib/geocoding.js'
 import AssistantBar from '../components/feed/AssistantBar.jsx'
 import AssistantModal from '../components/assistant/AssistantModal.jsx'
+import { checkContent } from '../lib/contentFilter.js'
 
 const clr = {
   bg: 'var(--bg)',
@@ -489,6 +490,28 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         const name = e.target.elements.cName.value;
         const topic = e.target.elements.cTopic.value;
         const desc = e.target.elements.cDesc.value;
+
+        const check1 = checkContent(name);
+        if (!check1.ok) return onShowToast(check1.reason);
+        const check2 = checkContent(topic);
+        if (!check2.ok) return onShowToast(check2.reason);
+        const check3 = checkContent(desc);
+        if (!check3.ok) return onShowToast(check3.reason);
+
+        if (hoopsEnabled && circleHoops) {
+          for (const hoop of circleHoops) {
+            if (hoop.prompt) {
+              const c = checkContent(hoop.prompt);
+              if (!c.ok) return onShowToast(c.reason);
+            }
+            if (hoop.options) {
+              for (const opt of hoop.options) {
+                const c = checkContent(opt);
+                if (!c.ok) return onShowToast(c.reason);
+              }
+            }
+          }
+        }
         try {
           const created = await createCircle({
             name,
@@ -556,6 +579,8 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
       <form onSubmit={async e => {
         e.preventDefault();
         const title = e.target.elements.eName.value;
+        const check = checkContent(title);
+        if (!check.ok) return onShowToast(check.reason);
         const date = e.target.elements.eDate.value;
         const time = e.target.elements.eTime.value;
         const cid = e.target.elements.eCircle.value;

@@ -11,6 +11,7 @@ import { avatarFor } from '../lib/avatar'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
 import { buildInviteMessage, classifyContact, createInvite } from '../lib/invites.js'
 import { INTENT_LABELS } from '../lib/intents.js'
+import { checkContent } from '../lib/contentFilter.js'
 
 const INTERESTS = [
   'Rock Climbing','Hiking','Coffee','Startups','Photography','Chess',
@@ -121,6 +122,20 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (!currentUser?.id || saving) return
+    const bioText = draft.bio?.trim() ?? ''
+    const checkBio = checkContent(bioText)
+    if (!checkBio.ok) {
+      setToastMsg(checkBio.reason)
+      setTimeout(() => setToastMsg(null), 3500)
+      return
+    }
+    const nameText = draft.name?.trim() ?? ''
+    const checkName = checkContent(nameText)
+    if (!checkName.ok) {
+      setToastMsg(checkName.reason)
+      setTimeout(() => setToastMsg(null), 3500)
+      return
+    }
     setSaving(true)
     try {
       await updateProfile(currentUser.id, {

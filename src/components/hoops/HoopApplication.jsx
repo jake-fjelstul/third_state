@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import { checkContent } from '../../lib/contentFilter'
 
 const clr = {
   bg:        '#181922',
@@ -24,19 +25,45 @@ export default function HoopApplication({ circle, onClose }) {
   const { currentUser, submitApplication } = useAppContext()
   const [step, setStep] = useState(0) // 0=Overview, 1..N=Hoops, N+1=Review, N+2=Success
   const [responses, setResponses] = useState({})
+  const [errorMsg, setErrorMsg] = useState('')
   
   const hoops = circle.hoops || []
   const totalSteps = hoops.length
 
   const handleNext = () => {
+    if (step > 0 && step <= totalSteps) {
+      const hoopIndex = step - 1
+      const h = hoops[hoopIndex]
+      if (h.type === 'written') {
+        const resp = responses[h.id] || ''
+        const check = checkContent(resp)
+        if (!check.ok) {
+          setErrorMsg(check.reason)
+          return
+        }
+      }
+    }
+    setErrorMsg('')
     setStep(s => s + 1)
   }
 
   const handleBack = () => {
+    setErrorMsg('')
     setStep(s => s - 1)
   }
 
   const handleSubmit = async () => {
+    for (const h of hoops) {
+      if (h.type === 'written') {
+        const resp = responses[h.id] || ''
+        const check = checkContent(resp)
+        if (!check.ok) {
+          setErrorMsg(check.reason)
+          return
+        }
+      }
+    }
+    setErrorMsg('')
     try {
       await submitApplication({ circle, responses })
       setStep(totalSteps + 2) // Jump to Success
@@ -111,6 +138,12 @@ export default function HoopApplication({ circle, onClose }) {
           <h2 style={{ fontSize: 24, fontWeight: 800, color: clr.textDark, margin: '0 0 24px', lineHeight: 1.3 }}>
             {h.prompt}
           </h2>
+
+          {errorMsg && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 12, backgroundColor: clr.redLt, color: clr.red, fontSize: 14, fontWeight: 700 }}>
+              {errorMsg}
+            </div>
+          )}
 
           {h.type === 'written' && (
             <div>
