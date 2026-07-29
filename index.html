@@ -4,19 +4,69 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      rel="preconnect"
-      href="https://fonts.gstatic.com"
-      crossorigin
-    />
+
+    <title>Third Space — Find your people. Show up in person.</title>
+    <meta name="description" content="Third Space is a social platform that helps you find people who share your interests, join local interest-based groups, and schedule in-person meetups. Built for getting offline." />
+    <meta name="application-name" content="Third Space" />
+    <link rel="canonical" href="https://third-space-app.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Third Space" />
+    <meta property="og:title" content="Third Space — Find your people. Show up in person." />
+    <meta property="og:description" content="Third Space is a social platform that helps you find people who share your interests, join local interest-based groups, and schedule in-person meetups." />
+    <meta property="og:url" content="https://third-space-app.com/" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Third Space — Find your people. Show up in person." />
+    <meta name="twitter:description" content="Third Space is a social platform that helps you find people who share your interests, join local interest-based groups, and schedule in-person meetups." />
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>Third Space</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Static fallback content. React replaces this the moment it mounts.
+        It exists so that crawlers and non-JavaScript clients receive real,
+        readable content describing the application.
+      -->
+      <main style="max-width:900px;margin:0 auto;padding:40px 20px;font-family:Inter,system-ui,sans-serif;color:#1A1A2E;line-height:1.6;">
+        <h1 style="font-size:40px;font-weight:800;margin:0 0 8px;">Third Space</h1>
+        <p style="font-size:20px;color:#6B7280;margin:0 0 24px;">Where online connection turns into real-world friendship.</p>
+
+        <p>Third Space is a social platform that helps you find people who share your interests, join local interest-based groups, and schedule in-person meetups. Every feature is designed to move you from scrolling to actually showing up.</p>
+
+        <h2 style="font-size:26px;font-weight:700;margin:32px 0 8px;">What is Third Space?</h2>
+        <p>A third space is the place that isn't home and isn't work — the coffee shop, the climbing gym, the weekly board game night. Those places have been disappearing. Third Space helps you find yours, and the people in it.</p>
+
+        <h2 style="font-size:26px;font-weight:700;margin:32px 0 8px;">How it works</h2>
+        <ul>
+          <li><strong>Join Circles</strong> — Interest-based groups for whatever you're into: climbing, photography, board games, running. Browse what's active near you and join the ones that fit.</li>
+          <li><strong>Schedule Meetups</strong> — Create or RSVP to real in-person events. See everything on one schedule so you never double-book, and get reminders before they happen.</li>
+          <li><strong>Connect and Chat</strong> — Group chat for every Circle, plus direct messages once you've connected with someone.</li>
+          <li><strong>Show Up</strong> — Our battery system rewards real-world attendance, not endless scrolling. The more you actually show up, the more the app opens up.</li>
+        </ul>
+
+        <h2 style="font-size:26px;font-weight:700;margin:32px 0 8px;">Google Calendar integration</h2>
+        <p>Third Space can optionally sync with your Google Calendar. When you connect it, we show your existing commitments alongside your Third Space meetups so you never double-book, and you can add any Third Space event to your calendar with one tap. We only access your calendar events for these two purposes, we never share your calendar data, and you can disconnect at any time from the Schedule page.</p>
+        <p style="font-size:14px;color:#9CA3AF;">Third Space's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</p>
+
+        <h2 style="font-size:26px;font-weight:700;margin:32px 0 8px;">Get started</h2>
+        <p><a href="/auth" style="color:#5B5FEF;font-weight:600;">Create your Third Space account</a></p>
+
+        <hr style="margin:40px 0;border:none;border-top:1px solid #E8E8EE;" />
+        <p style="font-size:14px;color:#6B7280;">
+          <strong>Third Space</strong><br />
+          <a href="/privacy" style="color:#6B7280;">Privacy Policy</a> ·
+          <a href="/terms" style="color:#6B7280;">Terms of Service</a><br />
+          Questions: <a href="mailto:support@third-space-app.com" style="color:#6B7280;">support@third-space-app.com</a><br />
+          © 2026 Third Space
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
