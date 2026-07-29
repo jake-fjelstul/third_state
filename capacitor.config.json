@@ -1,0 +1,21 @@
+{
+  "appId": "com.thirdspace.app",
+  "appName": "Third Space",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#F0F0F5"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#F0F0F5",
+      "showSpinner": false,
+      "splashImmersive": true
+    },
+    "Keyboard": {
+      "resize": "native",
+      "resizeOnFullScreen": true
+    }
+  }
+}

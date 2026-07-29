@@ -85,8 +85,14 @@ export default function LocationAutocomplete({
         type="text"
         value={query}
         onChange={onInput}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={(e) => {
+          e.target.style.borderColor = clr?.indigo || '#5B5FEF';
+          setOpen(true);
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = clr?.border || '#E5E7EB';
+          setTimeout(() => setOpen(false), 150);
+        }}
         placeholder={placeholder}
         autoComplete="off"
         style={{
@@ -102,8 +108,6 @@ export default function LocationAutocomplete({
           outline: 'none',
           fontFamily: 'inherit',
         }}
-        onFocus={(e) => { e.target.style.borderColor = clr?.indigo || '#5B5FEF'; setOpen(true); }}
-        onBlur={(e) => { e.target.style.borderColor = clr?.border || '#E5E7EB'; setTimeout(() => setOpen(false), 150); }}
       />
       <svg width="16" height="16" fill="none" stroke={clr?.textLight || '#9CA3AF'} strokeWidth="2" viewBox="0 0 24 24"
         style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
