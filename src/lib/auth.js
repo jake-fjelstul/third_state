@@ -24,11 +24,101 @@ export async function signIn({ email, password }) {
 }
 
 export async function signInWithGoogle({ redirectTo } = {}) {
+  let isNative = false
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    isNative = Capacitor.isNativePlatform()
+  } catch {}
+
+  const fallback = isNative
+    ? 'thirdspace://auth/callback'
+    : `${window.location.origin}/auth/callback`
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: redirectTo ?? `${window.location.origin}/auth/callback`,
+      redirectTo: redirectTo ?? fallback,
       queryParams: { prompt: 'select_account' },
+      // On native we must open the URL ourselves in an in-app browser
+      // rather than letting the WebView navigate away from the app.
+      skipBrowserRedirect: isNative,
+    },
+  })
+  if (error) throw error
+
+  if (isNative && data?.url) {
+    const { Browser } = await import('@capacitor/browser')
+    await Browser.open({ url: data.url, presentationStyle: 'popover' })
+  }
+  return data
+}
+
+function cryptoRandom() {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function sha256Hex(input) {
+  const data = new TextEncoder().encode(input)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+export async function signInWithApple({ redirectTo } = {}) {
+  let isNative = false
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    isNative = Capacitor.isNativePlatform()
+  } catch {}
+
+  if (isNative) {
+    const { SignInWithApple } = await import('@capacitor-community/apple-sign-in')
+    const rawNonce = cryptoRandom()
+    const hashedNonce = await sha256Hex(rawNonce)
+
+    const result = await SignInWithApple.authorize({
+      clientId: 'com.thirdspace.social',   // bundle ID for native, NOT the Service ID
+      redirectURI: 'thirdspace://auth/callback',
+      scopes: 'email name',
+      nonce: hashedNonce,        // Apple receives the HASHED nonce
+      state: cryptoRandom(),
+    })
+
+    const identityToken = result?.response?.identityToken
+    if (!identityToken) throw new Error('Apple did not return an identity token')
+
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: identityToken,
+      nonce: rawNonce,           // Supabase receives the RAW nonce
+    })
+    if (error) throw error
+
+    // Apple returns the user's name ONLY on the very first consent.
+    // Capture it now or it is lost permanently.
+    const given = result?.response?.givenName || ''
+    const family = result?.response?.familyName || ''
+    const fullName = [given, family].filter(Boolean).join(' ').trim()
+    if (fullName && data?.user) {
+      try {
+        await supabase.auth.updateUser({ data: { full_name: fullName } })
+        await supabase.from('profiles').update({ name: fullName }).eq('id', data.user.id)
+      } catch (e) {
+        console.warn('[apple] could not save name', e)
+      }
+    }
+    return data
+  }
+
+  const fallback = `${window.location.origin}/auth/callback`
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: {
+      redirectTo: redirectTo ?? fallback,
+      scopes: 'name email',
     },
   })
   if (error) throw error
@@ -52,9 +142,13 @@ export function profileRowFromAuthUser(user) {
   const meta = user?.user_metadata ?? {}
   const email = user?.email ?? ''
   const local = email.includes('@') ? email.split('@')[0] : email
+  const given = meta.given_name || ''
+  const family = meta.family_name || ''
+  const appleName = [given, family].filter(Boolean).join(' ').trim()
   const name =
-    meta.name ||
     meta.full_name ||
+    meta.name ||
+    (appleName ? appleName : null) ||
     (local ? local : null) ||
     'Friend'
   let age = null

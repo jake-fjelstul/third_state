@@ -3,8 +3,8 @@
   "appName": "Third Space",
   "webDir": "dist",
   "ios": {
-    "contentInset": "always",
-    "backgroundColor": "#F0F0F5"
+    "contentInset": "never",
+    "backgroundColor": "#111115"
   },
   "plugins": {
     "SplashScreen": {

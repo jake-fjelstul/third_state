@@ -95,7 +95,8 @@ function BottomNav() {
       borderTop: `1px solid ${clr.border}`,
       display: 'flex',
       justifyContent: 'center',
-      padding: '10px 0 max(10px, env(safe-area-inset-bottom))',
+      paddingTop: '10px',
+      paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
       boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
     }}>
       <div style={{
@@ -165,7 +166,7 @@ function TopNav() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '14px 20px max(14px, env(safe-area-inset-top))',
+      padding: 'max(14px, env(safe-area-inset-top)) 20px 14px',
       borderBottom: `1px solid ${clr.border}`,
       boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
     }}>
@@ -204,8 +205,8 @@ function ShellLayout() {
 
       <div style={{
         minHeight: '100vh',
-        paddingTop: hideTopNav ? 0 : 60, /* space for top nav bar */
-        paddingBottom: 80, /* space for bottom tab bar */
+        paddingTop: hideTopNav ? 0 : 'calc(60px + env(safe-area-inset-top))', /* space for top nav bar */
+        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', /* space for bottom tab bar */
         backgroundColor: clr.bg,
         display: 'flex',
         flexDirection: 'column',
