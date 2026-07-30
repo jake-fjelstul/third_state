@@ -1,4 +1,5 @@
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { useAppContext } from '../context/AppContext.jsx'
 
 const cardStyle = {
@@ -15,8 +16,14 @@ export default function LandingPage() {
   const navigate = useNavigate()
   const { session, authLoading } = useAppContext()
 
-  // Redirect signed-in users to /feed.
-  // Google OAuth crawlers and visitors without a session will see the landing page.
+  // Native: the marketing page is never shown in the app. Render
+  // nothing while the splash is still covering, then route onward.
+  if (Capacitor.isNativePlatform()) {
+    if (authLoading) return null
+    return <Navigate to={session ? '/feed' : '/auth'} replace />
+  }
+
+  // Web: unchanged. Logged-out visitors and crawlers see the page.
   if (session && !authLoading) {
     return <Navigate to="/feed" replace />
   }

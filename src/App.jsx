@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import './App.css'
 import { useAppContext } from './context/AppContext.jsx'
 import { isProfileSessionFatalError } from './lib/auth.js'
@@ -282,6 +284,27 @@ function AuthGuard() {
 
 /* ── Root app ── */
 function App() {
+  const { authLoading } = useAppContext()
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    let hidden = false
+    const hide = () => {
+      if (hidden) return
+      hidden = true
+      import('@capacitor/splash-screen')
+        .then(({ SplashScreen }) => SplashScreen.hide().catch(() => {}))
+        .catch(() => {})
+    }
+
+    // Failsafe: never leave the splash up forever if auth hangs.
+    const failsafe = setTimeout(hide, 6000)
+    if (!authLoading) hide()
+
+    return () => clearTimeout(failsafe)
+  }, [authLoading])
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

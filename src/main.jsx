@@ -12,9 +12,10 @@ if (Capacitor.isNativePlatform()) {
   import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
     const applyStatusBarStyle = () => {
       const isDark = document.documentElement.classList.contains('dark')
-      // Style.Light renders LIGHT text (for dark backgrounds).
-      // Style.Dark renders DARK text (for light backgrounds).
-      StatusBar.setStyle({ style: isDark ? Style.Light : Style.Dark }).catch(() => {})
+      // Style.Dark  = light text, for dark backgrounds.
+      // Style.Light = dark text, for light backgrounds.
+      // The enum is named after the background, not the text.
+      StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {})
     }
 
     StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
@@ -76,9 +77,3 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Hide the splash screen once React has painted.
-if (Capacitor.isNativePlatform()) {
-  import('@capacitor/splash-screen').then(({ SplashScreen }) => {
-    setTimeout(() => SplashScreen.hide().catch(() => {}), 600)
-  })
-}
