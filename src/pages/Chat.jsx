@@ -145,13 +145,13 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      height: 'calc(100vh - 80px)', backgroundColor: clr.bg,
+      height: 'calc(100vh - 80px - env(safe-area-inset-bottom))', backgroundColor: clr.bg,
       fontFamily: "'DM Sans','Inter',sans-serif",
     }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '16px 20px',
+        padding: 'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px',
         backgroundColor: clr.bg,
         borderBottom: `1px solid ${clr.border}`,
         flexShrink: 0,
@@ -464,8 +464,8 @@ export default function Chat() {
 
     if (!chat) {
       return (
-        <div style={{ height:'calc(100vh - 80px)', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily:"'DM Sans','Inter',sans-serif" }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, padding:'16px 20px', backgroundColor:clr.bg, borderBottom:`1px solid ${clr.border}` }}>
+        <div style={{ height:'calc(100vh - 80px - env(safe-area-inset-bottom))', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily:"'DM Sans','Inter',sans-serif" }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, padding:'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px', backgroundColor:clr.bg, borderBottom:`1px solid ${clr.border}` }}>
             <button onClick={() => navigate('/chat')} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
               <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
                 <path d="M19 12H5M12 5l-7 7 7 7"/>

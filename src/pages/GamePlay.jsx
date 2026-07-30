@@ -105,13 +105,13 @@ export default function GamePlay() {
   return (
     <div style={{
       position: 'relative',
-      height: 'calc(100vh - 80px)', backgroundColor: clr.bg,
+      height: 'calc(100vh - 80px - env(safe-area-inset-bottom))', backgroundColor: clr.bg,
       display: 'flex', flexDirection: 'column',
       fontFamily: "'DM Sans','Inter',sans-serif",
       overflow: 'hidden',
     }}>
       {/* Top Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${clr.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: 'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px', borderBottom: `1px solid ${clr.border}` }}>
         <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
           <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
             <path d="M19 12H5M12 5l-7 7 7 7"/>

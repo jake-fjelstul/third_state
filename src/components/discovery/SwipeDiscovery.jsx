@@ -389,7 +389,7 @@ export default function SwipeDiscovery({ onClose }) {
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 24px 24px', flexShrink: 0, position: 'relative'
+          padding: 'max(20px, calc(env(safe-area-inset-top) + 12px)) 24px 24px', flexShrink: 0, position: 'relative'
         }}>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
             <button onClick={onClose} style={{
