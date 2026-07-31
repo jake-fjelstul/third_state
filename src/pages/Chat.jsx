@@ -219,7 +219,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       {!isDm && channelsLoaded && channels.length > 0 && (
         <div style={{
           display: 'flex', gap: 6, alignItems: 'center',
-          padding: '8px 16px 8px 50px',
+          padding: '8px 16px 8px var(--channel-bar-pad-left, 16px)',
           backgroundColor: clr.bg,
           borderBottom: `1px solid ${clr.border}`,
           overflowX: 'auto', scrollbarWidth: 'none',
