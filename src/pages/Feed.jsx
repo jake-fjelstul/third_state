@@ -467,6 +467,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
     padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
     maxHeight: 'calc(100dvh - 16px)',
     overflowY: 'auto',
+    overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
     overscrollBehavior: 'contain',
     animation: 'slideUp 0.25s ease',
@@ -538,10 +539,10 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         <input required name="cName" placeholder="Circle Name" style={inputStyle} />
         <input required name="cTopic" placeholder="Interest / Topic (e.g. Photography)" style={inputStyle} />
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-          <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: 14, borderRadius: 16, border: circlePrivacy === 'open' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`, background: circlePrivacy === 'open' ? clr.indigoLt : 'transparent', cursor: 'pointer', transition: 'all 0.2s ease' }}>
+          <label style={{ flex: 1, boxSizing: 'border-box', minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, padding: 14, borderRadius: 16, border: circlePrivacy === 'open' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`, background: circlePrivacy === 'open' ? clr.indigoLt : 'transparent', cursor: 'pointer', transition: 'all 0.2s ease' }}>
             <input type="radio" name="type" checked={circlePrivacy === 'open'} onChange={() => setCirclePrivacy('open')} style={{ accentColor: clr.indigo }} /> Open
           </label>
-          <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: 14, borderRadius: 16, border: circlePrivacy === 'private' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`, background: circlePrivacy === 'private' ? clr.indigoLt : 'transparent', cursor: 'pointer', transition: 'all 0.2s ease' }}>
+          <label style={{ flex: 1, boxSizing: 'border-box', minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, padding: 14, borderRadius: 16, border: circlePrivacy === 'private' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`, background: circlePrivacy === 'private' ? clr.indigoLt : 'transparent', cursor: 'pointer', transition: 'all 0.2s ease' }}>
             <input type="radio" name="type" checked={circlePrivacy === 'private'} onChange={() => setCirclePrivacy('private')} style={{ accentColor: clr.indigo }} /> Private
           </label>
         </div>

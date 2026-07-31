@@ -73,7 +73,7 @@ export default function CircleDetail() {
     reloadCircle()
   }, [reloadCircle])
 
-  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds, startChatPoll } = useAppContext()
+  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds, startChatPoll, submitApplication } = useAppContext()
 
   useEffect(() => {
     reloadCircle()
@@ -97,6 +97,8 @@ export default function CircleDetail() {
   const [inviteSearch, setInviteSearch] = useState('')
   const [toastMsg, setToastMsg] = useState(null)
   const [showCoverUploader, setShowCoverUploader] = useState(false)
+  const [joinBusy, setJoinBusy] = useState(false)
+  const [joinError, setJoinError] = useState('')
   const msgsEndRef = useRef(null)
 
   useEffect(() => {
@@ -104,6 +106,12 @@ export default function CircleDetail() {
       msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [activeTab, activeChannel, chatState, circle?.chatId])
+
+  useEffect(() => {
+    if (!joinError) return
+    const t = setTimeout(() => setJoinError(''), 3000)
+    return () => clearTimeout(t)
+  }, [joinError])
 
   // Event detail modal state
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -127,9 +135,44 @@ export default function CircleDetail() {
 
   const dynamicTabs = useMemo(() => {
     const base = [...TABS]
-    if (isOrganizer) base.push({ id: 'applications', label: 'Applications' })
+    if (isOrganizer && (hasHoops || isPrivate)) {
+      base.push({ id: 'applications', label: 'Applications' })
+    }
     return base
-  }, [isOrganizer])
+  }, [isOrganizer, hasHoops, isPrivate])
+
+  useEffect(() => {
+    if (!dynamicTabs.some(t => t.id === activeTab)) setActiveTab('about')
+  }, [dynamicTabs, activeTab])
+
+  const handleJoin = async () => {
+    if (joinBusy) return
+    setJoinBusy(true)
+    setJoinError('')
+    try {
+      await joinCircle(circle.id)
+    } catch (err) {
+      console.error('[CircleDetail] join failed', err)
+      setJoinError('Could not join this circle. Please try again.')
+    } finally {
+      setJoinBusy(false)
+    }
+  }
+
+  const handleRequestJoin = async () => {
+    if (hasHoops) { setShowHoopApp(true); return }
+    if (joinBusy) return
+    setJoinBusy(true)
+    setJoinError('')
+    try {
+      await submitApplication({ circle, responses: {} })
+    } catch (err) {
+      console.error('[CircleDetail] request to join failed', err)
+      setJoinError('Could not send your request. Please try again.')
+    } finally {
+      setJoinBusy(false)
+    }
+  }
 
   if (circleLoading) {
     return <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>Loading…</div>
@@ -336,57 +379,65 @@ export default function CircleDetail() {
             >
               ⏳ Pending Review
             </button>
-          ) : hasHoops ? (
+          ) : (hasHoops || isPrivate) ? (
             <button
               type="button"
-              onClick={() => setShowHoopApp(true)}
+              onClick={handleRequestJoin}
+              disabled={joinBusy}
               style={{
                 padding: '12px 40px', borderRadius: 999, border: 'none',
                 backgroundColor: clr.white, color: clr.indigo,
-                fontSize: 16, fontWeight: 700, cursor: 'pointer',
+                fontSize: 16, fontWeight: 700,
+                cursor: joinBusy ? 'wait' : 'pointer',
+                opacity: joinBusy ? 0.7 : 1,
                 boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
               }}
             >
-              Apply to Join 🏀
+              {joinBusy ? 'Sending…' : hasHoops ? 'Apply to Join 🏀' : 'Request to Join'}
             </button>
           ) : (
             <button
               type="button"
-              onClick={() => joinCircle(circle.id)}
+              onClick={handleJoin}
+              disabled={joinBusy}
               style={{
-                padding: '12px 40px',
-                borderRadius: 999,
-                border: 'none',
-                backgroundColor: clr.white,
-                color: clr.indigo,
+                padding: '12px 40px', borderRadius: 999, border: 'none',
+                backgroundColor: clr.white, color: clr.indigo,
                 fontSize: 16, fontWeight: 700,
-                cursor: 'pointer',
+                cursor: joinBusy ? 'wait' : 'pointer',
+                opacity: joinBusy ? 0.7 : 1,
                 boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
               }}
             >
-              {isPrivate ? 'Request to Join' : 'Join Circle'}
+              {joinBusy ? 'Joining…' : 'Join Circle'}
             </button>
           )}
         </div>
       </div>
 
       {/* ── Tabs ── */}
-      <div style={{
-        backgroundColor: clr.white,
-        borderBottom: `1px solid ${clr.border}`,
-        marginTop: 0, paddingTop: 24,
-        display: 'flex', justifyContent: 'center',
-        position: 'relative',
-        zIndex: 2,
-      }}>
-        <div style={{ display: 'flex', gap: 0 }}>
+      <div
+        className="noscrollbar"
+        style={{
+          backgroundColor: clr.white,
+          borderBottom: `1px solid ${clr.border}`,
+          marginTop: 0, paddingTop: 24,
+          display: 'flex', justifyContent: 'flex-start',
+          overflowX: 'auto',
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
+        <div style={{ display: 'flex', gap: 0, margin: '0 auto', flexShrink: 0 }}>
           {dynamicTabs.map((tab) => {
             const active = activeTab === tab.id
             return (
               <button key={tab.id} type="button"
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  padding: '12px 22px',
+                  padding: '12px 16px',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
                   background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 15, fontWeight: active ? 700 : 500,
                   color: active ? clr.indigo : clr.textMid,
@@ -788,6 +839,19 @@ export default function CircleDetail() {
           fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap'
         }}>
           {toastMsg}
+        </div>
+      )}
+
+      {joinError && (
+        <div style={{
+          position: 'fixed', bottom: 100, left: '50%', zIndex: 400,
+          transform: 'translateX(-50%)',
+          backgroundColor: clr.textDark, color: '#FFF',
+          padding: '12px 24px', borderRadius: 999,
+          fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+        }}>
+          {joinError}
         </div>
       )}
 

@@ -99,7 +99,7 @@ export default function HoopBuilder({ hoops, onChange }) {
             value={h.prompt}
             onChange={(e) => handleUpdate(h.id, 'prompt', e.target.value)}
             placeholder="e.g., Why do you want to join?"
-            style={{ width: '100%', boxSizing: 'border-box', padding: '12px 16px', borderRadius: 12, border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15, color: clr.textDark, outline: 'none', marginBottom: 16 }}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '12px 16px', borderRadius: 12, border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 16, color: clr.textDark, outline: 'none', marginBottom: 16 }}
           />
           {h.prompt && !checkContent(h.prompt).ok && (
             <p style={{ color: clr.red, fontSize: 12, marginTop: -12, marginBottom: 12, fontWeight: 600 }}>
@@ -117,7 +117,7 @@ export default function HoopBuilder({ hoops, onChange }) {
                     type="text"
                     value={opt}
                     onChange={(e) => updateOption(h.id, oIndex, e.target.value)}
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8, border: `1px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 14, color: clr.textDark, outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8, border: `1px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 16, color: clr.textDark, outline: 'none' }}
                   />
                 ))}
                 <button onClick={() => addOption(h.id)} style={{ padding: '8px', borderRadius: 8, border: `1px dashed ${clr.indigo}`, background: 'transparent', color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
