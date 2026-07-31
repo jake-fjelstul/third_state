@@ -13,6 +13,9 @@ import { avatarFor } from '../lib/avatar'
 import { resolveCircleCover } from '../lib/circleCover'
 import { uploadCircleCover, deleteCircleCover } from '../lib/storage'
 import ImageUploader from '../components/ui/ImageUploader.jsx'
+import PollComposer from '../components/chat/PollComposer.jsx'
+import PollMessageCard from '../components/chat/PollMessageCard.jsx'
+import GameMessageCard from '../components/games/GameMessageCard.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -70,7 +73,7 @@ export default function CircleDetail() {
     reloadCircle()
   }, [reloadCircle])
 
-  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds } = useAppContext()
+  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds, startChatPoll } = useAppContext()
 
   useEffect(() => {
     reloadCircle()
@@ -674,6 +677,7 @@ export default function CircleDetail() {
             circle={circle}
             chatState={chatState}
             sendMessage={sendMessage}
+            startChatPoll={startChatPoll}
             markChatRead={markChatRead}
             currentUser={currentUser}
             activeChannel={activeChannel}
@@ -834,7 +838,7 @@ export default function CircleDetail() {
 
 
 /* ── Discord-style circle chat panel ── */
-function CircleChatPanel({ circle, chatState, sendMessage, markChatRead, currentUser, activeChannel, setActiveChannel }) {
+function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markChatRead, currentUser, activeChannel, setActiveChannel }) {
   const groupChat = Object.values(chatState || {}).find(c => c.circleId === circle.id)
   const chatId = groupChat?.id || null
 
@@ -940,6 +944,19 @@ function CircleChatPanel({ circle, chatState, sendMessage, markChatRead, current
     inactiveCh: 'transparent',
   }
 
+  const [showPollComposer, setShowPollComposer] = useState(false)
+
+  const pollClr = {
+    bg: dk.inputBg,
+    white: dk.panel,
+    border: dk.inputBorder,
+    textDark: dk.text,
+    textMid: dk.textMuted,
+    textLight: dk.textFaint,
+    indigo: dk.activeCh,
+    indigoLt: 'rgba(91,95,239,0.25)',
+  }
+
   return (
     <div style={{
       backgroundColor: dk.panel, borderRadius: 20,
@@ -1035,6 +1052,44 @@ function CircleChatPanel({ circle, chatState, sendMessage, markChatRead, current
         ) : (
           messages.map((msg) => {
             const isMe = msg.senderId === currentUser?.id
+            if (msg.kind === 'poll') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
+                      {msg.senderAvatar && (
+                        <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                      )}
+                      <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                    </div>
+                  )}
+                  <PollMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
+                  <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
+
+            if (msg.kind === 'game') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
+                      {msg.senderAvatar && (
+                        <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                      )}
+                      <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                    </div>
+                  )}
+                  <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                  <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
+
             return (
               <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                 {!isMe && (
@@ -1072,6 +1127,21 @@ function CircleChatPanel({ circle, chatState, sendMessage, markChatRead, current
         borderTop: '1px solid rgba(255,255,255,0.06)',
         backgroundColor: dk.inputBar,
       }}>
+        <button
+          type="button"
+          onClick={() => setShowPollComposer(true)}
+          aria-label="Create a poll"
+          style={{
+            width: 40, height: 40, borderRadius: '50%',
+            border: `1.5px solid ${dk.inputBorder}`,
+            backgroundColor: dk.inputBg, color: dk.textMuted,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0, fontSize: 20, lineHeight: 1,
+            fontFamily: 'inherit',
+          }}
+        >
+          +
+        </button>
         <input
           value={chatInput}
           onChange={e => setChatInput(e.target.value)}
@@ -1097,6 +1167,23 @@ function CircleChatPanel({ circle, chatState, sendMessage, markChatRead, current
           </svg>
         </button>
       </form>
+
+      {showPollComposer && (
+        <PollComposer
+          clr={pollClr}
+          onClose={() => setShowPollComposer(false)}
+          onCreate={async ({ question, options, allowMultiple }) => {
+            await startChatPoll({
+              chatId,
+              channelId: resolvedChannelId,
+              question,
+              options,
+              allowMultiple,
+            })
+            setShowPollComposer(false)
+          }}
+        />
+      )}
     </div>
   )
 }

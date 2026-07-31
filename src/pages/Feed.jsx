@@ -609,9 +609,16 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         <input required name="eName" placeholder="Event Name" style={inputStyle} />
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
-            <input required name="eDate" type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{ ...inputStyle, marginBottom: 0 }} />
+            <input required name="eDate" type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
+              ...inputStyle,
+              marginBottom: 0,
+              minWidth: 0,
+              maxWidth: '100%',
+              WebkitAppearance: 'none',
+              appearance: 'none',
+            }} />
           </div>
         </div>
 
@@ -706,9 +713,16 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
                 <button type="button" onClick={() => setCoffeeTarget(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: clr.textLight, cursor: 'pointer' }}>Change</button>
               </div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
-                  <input required type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{ ...inputStyle, marginBottom: 0 }} />
+                  <input required type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
+                    ...inputStyle,
+                    marginBottom: 0,
+                    minWidth: 0,
+                    maxWidth: '100%',
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                  }} />
                 </div>
               </div>
 

@@ -3,13 +3,15 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listCircles } from '../lib/circles'
 import { useChatMessages } from '../hooks/useChatMessages.js'
-import { listChannels } from '../lib/chat.js'
+import { listChannels, createChannel } from '../lib/chat.js'
 import { avatarFor } from '../lib/avatar'
 import GameMessageCard from '../components/games/GameMessageCard.jsx'
 import GamePicker from '../components/games/GamePicker.jsx'
 import SoloGameModal from '../components/games/SoloGameModal.jsx'
 import SwipeableRow from '../components/chat/SwipeableRow.jsx'
 import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
+import PollComposer from '../components/chat/PollComposer.jsx'
+import PollMessageCard from '../components/chat/PollMessageCard.jsx'
  
 const clr = {
   bg:         'var(--bg)',
@@ -91,25 +93,69 @@ function normChat(chat) {
  
 /* ── Full thread view ── */
 function ThreadView({ chat, baseId, channelId, onBack }) {
+  const navigate = useNavigate()
   const location = useLocation()
   const [input, setInput] = useState('')
   const [showGamePicker, setShowGamePicker] = useState(false)
   const [showSoloModal, setShowSoloModal] = useState(null)
-  const { name, avatar, online, isGroup } = normChat(chat)
-  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame } = useAppContext()
-  const bottomRef = useRef(null)
-
+  const [showPollComposer, setShowPollComposer] = useState(false)
   const [channels, setChannels] = useState([])
-  const resolvedChannelId = channelId
-    ? (channels.find(c => c.name === channelId)?.id || null)
-    : null
+  const [channelsLoaded, setChannelsLoaded] = useState(false)
+  const [showNewChannel, setShowNewChannel] = useState(false)
+  const [newChannelName, setNewChannelName] = useState('')
+
+  const { name, avatar, online, isGroup } = normChat(chat)
+  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll } = useAppContext()
+  const bottomRef = useRef(null)
 
   useEffect(() => {
     if (!baseId) return
+    setChannelsLoaded(false)
     listChannels(baseId)
       .then(setChannels)
       .catch(err => console.error('[ThreadView] listChannels failed', err))
+      .finally(() => setChannelsLoaded(true))
   }, [baseId])
+
+  const isDm = chat.type === 'dm'
+  const activeChannelName = isDm ? null : (channelId || 'general')
+
+  const resolvedChannelId = useMemo(() => {
+    if (isDm) return null
+    if (!channelsLoaded || channels.length === 0) return null
+    return channels.find(c => c.name === activeChannelName)?.id
+      ?? channels.find(c => c.name === 'general')?.id
+      ?? channels[0].id
+  }, [isDm, channelsLoaded, channels, activeChannelName])
+
+  const channelsReady = isDm || channelsLoaded
+
+  const { messages, loading: msgsLoading } = useChatMessages({
+    chatId: channelsReady ? baseId : null,
+    channelId: resolvedChannelId,
+  })
+
+  const switchChannel = (name) => {
+    navigate(`/chat/${baseId}---${name}`, { replace: true })
+  }
+
+  const handleCreateChannel = async (e) => {
+    e.preventDefault()
+    const slug = newChannelName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+    setShowNewChannel(false)
+    setNewChannelName('')
+    if (!slug || !baseId) return
+    if (channels.some(c => c.name === slug)) { switchChannel(slug); return }
+    try {
+      const newCh = await createChannel(baseId, slug)
+      if (newCh) {
+        setChannels(prev => [...prev, newCh])
+        switchChannel(newCh.name)
+      }
+    } catch (err) {
+      console.error('[ThreadView] createChannel failed', err)
+    }
+  }
 
   useEffect(() => {
     if (!baseId) return
@@ -121,11 +167,6 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     setCurrentlyOpenChatId(baseId)
     return () => setCurrentlyOpenChatId(null)
   }, [baseId, setCurrentlyOpenChatId])
-
-  const { messages, loading: msgsLoading } = useChatMessages({
-    chatId: baseId,
-    channelId: resolvedChannelId,
-  })
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -174,11 +215,91 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
           </p>
         </div>
       </div>
+
+      {!isDm && channelsLoaded && channels.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 6, alignItems: 'center',
+          padding: '8px 16px 8px 50px',
+          backgroundColor: clr.bg,
+          borderBottom: `1px solid ${clr.border}`,
+          overflowX: 'auto', scrollbarWidth: 'none',
+          flexShrink: 0,
+        }} className="noscrollbar">
+          {channels.map(ch => {
+            const isActive = ch.name === activeChannelName
+            return (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => switchChannel(ch.name)}
+                style={{
+                  padding: '6px 12px', borderRadius: 10, border: 'none',
+                  backgroundColor: isActive ? clr.indigo : 'transparent',
+                  color: isActive ? '#FFFFFF' : clr.textMid,
+                  fontSize: 13, fontWeight: isActive ? 700 : 600,
+                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                  fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', gap: 3,
+                }}
+              >
+                <span style={{ opacity: isActive ? 1 : 0.45 }}>#</span>
+                {ch.name}
+              </button>
+            )
+          })}
+
+          {showNewChannel ? (
+            <form onSubmit={handleCreateChannel} style={{ display: 'flex', flexShrink: 0 }}>
+              <input
+                autoFocus
+                value={newChannelName}
+                onChange={e => setNewChannelName(e.target.value)}
+                onBlur={() => setTimeout(() => setShowNewChannel(false), 200)}
+                placeholder="new-channel"
+                style={{
+                  padding: '6px 10px', borderRadius: 10,
+                  border: `1.5px solid ${clr.indigo}`,
+                  backgroundColor: clr.bg, color: clr.textDark,
+                  fontSize: 13, fontWeight: 600, outline: 'none', width: 110,
+                }}
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowNewChannel(true)}
+              aria-label="Add channel"
+              style={{
+                padding: '6px 12px', borderRadius: 10,
+                border: `1.5px dashed ${clr.border}`,
+                backgroundColor: 'transparent', color: clr.textMid,
+                fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                flexShrink: 0, fontFamily: 'inherit',
+              }}
+            >
+              +
+            </button>
+          )}
+        </div>
+      )}
  
       {/* Messages */}
       <div style={{ flex:1, overflowY:'auto', padding:'20px 16px', display:'flex', flexDirection:'column', gap:10 }}>
         {messages.map((msg, i) => {
           const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
+          if (msg.kind === 'poll') {
+            return (
+              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                {!isMe && isGroup && (
+                  <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                )}
+                <PollMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
+                <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                  {msg.time ?? ''}
+                </span>
+              </div>
+            )
+          }
           if (msg.kind === 'game') {
             return (
               <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
@@ -225,6 +346,22 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
         display: 'flex', alignItems: 'center', gap: 10,
         flexShrink: 0,
       }}>
+        {chat.type !== 'dm' && (
+          <button
+            type="button"
+            onClick={() => setShowPollComposer(true)}
+            style={{
+              width: 42, height: 42, borderRadius: '50%', border: `1.5px solid ${clr.border}`,
+              backgroundColor: clr.white,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, fontSize: 22, lineHeight: 1,
+              color: clr.textMid, fontFamily: 'inherit',
+            }}
+            aria-label="Create a poll"
+          >
+            +
+          </button>
+        )}
         {chat.type === 'dm' && (
           <div style={{ position: 'relative' }}>
             <button
@@ -262,7 +399,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Type a message..."
+          placeholder={isDm ? 'Type a message...' : `Message #${activeChannelName}…`}
           style={{
             flex:1, padding:'12px 16px', borderRadius:999,
             border:`1.5px solid ${clr.border}`,
@@ -289,6 +426,23 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
         <SoloGameModal
           gameType={showSoloModal.gameType}
           onClose={() => setShowSoloModal(null)}
+        />
+      )}
+
+      {showPollComposer && (
+        <PollComposer
+          clr={clr}
+          onClose={() => setShowPollComposer(false)}
+          onCreate={async ({ question, options, allowMultiple }) => {
+            await startChatPoll({
+              chatId: baseId || chat.id,
+              channelId: resolvedChannelId,
+              question,
+              options,
+              allowMultiple,
+            })
+            setShowPollComposer(false)
+          }}
         />
       )}
     </div>

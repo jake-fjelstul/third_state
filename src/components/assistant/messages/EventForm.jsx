@@ -85,7 +85,13 @@ export default function EventForm({ message, clr, onComplete }) {
           value={date}
           onChange={e => setDate(e.target.value)}
           onClick={e => { try { e.target.showPicker() } catch (_) {} }}
-          style={{ ...inputStyle }}
+          style={{
+            ...inputStyle,
+            minWidth: 0,
+            maxWidth: '100%',
+            WebkitAppearance: 'none',
+            appearance: 'none',
+          }}
         />
         <label style={labelStyle}>Start Time</label>
         <TimePicker value={time} onChange={setTime} />

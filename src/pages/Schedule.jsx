@@ -739,7 +739,13 @@ export default function Schedule() {
                 <input type="date" value={form.date}
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                   onClick={(e) => { try { e.target.showPicker() } catch(err){} }}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    minWidth: 0,
+                    maxWidth: '100%',
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                  }}
                   onFocus={e => e.target.style.borderColor = clr.indigo}
                   onBlur={e  => e.target.style.borderColor = clr.border}
                 />
