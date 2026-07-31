@@ -8,6 +8,8 @@ import { avatarFor } from '../lib/avatar'
 import GameMessageCard from '../components/games/GameMessageCard.jsx'
 import GamePicker from '../components/games/GamePicker.jsx'
 import SoloGameModal from '../components/games/SoloGameModal.jsx'
+import SwipeableRow from '../components/chat/SwipeableRow.jsx'
+import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
  
 const clr = {
   bg:         'var(--bg)',
@@ -445,11 +447,14 @@ function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState
 export default function Chat() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { chatState, startDM, joinedCircles, currentUser, connections } = useAppContext()
+  const { chatState, startDM, joinedCircles, currentUser, connections, deleteChat } = useAppContext()
   const [search, setSearch] = useState('')
   const [showCompose, setShowCompose] = useState(false)
   const [showGamePicker, setShowGamePicker] = useState(false)
   const [showSoloModal, setShowSoloModal] = useState(null)
+  const [openRowId, setOpenRowId] = useState(null)
+  const [actionSheetChat, setActionSheetChat] = useState(null)
+  const [confirmDeleteChat, setConfirmDeleteChat] = useState(null)
 
   if (id) {
     let chat = null;
@@ -573,71 +578,79 @@ export default function Chat() {
           </svg>
         </button>
       </div>
- 
+
       {/* ── Chat list ── */}
       <div style={{ marginTop:4 }}>
         {filtered.map((chat, idx) => {
           const { isGroup, name, preview, time, unread, avatar, online } = normChat(chat)
           const isActive = unread > 0
- 
+
           return (
-            <button
+            <SwipeableRow
               key={chat.id}
-              type="button"
+              enabled={!isGroup}
+              isOpen={openRowId === chat.id}
+              onOpenChange={(open) => setOpenRowId(open ? chat.id : null)}
               onClick={() => navigate(`/chat/${chat.id}`)}
-              style={{
-                width:'100%', display:'flex', alignItems:'center', gap:14,
-                padding:'14px 20px',
-                backgroundColor: 'transparent',
-                border:'none',
-                cursor:'pointer', textAlign:'left',
-                transition:'background-color 0.15s ease',
-              }}
+              onLongPress={() => setActionSheetChat({ id: chat.id, name })}
+              onDelete={() => { setOpenRowId(null); setConfirmDeleteChat({ id: chat.id, name }) }}
+              background={clr.bg}
             >
-              {/* Avatar */}
-              {isGroup
-                ? <GroupAvatar name={name} color={groupColors[idx % groupColors.length]} />
-                : <UserAvatar src={avatar} name={name} online={online} />
-              }
- 
-              {/* Text */}
-              <div style={{ flex:1, minWidth:0, borderBottom:`0.5px solid ${clr.border}`, paddingBottom:14 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                  <span style={{
-                    fontSize:16, fontWeight: isActive ? 700 : 600, color: clr.textDark,
-                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                  }}>
-                    {name}
-                  </span>
-                  <span style={{
-                    fontSize:12, color: isActive ? clr.indigo : clr.textLight,
-                    fontWeight: isActive ? 600 : 400, flexShrink:0, marginLeft:8,
-                  }}>
-                    {time}
-                  </span>
-                </div>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{
-                    fontSize:14, color: clr.textMid,
-                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                    maxWidth:'85%',
-                  }}>
-                    {preview}
-                  </span>
-                  {unread > 0 && (
-                    <div style={{
-                      minWidth:22, height:22, borderRadius:999,
-                      backgroundColor: clr.indigo,
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:11, fontWeight:700, color:'#FFFFFF',
-                      padding:'0 6px', flexShrink:0,
+              <div
+                style={{
+                  width:'100%', boxSizing:'border-box', display:'flex', alignItems:'center', gap:14,
+                  padding:'14px 20px',
+                  backgroundColor: 'transparent',
+                  border:'none',
+                  cursor:'pointer', textAlign:'left',
+                  transition:'background-color 0.15s ease',
+                }}
+              >
+                {/* Avatar */}
+                {isGroup
+                  ? <GroupAvatar name={name} color={groupColors[idx % groupColors.length]} />
+                  : <UserAvatar src={avatar} name={name} online={online} />
+                }
+
+                {/* Text */}
+                <div style={{ flex:1, minWidth:0, borderBottom:`0.5px solid ${clr.border}`, paddingBottom:14 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                    <span style={{
+                      fontSize:16, fontWeight: isActive ? 700 : 600, color: clr.textDark,
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
                     }}>
-                      {unread}
-                    </div>
-                  )}
+                      {name}
+                    </span>
+                    <span style={{
+                      fontSize:12, color: isActive ? clr.indigo : clr.textLight,
+                      fontWeight: isActive ? 600 : 400, flexShrink:0, marginLeft:8,
+                    }}>
+                      {time}
+                    </span>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span style={{
+                      fontSize:14, color: clr.textMid,
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                      maxWidth:'85%',
+                    }}>
+                      {preview}
+                    </span>
+                    {unread > 0 && (
+                      <div style={{
+                        minWidth:22, height:22, borderRadius:999,
+                        backgroundColor: clr.indigo,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:11, fontWeight:700, color:'#FFFFFF',
+                        padding:'0 6px', flexShrink:0,
+                      }}>
+                        {unread}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </button>
+            </SwipeableRow>
           )
         })}
       </div>
@@ -667,6 +680,87 @@ export default function Chat() {
           gameType={showSoloModal.gameType}
           onClose={() => setShowSoloModal(null)}
         />
+      )}
+
+      {actionSheetChat && (
+        <div
+          onClick={() => setActionSheetChat(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'flex-end',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', padding: '12px 12px calc(12px + env(safe-area-inset-bottom))',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+          >
+            <div style={{ backgroundColor: clr.white, borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', fontSize: 13, color: clr.textMid, textAlign: 'center' }}>
+                {actionSheetChat.name}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = actionSheetChat
+                  setActionSheetChat(null)
+                  setConfirmDeleteChat(target)
+                }}
+                style={{
+                  width: '100%', padding: 16, border: 'none', borderTop: `0.5px solid ${clr.border}`,
+                  backgroundColor: 'transparent', color: '#FF3B30',
+                  fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Delete Conversation
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActionSheetChat(null)}
+              style={{
+                width: '100%', padding: 16, borderRadius: 16, border: 'none',
+                backgroundColor: clr.white, color: clr.textDark,
+                fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteChat && (
+        <div
+          onClick={() => setConfirmDeleteChat(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 61,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 340 }}>
+            <ConfirmCard
+              clr={clr}
+              title="Delete conversation?"
+              subtitle={`This removes ${confirmDeleteChat.name} from your list. They will still have their copy, and it comes back if they message you again.`}
+              primaryLabel="Delete"
+              onCancel={() => setConfirmDeleteChat(null)}
+              onConfirm={async () => {
+                const target = confirmDeleteChat
+                setConfirmDeleteChat(null)
+                try {
+                  await deleteChat(target.id)
+                } catch (err) {
+                  console.error('Failed to delete chat', err)
+                }
+              }}
+            />
+          </div>
+        </div>
       )}
 
     </div>

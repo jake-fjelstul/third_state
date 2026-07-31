@@ -222,5 +222,23 @@ export async function startDM({ userId, peerUserId }) {
 
   const { data, error } = await supabase.rpc('start_dm', { p_peer_id: peerUserId })
   if (error) throw error
+  if (data) {
+    try {
+      await unhideChat(data)
+    } catch (err) {
+      console.error('[chat] unhideChat failed in startDM', err)
+    }
+  }
   return data
 }
+
+export async function hideChat(chatId) {
+  const { error } = await supabase.rpc('hide_chat', { p_chat_id: chatId })
+  if (error) throw error
+}
+
+export async function unhideChat(chatId) {
+  const { error } = await supabase.rpc('unhide_chat', { p_chat_id: chatId })
+  if (error) throw error
+}
+

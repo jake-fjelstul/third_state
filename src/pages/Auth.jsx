@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { signUp, signIn, resetPassword, signInWithGoogle, signInWithApple } from '../lib/auth'
 import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
@@ -55,27 +55,61 @@ function AuthPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+
+  useEffect(() => {
+    if (!oauthLoading) return
+
+    let cancelled = false
+    const reset = () => { if (!cancelled) setOauthLoading(false) }
+
+    const onVisible = () => { if (document.visibilityState === 'visible') reset() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', reset)
+
+    let removeBrowserListener = null
+    import('@capacitor/core')
+      .then(({ Capacitor }) => {
+        if (!Capacitor.isNativePlatform()) return null
+        return import('@capacitor/browser').then(({ Browser }) =>
+          Browser.addListener('browserFinished', reset)
+        )
+      })
+      .then((handle) => {
+        if (!handle) return
+        if (cancelled) { handle.remove(); return }
+        removeBrowserListener = () => handle.remove()
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', reset)
+      if (removeBrowserListener) removeBrowserListener()
+    }
+  }, [oauthLoading])
 
   const handleGoogle = async () => {
     setError('')
-    setLoading(true)
+    setOauthLoading(true)
     try {
       await signInWithGoogle()
     } catch (err) {
       setError(err.message || 'Could not start Google sign-in')
-      setLoading(false)
+      setOauthLoading(false)
     }
   }
 
   const handleApple = async () => {
     setError('')
-    setLoading(true)
+    setOauthLoading(true)
     try {
       await signInWithApple()
     } catch (err) {
       setError(err.message || 'Could not start Apple sign-in')
-      setLoading(false)
+      setOauthLoading(false)
     }
   }
 
@@ -169,7 +203,7 @@ function AuthPage() {
               <button
                 type="button"
                 onClick={handleGoogle}
-                disabled={loading}
+                disabled={oauthLoading || loading}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -183,7 +217,7 @@ function AuthPage() {
                   color: clr.textDark,
                   fontSize: 15,
                   fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: (oauthLoading || loading) ? 'not-allowed' : 'pointer',
                 }}
               >
                 <GoogleIcon /> Continue with Google
@@ -191,7 +225,7 @@ function AuthPage() {
               <button
                 type="button"
                 onClick={handleApple}
-                disabled={loading}
+                disabled={oauthLoading || loading}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -205,12 +239,13 @@ function AuthPage() {
                   color: clr.textDark,
                   fontSize: 15,
                   fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: (oauthLoading || loading) ? 'not-allowed' : 'pointer',
                   marginTop: 10,
                 }}
               >
                 <AppleIcon /> Continue with Apple
               </button>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ height: 1, flex: 1, backgroundColor: clr.border }} />
                 <span style={{ color: clr.textLight, fontSize: 12, fontWeight: 600 }}>or</span>

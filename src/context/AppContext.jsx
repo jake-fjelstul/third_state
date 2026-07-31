@@ -35,6 +35,7 @@ import {
   sendMessage as sendMessageDb,
   markRead as markReadDb,
   startDM as startDmDb,
+  hideChat as hideChatDb,
 } from '../lib/chat'
 import { listNotifications, markRead as markNotifReadDb, markAllRead as markAllNotifsReadDb, deleteNotification as deleteNotifDb, mapNotificationRow } from '../lib/notifications'
 import { redeemInvite } from '../lib/invites'
@@ -734,6 +735,23 @@ export function AppProvider({ children }) {
     }
   }, [session])
 
+  const deleteChat = useCallback(async (chatId) => {
+    let previous = null
+    setChatState(prev => {
+      previous = prev[chatId]
+      const next = { ...prev }
+      delete next[chatId]
+      return next
+    })
+    try {
+      await hideChatDb(chatId)
+    } catch (err) {
+      console.error('[AppContext] failed to hide chat', err)
+      if (previous) setChatState(prev => ({ ...prev, [chatId]: previous }))
+      throw err
+    }
+  }, [])
+
   const recordSwipe = (type) => {
     setDiscoverySwipes(prev => {
       const today = new Date().toDateString()
@@ -930,6 +948,7 @@ export function AppProvider({ children }) {
       sendMessage,
       startDM,
       markChatRead,
+      deleteChat,
       discoverySwipes,
       recordSwipe,
       resetDiscoverySwipes,
@@ -972,7 +991,7 @@ export function AppProvider({ children }) {
       blockUserById,
       unblockUserById
     }),
-    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
