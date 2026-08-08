@@ -421,6 +421,8 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [circlePrivacy, setCirclePrivacy] = useState('open')
   const [eventTime, setEventTime] = useState('18:00')
   const [coffeeTime, setCoffeeTime] = useState('10:00')
+  const [coffeeDate, setCoffeeDate] = useState('')
+  const [coffeeNote, setCoffeeNote] = useState('')
   const [hoopsEnabled, setHoopsEnabled] = useState(false)
   const [circleHoops, setCircleHoops] = useState([])
   const [circles, setCircles] = useState([])
@@ -672,12 +674,29 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         <form onSubmit={async e => {
           e.preventDefault(); if (!coffeeTarget) return
           try {
+            const firstName = coffeeTarget.name.split(' ')[0]
+            const when = coffeeDate
+              ? new Date(`${coffeeDate}T${coffeeTime}:00`).toLocaleString([], {
+                  weekday: 'short', month: 'short', day: 'numeric',
+                  hour: 'numeric', minute: '2-digit'
+                })
+              : ''
             const locTxt = coffeeLocation?.name
               ? `\n\n📍 ${coffeeLocation.name}${coffeeLocation.address ? '\n' + coffeeLocation.address.split(',').slice(0, 2).join(',') : ''}\n${buildMapsUrl(coffeeLocation)}`
               : ''
+            let msg = `Hey ${firstName}! Want to grab coffee? ☕`
+            if (when) {
+              msg += `\n🗓️ ${when}`
+            }
+            if (coffeeLocation?.name) {
+              msg += locTxt
+            }
+            if (coffeeNote.trim()) {
+              msg += `\n\n${coffeeNote.trim()}`
+            }
             const chatId = await startDM(coffeeTarget)
-            await sendMessage(chatId, `Hey ${coffeeTarget.name.split(' ')[0]}! Want to grab a coffee sometime? ☕${locTxt}`)
-            setCoffeeLocation(null); setCoffeeTarget(null); setCoffeeSearch('');
+            await sendMessage(chatId, msg)
+            setCoffeeLocation(null); setCoffeeTarget(null); setCoffeeSearch(''); setCoffeeDate(''); setCoffeeNote('');
             onClose(); onShowToast('Invite sent!')
           } catch (err) {
             console.error('[Feed.CreateModals] startDM failed', err)
@@ -716,7 +735,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
-                  <input required type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
+                  <input required type="date" value={coffeeDate} onChange={e => setCoffeeDate(e.target.value)} onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
                     ...inputStyle,
                     marginBottom: 0,
                     minWidth: 0,
@@ -742,10 +761,10 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
                   clr={clr}
                 />
               </div>
-              <textarea placeholder="Add a short note... (optional)" rows={2} style={{ ...inputStyle, resize: 'none' }} />
+              <textarea placeholder="Add a short note... (optional)" rows={2} value={coffeeNote} onChange={e => setCoffeeNote(e.target.value)} style={{ ...inputStyle, resize: 'none' }} />
             </div>
           )}
-          <button type="submit" disabled={!coffeeTarget} style={{ ...submitStyle, opacity: !coffeeTarget ? 0.5 : 1 }}>Send Invite →</button>
+          <button type="submit" disabled={!coffeeTarget || !coffeeDate} style={{ ...submitStyle, opacity: (!coffeeTarget || !coffeeDate) ? 0.5 : 1 }}>Send Invite →</button>
         </form>
       )
     }

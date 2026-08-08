@@ -587,7 +587,7 @@ export function AppProvider({ children }) {
     return created
   }, [session?.user?.id])
 
-  const createEventAndRsvp = useCallback(async ({ circleId, title, date, time, location, notes }) => {
+  const createEventAndRsvp = useCallback(async ({ circleId, title, date, time, location, locationLat, locationLng, locationAddress, notes }) => {
     if (!session?.user) throw new Error('Not authenticated')
     const event = await createEvent({
       userId: session.user.id,
@@ -596,6 +596,9 @@ export function AppProvider({ children }) {
       date,
       time,
       location,
+      locationLat,
+      locationLng,
+      locationAddress,
       notes,
     })
     // creator is auto-RSVP'd server-side; reflect locally
