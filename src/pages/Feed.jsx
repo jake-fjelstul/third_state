@@ -695,7 +695,22 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               msg += `\n\n${coffeeNote.trim()}`
             }
             const chatId = await startDM(coffeeTarget)
-            await sendMessage(chatId, msg)
+            await sendMessage(chatId, msg, null, 'coffee_invite', {
+              date: coffeeDate,
+              time: coffeeTime,
+              whenFormatted: when,
+              location: coffeeLocation?.name || '',
+              locationLat: coffeeLocation?.lat ?? null,
+              locationLng: coffeeLocation?.lng ?? null,
+              locationAddress: coffeeLocation?.address || '',
+              note: coffeeNote.trim(),
+              status: 'pending',
+              eventId: null,
+              inviterId: currentUser?.id,
+              inviterName: currentUser?.name || '',
+              targetId: coffeeTarget.id,
+              targetName: coffeeTarget.name || '',
+            })
             setCoffeeLocation(null); setCoffeeTarget(null); setCoffeeSearch(''); setCoffeeDate(''); setCoffeeNote('');
             onClose(); onShowToast('Invite sent!')
           } catch (err) {

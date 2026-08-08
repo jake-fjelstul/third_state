@@ -670,7 +670,7 @@ export function AppProvider({ children }) {
 
   const isRsvpd = useCallback((eventId) => rsvpdEventIds.has(eventId), [rsvpdEventIds])
 
-  const sendMessage = useCallback(async (chatId, text, channelId = null) => {
+  const sendMessage = useCallback(async (chatId, text, channelId = null, kind = 'text', payload = null) => {
     if (!session?.user || !chatId || !text?.trim()) return
     // daily-throttled battery reward
     const today = new Date().toDateString()
@@ -696,7 +696,7 @@ export function AppProvider({ children }) {
     })
 
     try {
-      await sendMessageDb({ userId: session.user.id, chatId, channelId, text })
+      await sendMessageDb({ userId: session.user.id, chatId, channelId, text, kind, payload })
     } catch (err) {
       console.error('[AppContext] sendMessage failed', err)
       throw err

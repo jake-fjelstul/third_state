@@ -242,3 +242,22 @@ export async function unhideChat(chatId) {
   if (error) throw error
 }
 
+export async function updateMessagePayload(messageId, payload) {
+  if (!messageId) return
+  try {
+    const { error } = await supabase.rpc('update_message_payload', {
+      p_message_id: messageId,
+      p_payload: payload,
+    })
+    if (!error) return
+  } catch {
+    // ignore RPC error and fallback
+  }
+
+  const { error } = await supabase
+    .from('messages')
+    .update({ payload })
+    .eq('id', messageId)
+  if (error) throw error
+}
+

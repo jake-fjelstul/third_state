@@ -12,6 +12,7 @@ import SwipeableRow from '../components/chat/SwipeableRow.jsx'
 import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
 import PollComposer from '../components/chat/PollComposer.jsx'
 import PollMessageCard from '../components/chat/PollMessageCard.jsx'
+import CoffeeInviteMessageCard from '../components/chat/CoffeeInviteMessageCard.jsx'
  
 const clr = {
   bg:         'var(--bg)',
@@ -307,6 +308,19 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                   <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
                 )}
                 <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                  {msg.time ?? ''}
+                </span>
+              </div>
+            )
+          }
+          if (msg.kind === 'coffee_invite' || msg.payload?.type === 'coffee_invite') {
+            return (
+              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                {!isMe && isGroup && (
+                  <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                )}
+                <CoffeeInviteMessageCard message={msg} viewerId={currentUser?.id} clr={clr} />
                 <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
                   {msg.time ?? ''}
                 </span>
