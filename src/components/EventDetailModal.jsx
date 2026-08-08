@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getCircle } from '../lib/circles'
-import { getEvent } from '../lib/events'
+import { getEvent, markAttendance, listEventAttendeesWithStatus } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
 import { useCalendar } from '../hooks/useCalendar.js'
 import { buildMapsUrl } from '../lib/geocoding'
@@ -31,7 +31,12 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
   const [hydratedAttendees, setHydratedAttendees] = useState(null)
   const [hydratedAttendeesCount, setHydratedAttendeesCount] = useState(null)
   const [addedToCalendar, setAddedToCalendar] = useState(false)
+  const [attendanceList, setAttendanceList] = useState(null)
+  const [attendanceError, setAttendanceError] = useState('')
   const { isConnected, addEventToGoogle, connect } = useCalendar()
+
+  const isPastEvent = currentEvent?.dateObj && currentEvent.dateObj.getTime() < Date.now()
+  const isHost = currentEvent?.createdBy === currentUser?.id
 
   useEffect(() => {
     setCurrentEvent(event)
@@ -68,6 +73,28 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
     }
     return () => { cancelled = true }
   }, [event?.circleId])
+
+  useEffect(() => {
+    if (!isPastEvent || !isHost || !currentEvent?.id) return
+    let cancelled = false
+    listEventAttendeesWithStatus(currentEvent.id)
+      .then(list => { if (!cancelled) setAttendanceList(list) })
+      .catch(err => console.error('[EventDetailModal] listEventAttendeesWithStatus failed', err))
+    return () => { cancelled = true }
+  }, [isPastEvent, isHost, currentEvent?.id])
+
+  const handleToggleAttendance = async (attendeeId, newAttended) => {
+    setAttendanceError('')
+    const prev = attendanceList
+    setAttendanceList(list => (list || []).map(a => a.id === attendeeId ? { ...a, attended: newAttended } : a))
+    try {
+      await markAttendance({ eventId: currentEvent.id, userId: attendeeId, attended: newAttended })
+    } catch (err) {
+      console.error('[EventDetailModal] markAttendance failed', err)
+      setAttendanceList(prev)
+      setAttendanceError(err.message || 'Could not update attendance')
+    }
+  }
 
   // Attendees
   const attendees = hydratedAttendees ?? event.attendees ?? []
@@ -224,6 +251,70 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
             </div>
           )}
         </div>
+
+        {/* Host Attendance Section */}
+        {isPastEvent && isHost && (
+          <div style={{
+            marginBottom: 22, padding: 16, backgroundColor: clr.indigoLt,
+            borderRadius: 16, border: `1.5px solid ${clr.indigo}`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 800, color: clr.indigo, margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Attendance Tracking
+              </h4>
+              <span style={{ fontSize: 13, fontWeight: 700, color: clr.textDark }}>
+                {attendanceList ? attendanceList.filter(a => a.attended === true).length : 0} of {attendanceList ? attendanceList.length : 0} came
+              </span>
+            </div>
+
+            {attendanceError && (
+              <div style={{ padding: 8, backgroundColor: '#FEE2E2', color: '#DC2626', borderRadius: 8, fontSize: 12, fontWeight: 600, marginBottom: 10 }}>
+                {attendanceError}
+              </div>
+            )}
+
+            {attendanceList && attendanceList.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {attendanceList.map(a => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: clr.white, borderRadius: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img src={avatarFor(a)} alt={a.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                      <span style={{ fontSize: 14, fontWeight: 600, color: clr.textDark }}>{a.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAttendance(a.id, true)}
+                        style={{
+                          padding: '6px 12px', borderRadius: 999, border: 'none',
+                          backgroundColor: a.attended === true ? '#22C55E' : clr.bg,
+                          color: a.attended === true ? '#FFFFFF' : clr.textMid,
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s ease',
+                        }}
+                      >
+                        ✓ Came
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAttendance(a.id, false)}
+                        style={{
+                          padding: '6px 12px', borderRadius: 999, border: 'none',
+                          backgroundColor: a.attended === false ? '#EF4444' : clr.bg,
+                          color: a.attended === false ? '#FFFFFF' : clr.textMid,
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s ease',
+                        }}
+                      >
+                        ✕ No-show
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>No attendees found to mark.</p>
+            )}
+          </div>
+        )}
 
         {/* Attendees */}
         {(attendees.length > 0 || attendeesCount > 0) && (

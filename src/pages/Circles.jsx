@@ -4,6 +4,7 @@ import { listProfiles } from '../lib/profiles'
 import { listCircles, listJoinedCircleMembers } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
+import Memories from './Memories.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -549,15 +550,16 @@ export default function Circles() {
       </h1>
       <div style={{ padding: '16px 20px 0' }}>
         {/* ── Tabs ── */}
-        <div style={{ display: 'flex', gap: 16, borderBottom: `2px solid ${clr.border}`, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 16, borderBottom: `2px solid ${clr.border}`, marginBottom: 20, overflowX: 'auto', whiteSpace: 'nowrap' }}>
           {[
             { id: 'circles', label: 'My Circles' },
             { id: 'connections', label: 'Connections' },
+            { id: 'memories', label: 'Memories', to: '/memories' },
             { id: 'network', label: 'Network Graph' }
           ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            <button key={tab.id} onClick={() => tab.to ? navigate(tab.to) : setActiveTab(tab.id)} style={{
               background: 'none', border: 'none', padding: '0 0 12px 0', cursor: 'pointer',
-              fontSize: 15, fontWeight: 700, position: 'relative',
+              fontSize: 15, fontWeight: 700, position: 'relative', flexShrink: 0,
               color: activeTab === tab.id ? clr.indigo : clr.textLight,
             }}>
               {tab.label}
@@ -751,6 +753,12 @@ export default function Circles() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'memories' && (
+          <div style={{ animation: 'slideUp 0.15s ease' }}>
+            <Memories />
           </div>
         )}
 

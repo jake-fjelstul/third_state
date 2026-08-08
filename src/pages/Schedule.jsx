@@ -342,9 +342,23 @@ export default function Schedule() {
       paddingBottom: 100,
     }}>
 
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, padding: '16px 20px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif", textAlign: 'center' }}>
-        Schedule
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif" }}>
+          Schedule
+        </h1>
+        <button
+          type="button"
+          onClick={() => navigate('/memories')}
+          style={{
+            padding: '8px 16px', borderRadius: 999,
+            border: `1.5px solid ${clr.indigo}`, backgroundColor: clr.indigoLt,
+            color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          📸 Memories
+        </button>
+      </div>
 
       <div style={{ padding: '16px 20px 0', margin: '0 auto' }}>
         {/* SECTION A: Google Calendar Connection Bar */}

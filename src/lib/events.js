@@ -344,3 +344,29 @@ export async function cancelRsvp({ userId, eventId }) {
     .eq('user_id', userId)
   if (error) throw error
 }
+
+export async function markAttendance({ eventId, userId, attended }) {
+  if (!eventId || !userId) throw new Error('Missing eventId or userId')
+  const { error } = await supabase.rpc('mark_event_attendance', {
+    p_event_id: eventId,
+    p_user_id: userId,
+    p_attended: attended,
+  })
+  if (error) throw error
+}
+
+export async function listEventAttendeesWithStatus(eventId) {
+  if (!eventId) return []
+  const { data, error } = await supabase
+    .from('event_attendees')
+    .select('user_id, attended, checked_in_at, profiles(id, name, avatar_url)')
+    .eq('event_id', eventId)
+  if (error) throw error
+  return (data || []).map(r => ({
+    id: r.profiles?.id || r.user_id,
+    name: r.profiles?.name || '',
+    avatar: r.profiles?.avatar_url || '',
+    attended: r.attended ?? null,
+    checkedInAt: r.checked_in_at || null,
+  }))
+}

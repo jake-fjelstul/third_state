@@ -18,6 +18,8 @@ import NotificationsPage from './pages/Notifications.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
 import JoinLandingPage from './pages/JoinLanding.jsx'
+import OnboardingModal from './components/feed/OnboardingModal.jsx'
+import MemoriesPage from './pages/Memories.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
 import LandingPage from './pages/Landing.jsx'
 const clr = {
@@ -322,6 +324,7 @@ function App() {
           <Route path="/circles" element={<CirclesPage />} />
           <Route path="/circles/:id" element={<CircleDetailPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
+          <Route path="/memories" element={<MemoriesPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:id" element={<ChatPage />} />
           <Route path="/game/:gameId" element={<GamePlay />} />
