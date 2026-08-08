@@ -18,5 +18,17 @@
       "resize": "native",
       "resizeOnFullScreen": true
     }
-  }
+  },
+  "packageClassList": [
+    "SignInWithApple",
+    "AppPlugin",
+    "CAPBrowserPlugin",
+    "HapticsPlugin",
+    "KeyboardPlugin",
+    "CAPNetworkPlugin",
+    "PreferencesPlugin",
+    "SharePlugin",
+    "SplashScreenPlugin",
+    "StatusBarPlugin"
+  ]
 }

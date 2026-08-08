@@ -6,10 +6,17 @@ function generateToken() {
   return Array.from(bytes, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 22)
 }
 
+function getAppBaseUrl() {
+  return import.meta.env.VITE_PUBLIC_APP_URL
+    || (typeof window !== 'undefined' ? window.location.origin : 'https://third-space-app.com')
+}
+
 export function buildInviteUrl(token) {
-  const base = import.meta.env.VITE_PUBLIC_APP_URL
-    || (typeof window !== 'undefined' ? window.location.origin : 'https://third-state.vercel.app')
-  return `${base}/invite/${token}`
+  return `${getAppBaseUrl()}/invite/${token}`
+}
+
+export function buildJoinUrl(code) {
+  return `${getAppBaseUrl()}/j/${code}`
 }
 
 export async function createInvite({ inviterId, recipientContact = null }) {
@@ -31,6 +38,29 @@ export async function redeemInvite(token) {
   return data
 }
 
+export async function createCircleInviteLink(circleId, label) {
+  if (!circleId) throw new Error('Missing circleId')
+  const { data, error } = await supabase.rpc('create_circle_invite_link', {
+    p_circle_id: circleId,
+    p_label: label ?? null,
+  })
+  if (error) throw error
+  return { code: data.code, url: buildJoinUrl(data.code) }
+}
+
+export async function createPersonalInviteLink() {
+  const { data, error } = await supabase.rpc('create_personal_invite_link')
+  if (error) throw error
+  return { code: data.code, url: buildJoinUrl(data.code) }
+}
+
+export async function redeemInviteCode(code) {
+  if (!code) throw new Error('Missing invite code')
+  const { data, error } = await supabase.rpc('redeem_invite_code', { p_code: code })
+  if (error) throw error
+  return data
+}
+
 export function classifyContact(input) {
   const trimmed = (input || '').trim()
   if (!trimmed) return null
@@ -43,4 +73,9 @@ export function classifyContact(input) {
 export function buildInviteMessage({ senderName, url }) {
   const first = (senderName || '').split(' ')[0] || 'A friend'
   return `Hey! ${first} invited you to Third Space — find people and meetups near you. Join here: ${url}`
+}
+
+export function buildCircleInviteMessage({ senderName, circleName, url }) {
+  const first = (senderName || '').split(' ')[0] || 'A friend'
+  return `Hey! ${first} invited you to join ${circleName || 'a circle'} on Third Space: ${url}`
 }

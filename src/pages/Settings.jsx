@@ -19,13 +19,8 @@ const clr = {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, importDiscordServer, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById } = useAppContext()
+  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById } = useAppContext()
   const { isConnected: isCalendarConnected, isLoading: calendarLoading, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
-  const [showDiscordImport, setShowDiscordImport] = useState(false)
-  const [showCsvImport, setShowCsvImport] = useState(false)
-  const [discordServerName, setDiscordServerName] = useState('')
-  const [discordMembersList, setDiscordMembersList] = useState('')
-  const [csvEmailList, setCsvEmailList] = useState('')
   const [toastMessage, setToastMessage] = useState('')
   const [radiusDraft, setRadiusDraft] = useState(searchRadius)
   const [reconnectDraft, setReconnectDraft] = useState(reconnectThresholdDays)
@@ -90,27 +85,6 @@ export default function Settings() {
     }, 500)
     return () => clearTimeout(t)
   }, [currentUser?.id, reconnectDraft, reconnectThresholdDays, setReconnectThresholdDays])
-
-  const handleImportDiscord = () => {
-    if (!discordServerName.trim() || !discordMembersList.trim()) return
-    try {
-      importDiscordServer(discordServerName, discordMembersList)
-    } catch (err) {
-      console.error('[Settings] importDiscordServer failed', err)
-      triggerToast('Discord import is coming soon.')
-    }
-    setShowDiscordImport(false)
-    setDiscordServerName('')
-    setDiscordMembersList('')
-  }
-
-  const handleImportCsv = () => {
-    if (!csvEmailList.trim()) return
-    const count = csvEmailList.split(/[\n,]+/).map(n => n.trim()).filter(Boolean).length
-    setShowCsvImport(false)
-    setCsvEmailList('')
-    triggerToast(`Batch invites sent to ${count} emails!`)
-  }
 
   const triggerToast = (msg) => {
     setToastMessage(msg)
@@ -616,28 +590,19 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Community Imports Block */}
+          {/* Invite Friends Block */}
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
-              Community Migrations
+              Invite Friends
             </h2>
             <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 2px 14px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              <div style={{ padding: '20px', borderBottom: `1px solid ${clr.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowDiscordImport(true)}>
+              <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/profile')}>
                 <div>
-                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Migrate Discord Server</p>
-                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>Import server member lists entirely</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Invite friends to Third Space</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>Share your personal QR code or invite link</p>
                 </div>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: clr.indigoLt, color: clr.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                </div>
-              </div>
-              <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowCsvImport(true)}>
-                <div>
-                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Batch Email Invite (CSV)</p>
-                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>Push invitations to a club list automatically</p>
-                </div>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: clr.indigoLt, color: clr.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
                 </div>
               </div>
             </div>
@@ -723,60 +688,7 @@ export default function Settings() {
 
       </div>
 
-      {/* Discord Import Modal */}
-      {showDiscordImport && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 999 }} onClick={() => setShowDiscordImport(false)} />
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 500, margin: '0 auto', backgroundColor: clr.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: '24px 20px 40px', zIndex: 1000, animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 -10px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ width: 40, height: 5, borderRadius: 999, backgroundColor: clr.border, margin: '0 auto 20px' }} />
-            <h3 style={{ margin: '0 0 8px 0', fontSize: 22, fontWeight: 800, color: clr.textDark }}>Migrate from Discord</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: clr.textMid }}>Instantly create a private circle pre-filled with your server buddies.</p>
-            
-            <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 700, color: clr.textDark }}>Server Name</p>
-            <input 
-              value={discordServerName} 
-              onChange={e => setDiscordServerName(e.target.value)} 
-              placeholder="e.g. Austin Climbing Club"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16, border: `1.5px solid ${clr.border}`, fontSize: 15, marginBottom: 20, backgroundColor: clr.white, color: clr.textDark, outline: 'none' }}
-            />
 
-            <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 700, color: clr.textDark }}>Member List (Paste comma-separated user tags)</p>
-            <textarea 
-              value={discordMembersList} 
-              onChange={e => setDiscordMembersList(e.target.value)} 
-              placeholder="gamer#1234, climber_gal, boardgame_dude..."
-              style={{ width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16, border: `1.5px solid ${clr.border}`, fontSize: 15, marginBottom: 24, minHeight: 120, resize: 'none', backgroundColor: clr.white, color: clr.textDark, outline: 'none' }}
-            />
-            
-            <button onClick={handleImportDiscord} style={{ width: '100%', padding: '16px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFF', fontSize: 16, fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(91,95,239,0.25)' }}>
-              Create Circle & Invite Members
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* CSV Import Modal */}
-      {showCsvImport && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 999 }} onClick={() => setShowCsvImport(false)} />
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 500, margin: '0 auto', backgroundColor: clr.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: '24px 20px 40px', zIndex: 1000, animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 -10px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ width: 40, height: 5, borderRadius: 999, backgroundColor: clr.border, margin: '0 auto 20px' }} />
-            <h3 style={{ margin: '0 0 8px 0', fontSize: 22, fontWeight: 800, color: clr.textDark }}>Batch Email Invite</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: clr.textMid }}>Paste a CSV or list of emails from your existing club or mailing list.</p>
-            
-            <textarea 
-              value={csvEmailList} 
-              onChange={e => setCsvEmailList(e.target.value)} 
-              placeholder="alice@gmail.com, bob@yahoo.com..."
-              style={{ width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16, border: `1.5px solid ${clr.border}`, fontSize: 15, marginBottom: 24, minHeight: 160, resize: 'none', backgroundColor: clr.white, color: clr.textDark, outline: 'none' }}
-            />
-            
-            <button onClick={handleImportCsv} style={{ width: '100%', padding: '16px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFF', fontSize: 16, fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(91,95,239,0.25)' }}>
-              Send Batch Invitations
-            </button>
-          </div>
-        </>
-      )}
 
       {/* Success Toast */}
       {toastMessage && (

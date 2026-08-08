@@ -17,6 +17,7 @@ import SettingsPage from './pages/Settings.jsx'
 import NotificationsPage from './pages/Notifications.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
+import JoinLandingPage from './pages/JoinLanding.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
 import LandingPage from './pages/Landing.jsx'
 const clr = {
@@ -238,7 +239,7 @@ function AuthGuard() {
   const { session, authLoading, currentUser, profileError, refreshProfile, signOut } = useAppContext()
   const location = useLocation()
   const onAuthRoute = location.pathname === '/auth' || location.pathname === '/auth/callback'
-  const onPublicInviteRoute = location.pathname.startsWith('/invite/')
+  const onPublicInviteRoute = location.pathname.startsWith('/invite/') || location.pathname.startsWith('/j/')
 
   const handleProfileRetry = async () => {
     if (profileError && isProfileSessionFatalError(profileError)) {
@@ -309,6 +310,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/invite/:token" element={<InviteLandingPage />} />
+      <Route path="/j/:code" element={<JoinLandingPage />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />

@@ -16,6 +16,8 @@ import ImageUploader from '../components/ui/ImageUploader.jsx'
 import PollComposer from '../components/chat/PollComposer.jsx'
 import PollMessageCard from '../components/chat/PollMessageCard.jsx'
 import GameMessageCard from '../components/games/GameMessageCard.jsx'
+import { createCircleInviteLink, buildCircleInviteMessage } from '../lib/invites.js'
+import QRCard from '../components/ui/QRCard.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -97,6 +99,10 @@ export default function CircleDetail() {
   const [inviteSearch, setInviteSearch] = useState('')
   const [toastMsg, setToastMsg] = useState(null)
   const [showCoverUploader, setShowCoverUploader] = useState(false)
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false)
+  const [addMembersLoading, setAddMembersLoading] = useState(false)
+  const [addMembersError, setAddMembersError] = useState(null)
+  const [addMembersData, setAddMembersData] = useState(null)
   const [joinBusy, setJoinBusy] = useState(false)
   const [joinError, setJoinError] = useState('')
   const msgsEndRef = useRef(null)
@@ -171,6 +177,21 @@ export default function CircleDetail() {
       setJoinError('Could not send your request. Please try again.')
     } finally {
       setJoinBusy(false)
+    }
+  }
+
+  const handleOpenAddMembers = async () => {
+    setShowAddMembersModal(true)
+    setAddMembersLoading(true)
+    setAddMembersError(null)
+    try {
+      const res = await createCircleInviteLink(circle.id)
+      setAddMembersData(res)
+    } catch (err) {
+      console.error('[CircleDetail] createCircleInviteLink failed', err)
+      setAddMembersError(err.message || 'Could not generate invite link')
+    } finally {
+      setAddMembersLoading(false)
     }
   }
 
@@ -561,6 +582,24 @@ export default function CircleDetail() {
               </div>
             </div>
 
+            {/* Add members button for Organizer */}
+            {isOrganizer && (
+              <button
+                type="button"
+                onClick={handleOpenAddMembers}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: 20,
+                  border: `1.5px solid ${clr.indigo}`,
+                  backgroundColor: clr.indigoLt,
+                  color: clr.indigo,
+                  fontSize: 15, fontWeight: 700,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                ＋ Add members
+              </button>
+            )}
+
             {/* Stats row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -896,6 +935,66 @@ export default function CircleDetail() {
           100% { opacity: 0; transform: translate(-50%, -20px); }
         }
       `}</style>
+
+      {showAddMembersModal && (
+        <div
+          onClick={() => setShowAddMembersModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            backgroundColor: 'rgba(15,15,30,0.5)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
+              backgroundColor: clr.white,
+              borderRadius: '24px 24px 0 0',
+              padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
+              maxHeight: 'calc(100dvh - 16px)',
+              overflowY: 'auto',
+              overscrollBehavior: 'contain',
+              animation: 'slideUp 0.25s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: clr.textDark }}>Add members</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddMembersModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+              >
+                <svg width="24" height="24" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {addMembersLoading && (
+              <div style={{ padding: 40, textAlign: 'center', color: clr.textMid, fontSize: 14 }}>
+                Generating invite code…
+              </div>
+            )}
+
+            {addMembersError && (
+              <div style={{ padding: 16, backgroundColor: '#FEE2E2', color: '#DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
+                {addMembersError}
+              </div>
+            )}
+
+            {!addMembersLoading && !addMembersError && addMembersData && (
+              <QRCard
+                url={addMembersData.url}
+                code={addMembersData.code}
+                title={circle.name}
+                subtitle="Scan to join this circle"
+                message={buildCircleInviteMessage({ senderName: currentUser?.name, circleName: circle.name, url: addMembersData.url })}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1248,6 +1347,8 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
           }}
         />
       )}
+
+
     </div>
   )
 }

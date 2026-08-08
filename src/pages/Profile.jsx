@@ -9,7 +9,8 @@ import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 import { uploadAvatar, deleteAvatar } from '../lib/storage'
 import { avatarFor } from '../lib/avatar'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
-import { buildInviteMessage, classifyContact, createInvite } from '../lib/invites.js'
+import { buildInviteMessage, classifyContact, createInvite, createPersonalInviteLink } from '../lib/invites.js'
+import QRCard from '../components/ui/QRCard.jsx'
 import { INTENT_LABELS } from '../lib/intents.js'
 import { checkContent } from '../lib/contentFilter.js'
 
@@ -111,8 +112,31 @@ export default function Profile() {
   const [detailClosing, setDetailClosing] = useState(false)
   
   const [showExternalInvite, setShowExternalInvite] = useState(false)
+  const [inviteTab, setInviteTab] = useState('share')
+  const [personalInvite, setPersonalInvite] = useState(null)
+  const [personalInviteLoading, setPersonalInviteLoading] = useState(false)
+  const [personalInviteError, setPersonalInviteError] = useState(null)
   const [inviteInput, setInviteInput] = useState('')
   const [toastMsg, setToastMsg] = useState(null)
+
+  useEffect(() => {
+    if (!showExternalInvite || !currentUser?.id) return
+    let cancelled = false
+    setPersonalInviteLoading(true)
+    setPersonalInviteError(null)
+    createPersonalInviteLink()
+      .then((res) => {
+        if (!cancelled) setPersonalInvite(res)
+      })
+      .catch((err) => {
+        console.error('[Profile] createPersonalInviteLink failed', err)
+        if (!cancelled) setPersonalInviteError(err.message || 'Could not generate personal invite link')
+      })
+      .finally(() => {
+        if (!cancelled) setPersonalInviteLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [showExternalInvite, currentUser?.id])
   
   const openEventDetail = (event) => setSelectedEvent(event)
   const closeEventDetail = () => {
@@ -866,61 +890,117 @@ export default function Profile() {
               </button>
             </div>
             
-            <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 16px 0' }}>Invite friends to join you using their phone number or email address. SMS deep links work best on mobile.</p>
-
-            <input 
-              autoFocus
-              placeholder="Email or Phone Number" 
-              value={inviteInput}
-              onChange={e => setInviteInput(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16,
-                border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15,
-                color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16
-              }}
-            />
-
-            {/* Preview Block */}
-            <div style={{ padding: 16, backgroundColor: clr.indigoLt, borderRadius: 16, marginBottom: 24, border: `1px dashed ${clr.indigo}` }}>
-              <p style={{ margin: 0, fontSize: 12, color: clr.indigo, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Message Preview</p>
-              <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>
-                Hey! I'm using Third Space to find local meetups. Join me here:{' '}
-                <span style={{color: clr.indigo, textDecoration: 'underline'}}>third-state.vercel.app/invite/...</span>
-              </p>
+            <div style={{ display: 'flex', borderBottom: `1px solid ${clr.border}`, marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => setInviteTab('share')}
+                style={{
+                  flex: 1, padding: '10px 0', border: 'none', background: 'none',
+                  fontSize: 14, fontWeight: inviteTab === 'share' ? 700 : 500,
+                  color: inviteTab === 'share' ? clr.indigo : clr.textMid,
+                  borderBottom: inviteTab === 'share' ? `2px solid ${clr.indigo}` : '2px solid transparent',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Share
+              </button>
+              <button
+                type="button"
+                onClick={() => setInviteTab('contact')}
+                style={{
+                  flex: 1, padding: '10px 0', border: 'none', background: 'none',
+                  fontSize: 14, fontWeight: inviteTab === 'contact' ? 700 : 500,
+                  color: inviteTab === 'contact' ? clr.indigo : clr.textMid,
+                  borderBottom: inviteTab === 'contact' ? `2px solid ${clr.indigo}` : '2px solid transparent',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Enter contact
+              </button>
             </div>
 
-            <button 
-              disabled={!inviteInput.trim() || !classifyContact(inviteInput)}
-              onClick={handleSendInvite}
-              style={{
-                width: '100%', padding: '16px', borderRadius: 999, border: 'none',
-                background: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.border : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                color: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.textMid : '#FFF',
-                fontSize: 16, fontWeight: 800, cursor: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'default' : 'pointer',
-                boxShadow: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'none' : '0 6px 20px rgba(91,95,239,0.3)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Send Invite
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyInviteLink}
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginTop: 10,
-                borderRadius: 999,
-                border: `1.5px solid ${clr.border}`,
-                background: clr.white,
-                color: clr.textDark,
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Copy link
-            </button>
+            {inviteTab === 'share' ? (
+              <div>
+                {personalInviteLoading && (
+                  <div style={{ padding: 40, textAlign: 'center', color: clr.textMid, fontSize: 14 }}>
+                    Generating your invite QR code…
+                  </div>
+                )}
+                {personalInviteError && (
+                  <div style={{ padding: 16, backgroundColor: '#FEE2E2', color: '#DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
+                    {personalInviteError}
+                  </div>
+                )}
+                {!personalInviteLoading && !personalInviteError && personalInvite && (
+                  <QRCard
+                    url={personalInvite.url}
+                    code={personalInvite.code}
+                    title="Invite to Third Space"
+                    subtitle="Scan or share your link"
+                    message={buildInviteMessage({ senderName: currentUser?.name, url: personalInvite.url })}
+                  />
+                )}
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 16px 0' }}>
+                  Invite friends to join you using their phone number or email address.
+                </p>
+
+                <input 
+                  autoFocus
+                  placeholder="Email or Phone Number" 
+                  value={inviteInput}
+                  onChange={e => setInviteInput(e.target.value)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16,
+                    border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15,
+                    color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16
+                  }}
+                />
+
+                {/* Preview Block */}
+                <div style={{ padding: 16, backgroundColor: clr.indigoLt, borderRadius: 16, marginBottom: 24, border: `1px dashed ${clr.indigo}` }}>
+                  <p style={{ margin: 0, fontSize: 12, color: clr.indigo, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Message Preview</p>
+                  <p style={{ margin: 0, fontSize: 14, color: clr.textDark, lineHeight: 1.5 }}>
+                    {buildInviteMessage({ senderName: currentUser?.name, url: 'https://third-space-app.com/invite/...' })}
+                  </p>
+                </div>
+
+                <button 
+                  disabled={!inviteInput.trim() || !classifyContact(inviteInput)}
+                  onClick={handleSendInvite}
+                  style={{
+                    width: '100%', padding: '16px', borderRadius: 999, border: 'none',
+                    background: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.border : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
+                    color: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.textMid : '#FFF',
+                    fontSize: 16, fontWeight: 800, cursor: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'default' : 'pointer',
+                    boxShadow: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'none' : '0 6px 20px rgba(91,95,239,0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Send Invite
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyInviteLink}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    marginTop: 10,
+                    borderRadius: 999,
+                    border: `1.5px solid ${clr.border}`,
+                    background: clr.white,
+                    color: clr.textDark,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Copy link
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -256,23 +256,41 @@ export function AppProvider({ children }) {
 
     ;(async () => {
       try {
-        const pending = window.localStorage.getItem(PENDING_INVITE_KEY)
-        if (!pending) return
-        try {
-          const inviterId = await redeemInvite(pending)
-          window.localStorage.removeItem(PENDING_INVITE_KEY)
-          const list = await listMyConnections(session.user.id)
-          if (!cancelled) {
-            setConnections(list)
-            if (inviterId) {
-              const { getProfileById } = await import('../lib/profiles')
-              const inviterProfile = await getProfileById(inviterId)
-              if (inviterProfile) setRecentInviter(inviterProfile)
+        const pendingToken = window.localStorage.getItem(PENDING_INVITE_KEY)
+        if (pendingToken) {
+          try {
+            const inviterId = await redeemInvite(pendingToken)
+            window.localStorage.removeItem(PENDING_INVITE_KEY)
+            const list = await listMyConnections(session.user.id)
+            if (!cancelled) {
+              setConnections(list)
+              if (inviterId) {
+                const { getProfileById } = await import('../lib/profiles')
+                const inviterProfile = await getProfileById(inviterId)
+                if (inviterProfile) setRecentInviter(inviterProfile)
+              }
             }
+          } catch (err) {
+            console.warn('[AppContext] pending invite redeem failed', err)
+            window.localStorage.removeItem(PENDING_INVITE_KEY)
           }
-        } catch (err) {
-          console.warn('[AppContext] pending invite redeem failed', err)
-          window.localStorage.removeItem(PENDING_INVITE_KEY)
+        }
+
+        const pendingJoinCode = window.localStorage.getItem('ts.pendingJoinCode')
+        if (pendingJoinCode) {
+          try {
+            const { redeemInviteCode } = await import('../lib/invites.js')
+            const res = await redeemInviteCode(pendingJoinCode)
+            window.localStorage.removeItem('ts.pendingJoinCode')
+            const list = await listMyConnections(session.user.id)
+            if (!cancelled) setConnections(list)
+            if (res?.circle_id && !cancelled) {
+              window.location.href = `/circles/${res.circle_id}`
+            }
+          } catch (err) {
+            console.warn('[AppContext] pending join code redeem failed', err)
+            window.localStorage.removeItem('ts.pendingJoinCode')
+          }
         }
       } catch {
         // localStorage unavailable
@@ -911,11 +929,6 @@ export function AppProvider({ children }) {
     return apps
   }, [])
 
-  const importDiscordServer = useCallback(() => {
-    console.warn('[importDiscordServer] not implemented in DB yet')
-    throw new Error('Discord import is coming soon.')
-  }, [])
-
   const startChatGame = useCallback(async ({ chatId, gameType }) => {
     return await createChatGame({ chatId, gameType })
   }, [])
@@ -977,7 +990,6 @@ export function AppProvider({ children }) {
       searchRadius,
       setSearchRadius,
       updateMyPrivacy,
-      importDiscordServer,
       pendingApplications,
       submitApplication,
       approveApplication,
@@ -1000,7 +1012,7 @@ export function AppProvider({ children }) {
       blockUserById,
       unblockUserById
     }),
-    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, importDiscordServer, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
