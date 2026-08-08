@@ -24,6 +24,11 @@ function mapEventRow(row) {
     notes: row.notes || '',
     createdBy: row.created_by,
     attendeesCount: row.attendees_count ?? 0,
+    attendedCount: row.attended_count ?? 0,
+    coverImageUrl: row.cover_image_url || '',
+    recurrenceRule: row.recurrence_rule || 'none',
+    recurrenceEndDate: row.recurrence_end_date || null,
+    recurrenceParentId: row.recurrence_parent_id || null,
     attendees: row.attendees || [],
     dateObj,
   }
@@ -89,7 +94,7 @@ export async function listMyMeetups(userId, { upcomingOnly = false } = {}) {
     .select(`
       event_id,
       events:event_id (
-        id, circle_id, title, starts_at, location, notes, created_by,
+        id, circle_id, title, starts_at, location, location_lat, location_lng, location_address, notes, created_by, cover_image_url, recurrence_rule, recurrence_end_date, recurrence_parent_id,
         circles(name)
       )
     `)
@@ -113,6 +118,30 @@ export async function listUpcomingEventsForUser(userId) {
   return listMyMeetups(userId, { upcomingOnly: true })
 }
 
+export async function listPastEventsForUser(userId) {
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('event_attendees')
+    .select(`
+      event_id,
+      events:event_id (
+        id, circle_id, title, starts_at, location, location_lat, location_lng, location_address, notes, created_by, cover_image_url, recurrence_rule, recurrence_end_date, recurrence_parent_id,
+        circles(name)
+      )
+    `)
+    .eq('user_id', userId)
+  if (error) throw error
+  const now = Date.now()
+  const events = (data || [])
+    .map(r => r.events)
+    .filter(Boolean)
+    .map(mapEventRow)
+    .filter(e => e.dateObj && e.dateObj.getTime() < now)
+
+  events.sort((a, b) => (b.dateObj?.getTime() || 0) - (a.dateObj?.getTime() || 0))
+  return events
+}
+
 export async function listMyRsvpdEventIds(userId) {
   if (!userId) return []
   const { data, error } = await supabase
@@ -123,10 +152,44 @@ export async function listMyRsvpdEventIds(userId) {
   return (data || []).map(r => r.event_id)
 }
 
+// ---------- recurrence helper ----------
+
+export function expandRecurrence({ startsAt, rule, endDate, maxOccurrences = 26 }) {
+  if (!startsAt || !rule || rule === 'none') {
+    return startsAt ? [startsAt] : []
+  }
+  const cap = Math.min(maxOccurrences || 26, 26)
+  const results = [startsAt]
+  const endTs = endDate ? new Date(`${endDate}T23:59:59.999Z`).getTime() : null
+
+  let current = new Date(startsAt)
+
+  while (results.length < cap) {
+    const next = new Date(current)
+    if (rule === 'weekly') {
+      next.setDate(next.getDate() + 7)
+    } else if (rule === 'biweekly') {
+      next.setDate(next.getDate() + 14)
+    } else if (rule === 'monthly') {
+      next.setMonth(next.getMonth() + 1)
+    } else {
+      break
+    }
+
+    if (endTs && next.getTime() > endTs) {
+      break
+    }
+
+    results.push(next.toISOString())
+    current = next
+  }
+
+  return results
+}
+
 // ---------- writes ----------
 
 function combineDateTimeToIso(date, time) {
-  // date: 'YYYY-MM-DD', time: 'HH:MM' (24h) — assume local timezone of the user.
   if (!date) return null
   const t = time && /^\d{1,2}:\d{2}$/.test(time) ? time : '12:00'
   const local = new Date(`${date}T${t}:00`)
@@ -134,7 +197,22 @@ function combineDateTimeToIso(date, time) {
   return local.toISOString()
 }
 
-export async function createEvent({ userId, circleId, title, date, time, startsAt, location, locationLat, locationLng, locationAddress, notes }) {
+export async function createEvent({
+  userId,
+  circleId,
+  title,
+  date,
+  time,
+  startsAt,
+  location,
+  locationLat,
+  locationLng,
+  locationAddress,
+  notes,
+  coverImageUrl,
+  recurrenceRule,
+  recurrenceEndDate,
+}) {
   const iso = startsAt || combineDateTimeToIso(date, time)
   if (!iso) throw new Error('Event must have a valid date/time')
 
@@ -148,29 +226,114 @@ export async function createEvent({ userId, circleId, title, date, time, startsA
     location_address: locationAddress || null,
     notes: notes || null,
     created_by: userId,
+    cover_image_url: coverImageUrl || null,
+    recurrence_rule: recurrenceRule || 'none',
+    recurrence_end_date: recurrenceEndDate || null,
   }
 
   let res = await supabase.from('events').insert(row).select('*, circles(name)').single()
   
   if (res.error && res.error.code === 'PGRST204') {
-    // Fallback if migration hasn't run
     delete row.location_lat
     delete row.location_lng
     delete row.location_address
+    delete row.cover_image_url
+    delete row.recurrence_rule
+    delete row.recurrence_end_date
     res = await supabase.from('events').insert(row).select('*, circles(name)').single()
   }
 
   if (res.error) throw res.error
-  // Auto-RSVP creator
-  await supabase.from('event_attendees').insert({ event_id: res.data.id, user_id: userId })
-  return mapEventRow({ ...res.data, attendees_count: 1 })
+  const parentData = res.data
+
+  // Auto-RSVP creator to the parent only
+  await supabase.from('event_attendees').insert({ event_id: parentData.id, user_id: userId })
+
+  // Bulk-insert recurrence occurrences if rule is set and !== 'none'
+  if (recurrenceRule && recurrenceRule !== 'none') {
+    const occurrences = expandRecurrence({
+      startsAt: iso,
+      rule: recurrenceRule,
+      endDate: recurrenceEndDate,
+      maxOccurrences: 26,
+    })
+
+    const childTimes = occurrences.slice(1)
+    if (childTimes.length > 0) {
+      const childRows = childTimes.map(childIso => ({
+        circle_id: circleId,
+        title,
+        starts_at: childIso,
+        location: location || null,
+        location_lat: locationLat ?? null,
+        location_lng: locationLng ?? null,
+        location_address: locationAddress || null,
+        notes: notes || null,
+        created_by: userId,
+        cover_image_url: coverImageUrl || null,
+        recurrence_rule: 'none',
+        recurrence_end_date: null,
+        recurrence_parent_id: parentData.id,
+      }))
+      const childRes = await supabase.from('events').insert(childRows)
+      if (childRes.error) {
+        console.warn('[createEvent] recurrence occurrences insert error', childRes.error)
+      }
+    }
+  }
+
+  return mapEventRow({ ...parentData, attendees_count: 1 })
+}
+
+export async function updateEvent({
+  eventId,
+  title,
+  date,
+  time,
+  startsAt,
+  location,
+  locationLat,
+  locationLng,
+  locationAddress,
+  notes,
+  coverImageUrl,
+}) {
+  if (!eventId) throw new Error('Missing eventId')
+  const patch = {}
+  if (title !== undefined) patch.title = title
+  if (date !== undefined || time !== undefined || startsAt !== undefined) {
+    patch.starts_at = startsAt || combineDateTimeToIso(date, time)
+  }
+  if (location !== undefined) patch.location = location
+  if (locationLat !== undefined) patch.location_lat = locationLat
+  if (locationLng !== undefined) patch.location_lng = locationLng
+  if (locationAddress !== undefined) patch.location_address = locationAddress
+  if (notes !== undefined) patch.notes = notes
+  if (coverImageUrl !== undefined) patch.cover_image_url = coverImageUrl
+  patch.updated_at = new Date().toISOString()
+
+  const { data, error } = await supabase
+    .from('events')
+    .update(patch)
+    .eq('id', eventId)
+    .select('*, circles(name)')
+    .single()
+  if (error) throw error
+
+  return mapEventRow(data)
+}
+
+export async function deleteEvent(eventId) {
+  if (!eventId) throw new Error('Missing eventId')
+  const { error } = await supabase.from('events').delete().eq('id', eventId)
+  if (error) throw error
 }
 
 export async function rsvp({ userId, eventId }) {
   const { error } = await supabase
     .from('event_attendees')
     .insert({ event_id: eventId, user_id: userId })
-  if (error && error.code !== '23505') throw error // ignore unique violation
+  if (error && error.code !== '23505') throw error
 }
 
 export async function cancelRsvp({ userId, eventId }) {

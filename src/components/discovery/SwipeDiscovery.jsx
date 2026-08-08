@@ -136,12 +136,16 @@ function DiscoveryCard({ card }) {
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
-        <div style={{
-          height: 160, background: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:64
-        }}>
-          {e.emoji ?? '📅'}
-        </div>
+        {e.coverImageUrl ? (
+          <img src={e.coverImageUrl} alt={e.title} style={{ width: '100%', height: 160, objectFit: 'cover' }} />
+        ) : (
+          <div style={{
+            height: 160, background: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:64
+          }}>
+            {e.emoji ?? '📅'}
+          </div>
+        )}
         <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column', gap:14 }}>
           {card.matchReason && (
             <div style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#D97706', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', alignSelf: 'flex-start' }}>

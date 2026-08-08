@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 import { profileCompleteness } from '../lib/profileCompleteness.jsx'
-import { listUpcomingEvents } from '../lib/events'
+import { listUpcomingEvents, expandRecurrence, updateEvent } from '../lib/events'
+import { uploadEventCover } from '../lib/storage'
 import { listCircles } from '../lib/circles'
 import { listProfiles } from '../lib/profiles'
 import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
@@ -430,6 +431,10 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [eventLocation, setEventLocation] = useState(null)
   const [coffeeLocation, setCoffeeLocation] = useState(null)
   const [lfgLocation, setLfgLocation] = useState(null)
+  const [coverFile, setCoverFile] = useState(null)
+  const [coverPreview, setCoverPreview] = useState(null)
+  const [recurrenceRule, setRecurrenceRule] = useState('none')
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
   const biasNear = (currentUser?.latitude != null && currentUser?.longitude != null)
     ? { lat: currentUser.latitude, lng: currentUser.longitude }
@@ -587,9 +592,12 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         const date = e.target.elements.eDate.value;
         const time = e.target.elements.eTime.value;
         const cid = e.target.elements.eCircle.value;
+        const effectiveEndDate = recurrenceRule !== 'none'
+          ? (recurrenceEndDate || (date ? new Date(new Date(date).getTime() + 56 * 86400000).toISOString().slice(0, 10) : null))
+          : null
 
         try {
-          await createEventAndRsvp({
+          const createdEvent = await createEventAndRsvp({
             circleId: cid || null,
             title,
             date,
@@ -599,8 +607,25 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             locationLng: eventLocation?.lng ?? null,
             locationAddress: eventLocation?.address || '',
             notes: '',
+            recurrenceRule,
+            recurrenceEndDate: effectiveEndDate,
           });
+
+          if (coverFile && createdEvent?.id) {
+            try {
+              const url = await uploadEventCover({ eventId: createdEvent.id, file: coverFile })
+              await updateEvent({ eventId: createdEvent.id, coverImageUrl: url })
+            } catch (err) {
+              console.error('[Feed] event cover upload failed', err)
+              onShowToast('Event created, but the cover image failed to upload')
+            }
+          }
+
           setEventLocation(null);
+          setCoverFile(null);
+          setCoverPreview(null);
+          setRecurrenceRule('none');
+          setRecurrenceEndDate('');
           onClose();
           onShowToast('Event created successfully!');
         } catch (err) {
@@ -609,6 +634,47 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         }
       }}>
         <Handle /><Header title="Host an Event" />
+        
+        {/* Cover Photo Picker */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Cover Photo</label>
+          <label style={{
+            display: 'block', position: 'relative', width: '100%', aspectRatio: '16/9',
+            borderRadius: 16, border: `1.5px dashed ${clr.border}`, backgroundColor: clr.bg,
+            overflow: 'hidden', cursor: 'pointer', textAlign: 'center',
+          }}>
+            {coverPreview ? (
+              <>
+                <img src={coverPreview} alt="Cover preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{
+                  position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF',
+                  fontSize: 14, fontWeight: 700,
+                }}>
+                  📷 Change Cover Photo
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: clr.textMid }}>
+                <span style={{ fontSize: 24, marginBottom: 4 }}>📷</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Add a cover photo</span>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  setCoverFile(file)
+                  setCoverPreview(URL.createObjectURL(file))
+                }
+              }}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+
         <input required name="eName" placeholder="Event Name" style={inputStyle} />
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -630,6 +696,39 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           <TimePicker value={eventTime} onChange={setEventTime} />
           <input type="hidden" name="eTime" value={eventTime} />
         </div>
+
+        {/* Repeats Select */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Repeats</label>
+          <select value={recurrenceRule} onChange={e => setRecurrenceRule(e.target.value)} style={inputStyle}>
+            <option value="none">None</option>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly">Every 2 weeks</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        {recurrenceRule !== 'none' && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Repeat until</label>
+            <input
+              type="date"
+              value={recurrenceEndDate}
+              onChange={e => setRecurrenceEndDate(e.target.value)}
+              onClick={(e) => { try { e.target.showPicker() } catch {} }}
+              style={inputStyle}
+            />
+            <p style={{ fontSize: 12, color: clr.textMid, margin: '4px 0 0 0', fontWeight: 600 }}>
+              Creates {(() => {
+                const dateVal = document.querySelector('input[name="eDate"]')?.value
+                if (!dateVal) return 1
+                const iso = `${dateVal}T${eventTime}:00`
+                const end = recurrenceEndDate || (new Date(new Date(dateVal).getTime() + 56 * 86400000).toISOString().slice(0, 10))
+                return expandRecurrence({ startsAt: iso, rule: recurrenceRule, endDate: end, maxOccurrences: 26 }).length
+              })()} events
+            </p>
+          </div>
+        )}
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Location</label>

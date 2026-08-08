@@ -42,8 +42,6 @@ export async function resizeImage(file, { maxWidth, maxHeight, quality = 0.85 })
   }
 }
 
-// We use deterministic paths for easy overwrite and cleanup. Cache-busting
-// query params ensure clients/CDN fetch the latest file after re-upload.
 function withCacheBust(url) {
   return `${url}?v=${Date.now()}`
 }
@@ -80,6 +78,18 @@ export async function uploadCircleCover({ circleId, file }) {
   return withCacheBust(data.publicUrl)
 }
 
+export async function uploadEventCover({ eventId, file }) {
+  validateImageFile(file)
+  const blob = await resizeImage(file, { maxWidth: 1200, maxHeight: 600, quality: 0.85 })
+  const path = `${eventId}/cover.jpg`
+  const { error } = await supabase.storage
+    .from('event-covers')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' })
+  if (error) throw normalizeStorageError(error)
+  const { data } = supabase.storage.from('event-covers').getPublicUrl(path)
+  return withCacheBust(data.publicUrl)
+}
+
 export async function deleteAvatar(userId) {
   const { error } = await supabase.storage.from('avatars').remove([`${userId}/avatar.jpg`])
   if (error && !String(error.message || '').toLowerCase().includes('not found')) throw error
@@ -87,5 +97,10 @@ export async function deleteAvatar(userId) {
 
 export async function deleteCircleCover(circleId) {
   const { error } = await supabase.storage.from('circle-covers').remove([`${circleId}/cover.jpg`])
+  if (error && !String(error.message || '').toLowerCase().includes('not found')) throw error
+}
+
+export async function deleteEventCover(eventId) {
+  const { error } = await supabase.storage.from('event-covers').remove([`${eventId}/cover.jpg`])
   if (error && !String(error.message || '').toLowerCase().includes('not found')) throw error
 }

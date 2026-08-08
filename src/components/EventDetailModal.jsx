@@ -4,6 +4,8 @@ import { getEvent } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
 import { useCalendar } from '../hooks/useCalendar.js'
 import { buildMapsUrl } from '../lib/geocoding'
+import { useAppContext } from '../context/AppContext.jsx'
+import EventEditModal from './EventEditModal.jsx'
 
 const clr = {
   bg:       'var(--bg)',
@@ -22,11 +24,18 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
 
   const rsvpd = isRsvpd?.(event.id) ?? false
 
+  const { currentUser } = useAppContext()
+  const [currentEvent, setCurrentEvent] = useState(event)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [organizer, setOrganizer] = useState(null)
   const [hydratedAttendees, setHydratedAttendees] = useState(null)
   const [hydratedAttendeesCount, setHydratedAttendeesCount] = useState(null)
   const [addedToCalendar, setAddedToCalendar] = useState(false)
   const { isConnected, addEventToGoogle, connect } = useCalendar()
+
+  useEffect(() => {
+    setCurrentEvent(event)
+  }, [event])
 
   useEffect(() => {
     setAddedToCalendar(false)
@@ -113,14 +122,29 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
               {event.title}
             </h2>
           </div>
-          <button type="button" onClick={onClose} style={{
-            background: clr.bg, border: 'none', width: 36, height: 36, borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginLeft: 12,
-          }}>
-            <svg width="18" height="18" fill="none" stroke={clr.textDark} strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12, flexShrink: 0 }}>
+            {currentEvent.createdBy === currentUser?.id && (
+              <button
+                type="button"
+                onClick={() => setShowEditModal(true)}
+                style={{
+                  padding: '6px 14px', borderRadius: 999,
+                  border: `1.5px solid ${clr.indigo}`, backgroundColor: clr.indigoLt,
+                  color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Edit
+              </button>
+            )}
+            <button type="button" onClick={onClose} style={{
+              background: clr.bg, border: 'none', width: 36, height: 36, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+            }}>
+              <svg width="18" height="18" fill="none" stroke={clr.textDark} strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Info rows */}
@@ -323,6 +347,20 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
           to { opacity: 0; }
         }
       `}</style>
+      {showEditModal && (
+        <EventEditModal
+          event={currentEvent}
+          onClose={() => setShowEditModal(false)}
+          onSaved={async () => {
+            try {
+              const updated = await getEvent(currentEvent.id)
+              if (updated) setCurrentEvent(updated)
+            } catch (err) {
+              console.error('[EventDetailModal] refresh failed', err)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

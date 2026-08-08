@@ -605,7 +605,7 @@ export function AppProvider({ children }) {
     return created
   }, [session?.user?.id])
 
-  const createEventAndRsvp = useCallback(async ({ circleId, title, date, time, location, locationLat, locationLng, locationAddress, notes }) => {
+  const createEventAndRsvp = useCallback(async ({ circleId, title, date, time, location, locationLat, locationLng, locationAddress, notes, coverImageUrl, recurrenceRule, recurrenceEndDate }) => {
     if (!session?.user) throw new Error('Not authenticated')
     const event = await createEvent({
       userId: session.user.id,
@@ -618,6 +618,9 @@ export function AppProvider({ children }) {
       locationLng,
       locationAddress,
       notes,
+      coverImageUrl,
+      recurrenceRule,
+      recurrenceEndDate,
     })
     // creator is auto-RSVP'd server-side; reflect locally
     setMeetups(prev => [...prev, event])
@@ -626,8 +629,6 @@ export function AppProvider({ children }) {
       next.add(event.id)
       return next
     })
-    // Battery is awarded by the DB trigger on event_attendees insert.
-    // Refresh local battery from the profile to stay in sync:
     return event
   }, [session])
 
