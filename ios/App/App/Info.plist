@@ -28,6 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>thirdspace</string>
+				<string>com.thirdspace.social</string>
 			</array>
 		</dict>
 	</array>

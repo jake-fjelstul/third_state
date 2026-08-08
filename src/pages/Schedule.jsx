@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listCircles } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
@@ -207,6 +207,32 @@ export default function Schedule() {
     connect, disconnect, addEventToGoogle,
   } = useCalendar()
 
+  const initialConnectedRef = useRef(null)
+  if (initialConnectedRef.current === null && isConnected !== undefined) {
+    initialConnectedRef.current = isConnected
+  }
+
+  const [showConnectionBar, setShowConnectionBar] = useState(() => !isConnected)
+  const prevConnectedRef = useRef(isConnected)
+
+  useEffect(() => {
+    if (initialConnectedRef.current === true) {
+      setShowConnectionBar(false)
+      return
+    }
+
+    if (!prevConnectedRef.current && isConnected) {
+      setShowConnectionBar(true)
+      const timer = setTimeout(() => {
+        setShowConnectionBar(false)
+      }, 4000)
+      return () => clearTimeout(timer)
+    } else if (!isConnected) {
+      setShowConnectionBar(true)
+    }
+    prevConnectedRef.current = isConnected
+  }, [isConnected])
+
   const { meetups, createEventAndRsvp, joinedCircles, rsvpEvent, cancelRsvp, isRsvpd, currentUser } = useAppContext()
 
   const [form, setForm] = useState({
@@ -362,50 +388,55 @@ export default function Schedule() {
 
       <div style={{ padding: '16px 20px 0', margin: '0 auto' }}>
         {/* SECTION A: Google Calendar Connection Bar */}
-        <div style={{
-          backgroundColor: isConnected ? '#F0FFF4' : clr.white,
-          border: `1px solid ${isConnected ? '#86EFAC' : clr.border}`,
-          borderRadius: 16, padding: '12px 16px',
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
-        }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              backgroundColor: isConnected ? '#DCFCE7' : clr.bg,
-              display: 'flex', alignItems: 'center', 
-              justifyContent: 'center', fontSize: 16,
-            }}>
-              📅
+        {showConnectionBar && (
+          <div style={{
+            backgroundColor: isConnected ? '#F0FFF4' : clr.white,
+            border: `1px solid ${isConnected ? '#86EFAC' : clr.border}`,
+            borderRadius: 16, padding: '12px 16px',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 16,
+            transition: 'all 0.4s ease',
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                backgroundColor: isConnected ? '#DCFCE7' : clr.bg,
+                display: 'flex', alignItems: 'center', 
+                justifyContent: 'center', fontSize: 16,
+              }}>
+                📅
+              </div>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#064E3B' : clr.textDark, margin: 0 }}>
+                  {isConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
+                </p>
+                <p style={{ fontSize: 11, color: isConnected ? '#059669' : clr.textMid, margin: 0 }}>
+                  {isConnected ? 'Your events are syncing' : 'See all your events in one place'}
+                </p>
+              </div>
             </div>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#064E3B' : clr.textDark, margin: 0 }}>
-                {isConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
-              </p>
-              <p style={{ fontSize: 11, color: isConnected ? '#059669' : clr.textMid, margin: 0 }}>
-                {isConnected ? 'Your events are syncing' : 'See all your events in one place'}
-              </p>
-            </div>
+            {!isConnected && (
+              <button
+                type="button"
+                onClick={connect}
+                disabled={isLoading || !isConfigured}
+                title={!isConfigured ? 'Add your Google Client ID to .env to enable' : undefined}
+                style={{
+                  padding: '8px 16px', borderRadius: 999,
+                  border: 'none',
+                  background: !isConfigured ? clr.textLight : `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
+                  color: '#FFFFFF',
+                  fontSize: 13, fontWeight: 700,
+                  cursor: isLoading || !isConfigured ? 'not-allowed' : 'pointer',
+                  boxShadow: !isConfigured ? 'none' : '0 2px 8px rgba(91,95,239,0.3)',
+                }}
+              >
+                {isLoading ? 'Connecting…' : 'Connect'}
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={isConnected ? disconnect : connect}
-            disabled={isLoading || !isConfigured}
-            title={!isConfigured ? 'Add your Google Client ID to .env to enable' : undefined}
-            style={{
-              padding: '8px 16px', borderRadius: 999,
-              border: isConnected ? `1.5px solid #86EFAC` : 'none',
-              background: isConnected ? 'transparent' : (!isConfigured ? clr.textLight : `linear-gradient(135deg, #5B5FEF, #7B6FFF)`),
-              color: isConnected ? '#059669' : '#FFFFFF',
-              fontSize: 12, fontWeight: 700,
-              cursor: (isLoading || !isConfigured) ? 'not-allowed' : 'pointer',
-              opacity: (isLoading || !isConfigured) ? 0.6 : 1,
-            }}
-          >
-            {isLoading ? 'Connecting...' : isConnected ? 'Disconnect' : 'Connect'}
-          </button>
-        </div>
+        )}
 
         {/* SECTION B: Calendar View Toggle + Navigation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>

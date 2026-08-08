@@ -1,18 +1,23 @@
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events'
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+import { supabase } from './supabase'
+import { Capacitor } from '@capacitor/core'
+
 const TOKEN_KEY = 'ts.calendar.token'
 
-let tokenClient = null
-let gisScriptPromise = null
-
-const isNative = () => false // TODO Phase 8 Part B: real native check
+let cachedAccessToken = null
+let cachedTokenExpiry = 0
 
 export function isCalendarConfigured() {
-  return !!CLIENT_ID
+  return true
 }
 
-export function isCalendarTokenStored() {
-  return !!getStoredCalendarToken()
+export async function isCalendarConnected() {
+  try {
+    const { data, error } = await supabase.rpc('has_calendar_connection')
+    if (error) return false
+    return !!data
+  } catch {
+    return false
+  }
 }
 
 export function getStoredCalendarToken() {
@@ -25,31 +30,110 @@ export function setStoredCalendarToken(token) {
   window.dispatchEvent(new CustomEvent('ts:calendar-token', { detail: token || null }))
 }
 
-function ensureGisLoaded() {
-  if (window.google?.accounts?.oauth2) return Promise.resolve()
-  if (gisScriptPromise) return gisScriptPromise
-  gisScriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Google Identity Services'))
-    document.head.appendChild(script)
+async function getAccessToken() {
+  if (cachedAccessToken && Date.now() < cachedTokenExpiry - 60000) {
+    return cachedAccessToken
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession()
+  const jwt = sessionData?.session?.access_token
+  if (!jwt) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase.functions.invoke('google-calendar', {
+    body: { action: 'token' },
+    headers: { Authorization: `Bearer ${jwt}` },
   })
-  return gisScriptPromise
+
+  if (error || !data?.access_token) {
+    cachedAccessToken = null
+    cachedTokenExpiry = 0
+    if (error?.status === 401 || data?.error === 'invalid_grant' || data?.error === 'Not connected') {
+      setStoredCalendarToken(null)
+      throw new Error('Calendar session expired. Please reconnect Google Calendar.')
+    }
+    throw new Error(data?.error || error?.message || 'Could not get calendar access token')
+  }
+
+  cachedAccessToken = data.access_token
+  cachedTokenExpiry = Date.now() + 3500 * 1000
+  setStoredCalendarToken('connected')
+  return cachedAccessToken
 }
 
-async function getTokenClient() {
-  await ensureGisLoaded()
-  if (!CLIENT_ID) throw new Error('Google Calendar is not configured')
-  if (tokenClient) return tokenClient
-  tokenClient = window.google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: () => {},
+export async function connectCalendar() {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const jwt = sessionData?.session?.access_token
+  if (!jwt) throw new Error('You must be signed in to connect Google Calendar.')
+
+  const isNative = Capacitor.isNativePlatform()
+  const webRedirectUrl = `${window.location.origin}/schedule?calendar_ok=1`
+
+  const { data, error } = await supabase.functions.invoke('google-calendar', {
+    body: { action: 'start', platform: isNative ? 'native' : 'web', webRedirectUrl },
+    headers: { Authorization: `Bearer ${jwt}` },
   })
-  return tokenClient
+
+  if (error || !data?.url) {
+    throw new Error(error?.message || data?.error || 'Could not start Google authorization.')
+  }
+
+  const authUrl = data.url
+
+  if (isNative) {
+    const { Browser } = await import('@capacitor/browser')
+    const { App: CapApp } = await import('@capacitor/app')
+
+    return new Promise((resolve, reject) => {
+      let listener = null
+
+      listener = CapApp.addListener('appUrlOpen', async (event) => {
+        const url = event?.url || ''
+        if (
+          url.startsWith('com.thirdspace.social://calendar-callback') ||
+          url.startsWith('thirdspace://calendar-callback')
+        ) {
+          if (listener) listener.remove()
+          try {
+            await Browser.close()
+          } catch {}
+          setStoredCalendarToken('connected')
+          resolve({ ok: true })
+        }
+      })
+
+      Browser.open({ url: authUrl, presentationStyle: 'popover' }).catch((err) => {
+        if (listener) listener.remove()
+        reject(err)
+      })
+    })
+  } else {
+    window.location.href = authUrl
+  }
+}
+
+export async function disconnectCalendar() {
+  try {
+    await supabase.rpc('disconnect_calendar')
+  } catch (rpcErr) {
+    console.warn('[disconnectCalendar] RPC error, trying function fallback', rpcErr)
+  }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const jwt = sessionData?.session?.access_token
+    if (jwt) {
+      await supabase.functions.invoke('google-calendar', {
+        body: { action: 'disconnect' },
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+    }
+  } catch (fnErr) {
+    console.warn('[disconnectCalendar] Edge function disconnect error', fnErr)
+  }
+
+  cachedAccessToken = null
+  cachedTokenExpiry = 0
+  setStoredCalendarToken(null)
 }
 
 function parseEventStart(event) {
@@ -72,42 +156,17 @@ function authHeader(token) {
   return { Authorization: `Bearer ${token}` }
 }
 
-function clearOnUnauthorized(status) {
-  if (status === 401) {
-    setStoredCalendarToken(null)
-    throw new Error('Calendar session expired. Please reconnect Google Calendar.')
-  }
-}
-
-export async function connectCalendar() {
-  if (isNative()) throw new Error('Native calendar support is not enabled yet')
-  const client = await getTokenClient()
-  return await new Promise((resolve, reject) => {
-    client.callback = (response) => {
-      if (response?.error) return reject(new Error(response.error))
-      if (!response?.access_token) return reject(new Error('Google did not return an access token'))
-      resolve({ token: response.access_token })
-    }
-    client.requestAccessToken({ prompt: 'consent' })
-  })
-}
-
-export async function disconnectCalendar(token) {
-  if (isNative()) return
-  if (token && window.google?.accounts?.oauth2) {
-    window.google.accounts.oauth2.revoke(token, () => {})
-  }
-  setStoredCalendarToken(null)
-}
-
-export async function addEventToCalendar(token, event) {
+export async function addEventToCalendar(unusedToken, event) {
+  const eventData = event || unusedToken
+  const token = await getAccessToken()
   if (!token) throw new Error('Calendar is not connected')
-  const startDateTime = parseEventStart(event)
-  const endDateTime = parseEventEnd(event)
+
+  const startDateTime = parseEventStart(eventData)
+  const endDateTime = parseEventEnd(eventData)
   const body = {
-    summary: event.title,
-    location: event.location ?? '',
-    description: `Third Space event${event.circleName ? ` · ${event.circleName}` : ''}`,
+    summary: eventData.title,
+    location: eventData.location ?? '',
+    description: `Third Space event${eventData.circleName ? ` · ${eventData.circleName}` : ''}`,
     start: {
       dateTime: startDateTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -118,20 +177,41 @@ export async function addEventToCalendar(token, event) {
     },
     colorId: '9',
   }
+
   const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
     method: 'POST',
     headers: { ...authHeader(token), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  clearOnUnauthorized(res.status)
+
+  if (res.status === 401) {
+    cachedAccessToken = null
+    cachedTokenExpiry = 0
+    setStoredCalendarToken(null)
+    throw new Error('Calendar session expired. Please reconnect Google Calendar.')
+  }
+
   if (!res.ok) throw new Error('Could not add event to calendar')
 }
 
-export async function listExternalEvents(token, { from, to } = {}) {
+export async function listExternalEvents(unusedToken, { from, to } = {}) {
+  let opts = { from, to }
+  if (unusedToken && typeof unusedToken === 'object' && !Array.isArray(unusedToken)) {
+    opts = unusedToken
+  }
+
+  let token = null
+  try {
+    token = await getAccessToken()
+  } catch (err) {
+    return []
+  }
+
   if (!token) return []
+
   const now = new Date()
-  const timeMin = from ? new Date(from) : new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-  const timeMax = to ? new Date(to) : new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+  const timeMin = opts.from ? new Date(opts.from) : new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+  const timeMax = opts.to ? new Date(opts.to) : new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
   const params = new URLSearchParams({
     timeMin: timeMin.toISOString(),
     timeMax: timeMax.toISOString(),
@@ -139,13 +219,19 @@ export async function listExternalEvents(token, { from, to } = {}) {
     orderBy: 'startTime',
     maxResults: '100',
   })
+
   const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`, {
     headers: authHeader(token),
   })
-  clearOnUnauthorized(res.status)
+
+  if (res.status === 401) {
+    cachedAccessToken = null
+    cachedTokenExpiry = 0
+    setStoredCalendarToken(null)
+    throw new Error('Calendar session expired. Please reconnect Google Calendar.')
+  }
+
   if (!res.ok) throw new Error('Could not fetch calendar events')
   const data = await res.json()
   return data.items || []
 }
-
-// TODO: Phase 11 — server-stored refresh tokens for true persistence.

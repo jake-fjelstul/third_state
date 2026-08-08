@@ -4,102 +4,114 @@ import {
   connectCalendar,
   disconnectCalendar,
   getStoredCalendarToken,
+  isCalendarConnected,
   isCalendarConfigured,
   listExternalEvents,
-  setStoredCalendarToken,
 } from '../lib/calendar'
 
 export function useCalendar() {
-  const [token, setToken] = useState(() => getStoredCalendarToken())
+  const [isConnected, setIsConnected] = useState(() => !!getStoredCalendarToken())
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const refresh = useCallback(async (activeToken = token) => {
-    if (!activeToken) {
+  const checkStatus = useCallback(async () => {
+    const connected = await isCalendarConnected()
+    setIsConnected(connected)
+    return connected
+  }, [])
+
+  const refresh = useCallback(async () => {
+    const connected = await isCalendarConnected()
+    setIsConnected(connected)
+    if (!connected) {
       setEvents([])
       return []
     }
-    const list = await listExternalEvents(activeToken)
-    setEvents(list)
-    return list
-  }, [token])
+    try {
+      const list = await listExternalEvents()
+      setEvents(list)
+      return list
+    } catch (e) {
+      if (String(e?.message || '').toLowerCase().includes('expired')) {
+        setIsConnected(false)
+      } else {
+        setError(e?.message || 'Could not load calendar events')
+      }
+      return []
+    }
+  }, [])
 
   const connect = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const { token: nextToken } = await connectCalendar()
-      setStoredCalendarToken(nextToken)
-      setToken(nextToken)
-      await refresh(nextToken)
+      await connectCalendar()
+      await checkStatus()
+      await refresh()
     } catch (e) {
       setError(e?.message || 'Could not connect calendar')
     } finally {
       setLoading(false)
     }
-  }, [refresh])
+  }, [checkStatus, refresh])
 
   const disconnect = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      await disconnectCalendar(token)
-      setStoredCalendarToken(null)
-      setToken(null)
+      await disconnectCalendar()
+      setIsConnected(false)
       setEvents([])
     } catch (e) {
       setError(e?.message || 'Could not disconnect calendar')
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [])
 
   const addEvent = useCallback(async (event) => {
-    if (!token) throw new Error('Calendar is not connected')
     setError(null)
     try {
-      await addEventToCalendar(token, event)
-      await refresh(token)
+      await addEventToCalendar(event)
+      await refresh()
     } catch (e) {
       if (String(e?.message || '').toLowerCase().includes('expired')) {
-        setStoredCalendarToken(null)
-        setToken(null)
+        setIsConnected(false)
       }
       setError(e?.message || 'Could not add event')
       throw e
     }
-  }, [token, refresh])
+  }, [refresh])
 
   useEffect(() => {
-    if (!token) return
-    refresh(token).catch((e) => {
-      if (String(e?.message || '').toLowerCase().includes('expired')) {
-        setStoredCalendarToken(null)
-        setToken(null)
-      } else {
-        setError(e?.message || 'Could not load calendar events')
+    checkStatus().then(connected => {
+      if (connected) {
+        refresh().catch(() => {})
       }
     })
-  }, [token, refresh])
+  }, [checkStatus, refresh])
 
   useEffect(() => {
-    const onTokenChange = (evt) => {
-      setToken(evt.detail || getStoredCalendarToken())
+    const onTokenChange = () => {
+      checkStatus().then(connected => {
+        if (connected) refresh().catch(() => {})
+        else setEvents([])
+      })
     }
     window.addEventListener('ts:calendar-token', onTokenChange)
     return () => window.removeEventListener('ts:calendar-token', onTokenChange)
-  }, [])
+  }, [checkStatus, refresh])
 
   return {
     isConfigured: isCalendarConfigured(),
-    isConnected: !!token,
+    isConnected,
     isLoading: loading,
     error,
     googleEvents: events,
     connect,
     disconnect,
     addEventToGoogle: addEvent,
-    refetch: () => refresh(token),
+    refresh,
   }
 }
