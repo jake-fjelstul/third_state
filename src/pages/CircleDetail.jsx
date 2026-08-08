@@ -279,6 +279,7 @@ export default function CircleDetail() {
                       setCircle(c => ({ ...c, coverImageUrl: '' }))
                     } catch (err) {
                       console.error('[CircleDetail] remove cover failed', err)
+                      setToastMsg(err?.message || 'Failed to remove cover photo')
                     } finally { setShowDropdown(false) }
                   }} style={{ width: '100%', padding: '10px 12px', backgroundColor: 'transparent', border: 'none', borderRadius: 8, textAlign: 'left', color: '#EF4444', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                     Remove cover photo
@@ -910,12 +911,18 @@ export default function CircleDetail() {
                   setShowCoverUploader(false)
                 } catch (err) {
                   console.error('[CircleDetail] update cover failed', err)
+                  setToastMsg(err?.message || 'Failed to update cover photo')
                 }
               }}
               onRemove={async () => {
-                await deleteCircleCover(circle.id)
-                await updateCircle(circle.id, { coverImageUrl: null })
-                setCircle(c => ({ ...c, coverImageUrl: '' }))
+                try {
+                  await deleteCircleCover(circle.id)
+                  await updateCircle(circle.id, { coverImageUrl: null })
+                  setCircle(c => ({ ...c, coverImageUrl: '' }))
+                } catch (err) {
+                  console.error('[CircleDetail] remove cover failed', err)
+                  setToastMsg(err?.message || 'Failed to remove cover photo')
+                }
               }}
             />
           </div>

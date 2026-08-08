@@ -4,8 +4,8 @@ import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 import { profileCompleteness } from '../lib/profileCompleteness.jsx'
 import { listUpcomingEvents, expandRecurrence, updateEvent } from '../lib/events'
-import { uploadEventCover } from '../lib/storage'
-import { listCircles } from '../lib/circles'
+import { uploadEventCover, uploadCircleCover } from '../lib/storage'
+import { listCircles, updateCircle } from '../lib/circles'
 import { listProfiles } from '../lib/profiles'
 import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
@@ -433,6 +433,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [lfgLocation, setLfgLocation] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
   const [coverPreview, setCoverPreview] = useState(null)
+  const [selectedCircleEmoji, setSelectedCircleEmoji] = useState('✨')
   const [recurrenceRule, setRecurrenceRule] = useState('none')
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
@@ -523,7 +524,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         try {
           const created = await createCircle({
             name,
-            emoji: '✨',
+            emoji: selectedCircleEmoji,
             city: currentUser?.city || 'Austin, TX',
             type: circlePrivacy === 'private' ? 'private' : 'open',
             category: 'social',
@@ -535,6 +536,17 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             hoops: hoopsEnabled ? circleHoops.filter(h => h.type === 'written' || h.type === 'multiplechoice') : [],
           })
           await refreshCircles?.()
+
+          if (coverFile) {
+            try {
+              const url = await uploadCircleCover({ circleId: created.id, file: coverFile })
+              await updateCircle(created.id, { coverImageUrl: url })
+            } catch (uploadErr) {
+              console.error('[Feed.CreateModals] uploadCircleCover failed', uploadErr)
+              onShowToast("Circle created. The cover image didn't upload — you can add it from the circle page.")
+            }
+          }
+
           onClose()
           navigate(`/circles/${created.id}`)
         } catch (err) {
@@ -543,8 +555,86 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         }
       }}>
         <Handle /><Header title="Create a Circle" />
+        
+        {/* Emoji Icon Picker */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            Circle Icon
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 16, backgroundColor: clr.indigoLt,
+              border: `1.5px solid ${clr.indigo}`, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 26, flexShrink: 0,
+            }}>
+              {selectedCircleEmoji}
+            </div>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+              {['✨', '⭕', '🔥', '🎨', '📸', '⚽', '🏃', '☕', '📚', '🎵', '🎮', '🍕', '🧗', '🚲', '🧘', '🎬', '🐶', '✈️', '💡', '🌱', '🏀', '🎤', '🎲', '❤️'].map(e => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setSelectedCircleEmoji(e)}
+                  style={{
+                    width: 38, height: 38, borderRadius: 12, border: selectedCircleEmoji === e ? `2px solid ${clr.indigo}` : `1px solid ${clr.border}`,
+                    backgroundColor: selectedCircleEmoji === e ? clr.indigoLt : clr.bg,
+                    fontSize: 20, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <input required name="cName" placeholder="Circle Name" style={inputStyle} />
         <input required name="cTopic" placeholder="Interest / Topic (e.g. Photography)" style={inputStyle} />
+        
+        {/* Cover Image Picker */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            Cover Image (Optional)
+          </label>
+          {coverPreview ? (
+            <div style={{ position: 'relative', width: '100%', height: 120, borderRadius: 16, overflow: 'hidden', border: `1px solid ${clr.border}` }}>
+              <img src={coverPreview} alt="Cover preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <button
+                type="button"
+                onClick={() => { setCoverFile(null); setCoverPreview(null) }}
+                style={{
+                  position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%',
+                  backgroundColor: 'rgba(0,0,0,0.6)', color: '#FFFFFF', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <label style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: '16px', borderRadius: 16, border: `2px dashed ${clr.border}`,
+              backgroundColor: clr.bg, cursor: 'pointer', transition: 'all 0.15s ease',
+            }}>
+              <span style={{ fontSize: 22, marginBottom: 2 }}>📷</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: clr.indigo }}>Upload Cover Photo</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    setCoverFile(file)
+                    setCoverPreview(URL.createObjectURL(file))
+                  }
+                }}
+                style={{ display: 'none' }}
+              />
+            </label>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <label style={{ flex: 1, boxSizing: 'border-box', minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, padding: 14, borderRadius: 16, border: circlePrivacy === 'open' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`, background: circlePrivacy === 'open' ? clr.indigoLt : 'transparent', cursor: 'pointer', transition: 'all 0.2s ease' }}>
             <input type="radio" name="type" checked={circlePrivacy === 'open'} onChange={() => setCirclePrivacy('open')} style={{ accentColor: clr.indigo }} /> Open

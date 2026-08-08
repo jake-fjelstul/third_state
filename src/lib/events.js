@@ -71,7 +71,7 @@ export async function getEvent(eventId) {
       .maybeSingle(),
     supabase
       .from('event_attendees')
-      .select('user_id, profiles ( id, name, avatar_url )')
+      .select('user_id, profiles!user_id ( id, name, avatar_url )')
       .eq('event_id', eventId),
   ])
   if (eventRes.error) throw eventRes.error
@@ -359,7 +359,7 @@ export async function listEventAttendeesWithStatus(eventId) {
   if (!eventId) return []
   const { data, error } = await supabase
     .from('event_attendees')
-    .select('user_id, attended, checked_in_at, profiles(id, name, avatar_url)')
+    .select('user_id, attended, checked_in_at, profiles!user_id (id, name, avatar_url)')
     .eq('event_id', eventId)
   if (error) throw error
   return (data || []).map(r => ({
