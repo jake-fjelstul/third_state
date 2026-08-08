@@ -42,7 +42,7 @@ export default function InviteLanding() {
   }, [token, session, navigate, refreshConnections])
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 'var(--safe-top) 24px var(--safe-bottom)' }}>
       <div style={{ textAlign: 'center' }}>
         {status === 'checking' && <p>Checking invite...</p>}
         {status === 'redirecting' && <p>Sign in or sign up to accept your invite.</p>}

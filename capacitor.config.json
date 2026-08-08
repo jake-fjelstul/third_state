@@ -4,13 +4,14 @@
   "webDir": "dist",
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#111115"
+    "backgroundColor": "#000000"
   },
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": false,
       "launchShowDuration": 1500,
-      "backgroundColor": "#F0F0F5",
+      "backgroundColor": "#000000",
+      "backgroundColorDark": "#000000",
       "showSpinner": false,
       "splashImmersive": true
     },

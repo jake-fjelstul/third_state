@@ -149,7 +149,7 @@ function AuthPage() {
   }
 
   const pageStyle = {
-    minHeight: '100vh', width: '100%', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 32, paddingBottom: 48, paddingLeft: 20, paddingRight: 20, fontFamily: "'DM Sans', 'Inter', sans-serif",
+    minHeight: '100vh', width: '100%', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 20, paddingRight: 20, fontFamily: "'DM Sans', 'Inter', sans-serif",
   }
   const wrapStyle = { width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }
   

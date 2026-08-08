@@ -89,7 +89,7 @@ export default function LandingPage() {
         backgroundColor: 'var(--white)',
         borderBottom: '1px solid var(--border)',
         width: '100%',
-        padding: '16px 24px',
+        padding: 'max(16px, calc(env(safe-area-inset-top) + 16px)) 24px 16px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',

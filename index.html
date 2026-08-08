@@ -2,6 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function() {
+        try {
+          var storedTheme = localStorage.getItem('ts_theme');
+          var isDark = storedTheme === 'dark' || (!storedTheme && (window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)').matches : true));
+          if (storedTheme === 'light') isDark = false;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+
+        var isNative = (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || (typeof location !== 'undefined' && location.protocol === 'capacitor:');
+        if (isNative) {
+          document.documentElement.style.backgroundColor = '#000000';
+          document.addEventListener('DOMContentLoaded', function() {
+            var fallback = document.getElementById('static-fallback');
+            if (fallback) fallback.style.display = 'none';
+          });
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
@@ -33,7 +56,7 @@
         It exists so that crawlers and non-JavaScript clients receive real,
         readable content describing the application.
       -->
-      <main style="max-width:900px;margin:0 auto;padding:40px 20px;font-family:Inter,system-ui,sans-serif;color:#1A1A2E;line-height:1.6;">
+      <main id="static-fallback" style="max-width:900px;margin:0 auto;padding:40px 20px;font-family:Inter,system-ui,sans-serif;color:#1A1A2E;line-height:1.6;">
         <h1 style="font-size:40px;font-weight:800;margin:0 0 8px;">Third Space</h1>
         <p style="font-size:20px;color:#6B7280;margin:0 0 24px;">Where online connection turns into real-world friendship.</p>
 

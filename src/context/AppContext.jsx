@@ -486,6 +486,7 @@ export function AppProvider({ children }) {
     } else {
       document.documentElement.classList.remove('dark')
     }
+    try { window.localStorage.setItem('ts_theme', theme) } catch (e) {}
   }, [theme])
 
   const signOut = async () => {
