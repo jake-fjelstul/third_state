@@ -77,6 +77,11 @@ export default function CircleList({ message, ctx, clr, onClose, onAppendMessage
                   {c.memberCount ?? 0} members
                   {c.interestTag ? ` · ${c.interestTag}` : ''}
                 </p>
+                {(c.reason || message.reason) && (
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: clr.textMid, opacity: 0.8, fontStyle: 'italic' }}>
+                    {c.reason || message.reason}
+                  </p>
+                )}
                 {c.description && (
                   <p style={{
                     margin: '3px 0 0', fontSize: 12, color: clr.textMid,

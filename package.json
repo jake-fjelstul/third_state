@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
     "build:native": "vite build && cap sync ios",
     "open:ios": "cap open ios",
     "sync": "cap sync"
@@ -49,6 +50,7 @@
     "postcss": "^8.5.8",
     "supabase": "^2.95.6",
     "tailwindcss": "^4.2.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.1.10"
   }
 }

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppContext } from '../../context/AppContext.jsx'
-import { classifyIntent } from '../../lib/assistant/intents.js'
-import { dispatchIntent } from '../../lib/assistant/handlers.js'
 import {
   userMessage, assistantThinking, assistantText,
 } from '../../lib/assistant/conversation.js'
+import { runAssistant } from '../../lib/assistant/engine.js'
 
 import TextMessage   from './messages/TextMessage.jsx'
 import PeopleStack   from './messages/PeopleStack.jsx'
@@ -14,6 +13,8 @@ import EventForm     from './messages/EventForm.jsx'
 import CircleForm    from './messages/CircleForm.jsx'
 import NavSuggestion from './messages/NavSuggestion.jsx'
 import HelpMessage   from './messages/HelpMessage.jsx'
+import DisambiguationCard from './messages/DisambiguationCard.jsx'
+import ActionConfirmCard from './messages/ActionConfirmCard.jsx'
 
 const SUGGESTIONS = [
   'Find people who like hiking',
@@ -27,6 +28,7 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pendingState, setPendingState] = useState(null)
   const scrollerRef = useRef(null)
   const sentInitialRef = useRef(false)
 
@@ -60,8 +62,7 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
   }
 
   /**
-   * Replace a form message with new messages (called by EventForm / CircleForm on success).
-   * Since form messages have stable IDs we can filter + append.
+   * Replace a message with new messages (called by EventForm / CircleForm / ActionConfirmCard on success).
    */
   const replaceMessage = (msgId, newMsgs) => {
     setMessages(prev => {
@@ -81,12 +82,11 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
     setMessages(prev => [...prev, assistantThinking()])
 
     try {
-      const intent = classifyIntent(trimmed)
-      await new Promise(r => setTimeout(r, 280))
-      const reply = await dispatchIntent(intent, ctx)
-      setMessages(prev => prev.filter(m => m.kind !== 'thinking').concat(reply))
+      const res = await runAssistant(trimmed, ctx, pendingState)
+      setPendingState(res.pendingState || null)
+      setMessages(prev => prev.filter(m => m.kind !== 'thinking').concat(res.messages || []))
     } catch (err) {
-      console.error('[AssistantModal] dispatch failed', err)
+      console.error('[AssistantModal] runAssistant failed', err)
       setMessages(prev => prev.filter(m => m.kind !== 'thinking').concat([
         assistantText("Something went wrong on my end. Try again, or check out the Feed directly."),
       ]))
@@ -102,7 +102,7 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
     sendText(t)
   }
 
-  const env = { ctx, clr, onClose, appendMessages }
+  const env = { ctx, clr, onClose, appendMessages, sendText }
 
   return (
     <div
@@ -291,6 +291,29 @@ function renderMessage(m, env) {
       return <NavSuggestion key={m.id} message={m} clr={clr} onClose={onClose} />
     case 'help':
       return <HelpMessage key={m.id} clr={clr} />
+    case 'disambiguation':
+      return (
+        <DisambiguationCard
+          key={m.id}
+          message={m}
+          clr={clr}
+          onSelectCandidate={(candidate) => {
+            replaceMessage(m.id, [])
+            env.sendText(candidate.title)
+          }}
+        />
+      )
+    case 'action_confirmation':
+      return (
+        <ActionConfirmCard
+          key={m.id}
+          message={m}
+          ctx={ctx}
+          clr={clr}
+          onComplete={(newMsgs) => replaceMessage(m.id, newMsgs)}
+          onCancel={() => replaceMessage(m.id, [assistantText('Action cancelled.')])}
+        />
+      )
     default:
       return null
   }

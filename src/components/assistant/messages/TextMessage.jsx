@@ -15,6 +15,20 @@ export default function TextMessage({ message, clr, muted }) {
         boxShadow: isUser ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
       }}>
         {message.text}
+        {message.alternative && (
+          <div style={{
+            marginTop: 6,
+            padding: '4px 10px',
+            borderRadius: 999,
+            backgroundColor: clr.indigoLt,
+            color: clr.indigo,
+            fontSize: 12,
+            fontWeight: 700,
+            display: 'inline-block'
+          }}>
+            {message.alternative}
+          </div>
+        )}
       </div>
     </div>
   )

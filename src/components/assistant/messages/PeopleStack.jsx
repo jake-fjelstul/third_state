@@ -89,6 +89,11 @@ export default function PeopleStack({ message, ctx, clr, onClose, onAppendMessag
                   }}>{i}</span>
                 ))}
               </div>
+              {(p.reason || message.reason) && (
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: clr.textMid, opacity: 0.8, fontStyle: 'italic' }}>
+                  {p.reason || message.reason}
+                </p>
+              )}
               <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
                 <button
                   type="button"

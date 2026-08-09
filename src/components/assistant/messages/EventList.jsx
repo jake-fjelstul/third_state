@@ -73,6 +73,11 @@ export default function EventList({ message, ctx, clr, onAppendMessages }) {
                     {event.circleName}
                   </p>
                 )}
+                {(event.reason || message.reason) && (
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: clr.textMid, opacity: 0.8, fontStyle: 'italic' }}>
+                    {event.reason || message.reason}
+                  </p>
+                )}
                 {event.attendees?.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
                     <div style={{ display: 'flex' }}>
