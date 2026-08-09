@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { listCircles } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
 import { useCalendar } from '../hooks/useCalendar.js'
@@ -145,6 +145,7 @@ function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails }) {
 
 export default function Schedule() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [calView, setCalView] = useState('week')
   const [weekOffset, setWeekOffset] = useState(0)
   const [monthOffset, setMonthOffset] = useState(0)
@@ -374,7 +375,7 @@ export default function Schedule() {
         </h1>
         <button
           type="button"
-          onClick={() => navigate('/memories')}
+          onClick={() => navigate('/memories', { state: { from: location.pathname + location.search } })}
           style={{
             padding: '8px 16px', borderRadius: 999,
             border: `1.5px solid ${clr.indigo}`, backgroundColor: clr.indigoLt,

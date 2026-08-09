@@ -440,29 +440,32 @@ export default function CircleDetail() {
 
       {/* ── Tabs ── */}
       <div
-        className="noscrollbar"
         style={{
           backgroundColor: clr.white,
           borderBottom: `1px solid ${clr.border}`,
           marginTop: 0, paddingTop: 24,
-          display: 'flex', justifyContent: 'flex-start',
-          overflowX: 'auto',
+          display: 'flex',
           position: 'relative',
           zIndex: 2,
         }}
       >
-        <div style={{ display: 'flex', gap: 0, margin: '0 auto', flexShrink: 0 }}>
+        <div style={{ display: 'flex', width: '100%' }}>
           {dynamicTabs.map((tab) => {
             const active = activeTab === tab.id
+            const fontSize = dynamicTabs.length <= 4 ? 15 : 13
             return (
               <button key={tab.id} type="button"
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  padding: '12px 16px',
-                  flexShrink: 0,
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '12px 4px',
+                  textAlign: 'center',
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 15, fontWeight: active ? 700 : 500,
+                  fontSize, fontWeight: active ? 700 : 500,
                   color: active ? clr.indigo : clr.textMid,
                   borderBottom: active ? `2.5px solid ${clr.indigo}` : '2.5px solid transparent',
                   transition: 'all 0.15s ease',

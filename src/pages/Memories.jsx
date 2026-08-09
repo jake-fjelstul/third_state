@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listPastEventsForUser } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
@@ -18,11 +18,26 @@ const clr = {
 
 export default function Memories() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { currentUser } = useAppContext()
 
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState(null)
+
+  const backTo = location.state?.from || '/schedule'
+
+  const getBackLabel = (path) => {
+    if (!path) return 'Schedule'
+    if (path.startsWith('/schedule')) return 'Schedule'
+    if (path.startsWith('/feed')) return 'Feed'
+    if (path.startsWith('/profile')) return 'Profile'
+    if (path.startsWith('/circles')) return 'Circle'
+    if (path.startsWith('/chat')) return 'Chat'
+    return 'Back'
+  }
+
+  const backLabel = getBackLabel(backTo)
 
   useEffect(() => {
     if (!currentUser?.id) return
@@ -40,7 +55,26 @@ export default function Memories() {
   }, [currentUser?.id])
 
   return (
-    <div style={{ padding: '24px 20px', maxWidth: 600, margin: '0 auto' }}>
+    <div style={{ padding: '24px 20px', maxWidth: 600, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>
+      {/* Back button */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => navigate(backTo)}
+          aria-label={`Back to ${backLabel}`}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
+            display: 'flex', alignItems: 'center', gap: 4, color: clr.indigo,
+            fontSize: 15, fontWeight: 700, fontFamily: 'inherit',
+          }}
+        >
+          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          <span>{backLabel}</span>
+        </button>
+      </div>
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>

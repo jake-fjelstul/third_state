@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { listProfiles } from '../lib/profiles'
 import { listCircles, listJoinedCircleMembers } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
@@ -421,6 +421,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
 
 export default function Circles() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion, blockedUserIds } = useAppContext()
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -550,16 +551,18 @@ export default function Circles() {
       </h1>
       <div style={{ padding: '16px 20px 0' }}>
         {/* ── Tabs ── */}
-        <div style={{ display: 'flex', gap: 16, borderBottom: `2px solid ${clr.border}`, marginBottom: 20, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', width: '100%', borderBottom: `2px solid ${clr.border}`, marginBottom: 20 }}>
           {[
             { id: 'circles', label: 'My Circles' },
             { id: 'connections', label: 'Connections' },
             { id: 'memories', label: 'Memories', to: '/memories' },
             { id: 'network', label: 'Network Graph' }
           ].map(tab => (
-            <button key={tab.id} onClick={() => tab.to ? navigate(tab.to) : setActiveTab(tab.id)} style={{
-              background: 'none', border: 'none', padding: '0 0 12px 0', cursor: 'pointer',
-              fontSize: 15, fontWeight: 700, position: 'relative', flexShrink: 0,
+            <button key={tab.id} onClick={() => tab.to ? navigate(tab.to, { state: { from: location.pathname + location.search } }) : setActiveTab(tab.id)} style={{
+              flex: 1, minWidth: 0, padding: '0 4px 12px 4px', textAlign: 'center',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 14, fontWeight: 700, position: 'relative',
               color: activeTab === tab.id ? clr.indigo : clr.textLight,
             }}>
               {tab.label}
