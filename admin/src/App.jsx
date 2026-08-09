@@ -5,17 +5,10 @@ import { Shell } from './components/Shell'
 import { Overview } from './pages/Overview'
 import { Growth } from './pages/Growth'
 import { Onboarding } from './pages/Onboarding'
-import { Panel } from './components/ui/Panel'
-
-function PlaceholderPage({ title }) {
-  return (
-    <Panel title={title.toUpperCase()}>
-      <div className="py-12 text-center">
-        <p className="font-body text-sm text-muted">Coming in the next pass.</p>
-      </div>
-    </Panel>
-  )
-}
+import { Circles } from './pages/Circles'
+import { Events } from './pages/Events'
+import { Connections } from './pages/Connections'
+import { Moderation } from './pages/Moderation'
 
 export function App() {
   const [period, setPeriod] = useState(30)
@@ -61,10 +54,44 @@ export function App() {
                 />
               }
             />
-            <Route path="/circles" element={<PlaceholderPage title="Circles" />} />
-            <Route path="/events" element={<PlaceholderPage title="Events" />} />
-            <Route path="/connections" element={<PlaceholderPage title="Connections" />} />
-            <Route path="/moderation" element={<PlaceholderPage title="Moderation" />} />
+            <Route
+              path="/circles"
+              element={
+                <Circles
+                  onRefresh={handleRefresh}
+                  key={`circles-${refreshTrigger}`}
+                />
+              }
+            />
+            <Route
+              path="/events"
+              element={
+                <Events
+                  period={period}
+                  onPeriodChange={setPeriod}
+                  onRefresh={handleRefresh}
+                  key={`events-${refreshTrigger}`}
+                />
+              }
+            />
+            <Route
+              path="/connections"
+              element={
+                <Connections
+                  onRefresh={handleRefresh}
+                  key={`connections-${refreshTrigger}`}
+                />
+              }
+            />
+            <Route
+              path="/moderation"
+              element={
+                <Moderation
+                  onRefresh={handleRefresh}
+                  key={`moderation-${refreshTrigger}`}
+                />
+              }
+            />
           </Routes>
         </Shell>
       </AuthGate>
