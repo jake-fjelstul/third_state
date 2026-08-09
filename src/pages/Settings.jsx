@@ -19,11 +19,12 @@ const clr = {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById } = useAppContext()
+  const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById, getDailyQuestion, dismissDailyQuestion } = useAppContext()
   const { isConnected: isCalendarConnected, isLoading: calendarLoading, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
   const [toastMessage, setToastMessage] = useState('')
   const [radiusDraft, setRadiusDraft] = useState(searchRadius)
   const [reconnectDraft, setReconnectDraft] = useState(reconnectThresholdDays)
+  const [dailyQuestionsEnabled, setDailyQuestionsEnabled] = useState(true)
 
   const [blockedUsers, setBlockedUsers] = useState([])
   const [loadingBlocks, setLoadingBlocks] = useState(false)
@@ -33,6 +34,30 @@ export default function Settings() {
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  useEffect(() => {
+    getDailyQuestion().then(dq => {
+      if (dq && typeof dq.enabled === 'boolean') {
+        setDailyQuestionsEnabled(dq.enabled)
+      }
+    }).catch(err => console.error('[Settings] getDailyQuestion failed', err))
+  }, [getDailyQuestion])
+
+  const toggleDailyQuestions = async () => {
+    const nextState = !dailyQuestionsEnabled
+    setDailyQuestionsEnabled(nextState)
+    try {
+      if (!nextState) {
+        await dismissDailyQuestion(true)
+      } else {
+        const { supabase } = await import('../lib/supabase')
+        await supabase.from('question_prefs').upsert({ user_id: currentUser.id, daily_enabled: true })
+      }
+    } catch (err) {
+      console.error('[Settings] toggle daily questions failed', err)
+      setDailyQuestionsEnabled(!nextState)
+    }
+  }
 
   const fetchBlockedUsers = useCallback(async () => {
     setLoadingBlocks(true)
@@ -365,6 +390,55 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                 <span style={{ fontSize: 12, color: clr.textLight, fontWeight: 600 }}>1 mi</span>
                 <span style={{ fontSize: 12, color: clr.textLight, fontWeight: 600 }}>100 mi</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Questions Block */}
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+              Questions
+            </h2>
+            <div style={{
+              backgroundColor: clr.white,
+              borderRadius: 20,
+              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                padding: '20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }} onClick={toggleDailyQuestions}>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Daily Connection Questions</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    Receive a shared daily prompt in your 1-on-1 chats
+                  </p>
+                </div>
+
+                <div style={{
+                  width: 50,
+                  height: 28,
+                  borderRadius: 999,
+                  backgroundColor: dailyQuestionsEnabled ? clr.indigo : clr.border,
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: dailyQuestionsEnabled ? 24 : 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
               </div>
             </div>
           </div>

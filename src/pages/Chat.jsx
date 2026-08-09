@@ -13,6 +13,9 @@ import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
 import PollComposer from '../components/chat/PollComposer.jsx'
 import PollMessageCard from '../components/chat/PollMessageCard.jsx'
 import CoffeeInviteMessageCard from '../components/chat/CoffeeInviteMessageCard.jsx'
+import QuestionPrompt from '../components/chat/QuestionPrompt.jsx'
+import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
+import AskQuestionComposer from '../components/chat/AskQuestionComposer.jsx'
  
 const clr = {
   bg:         'var(--bg)',
@@ -100,14 +103,23 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const [showGamePicker, setShowGamePicker] = useState(false)
   const [showSoloModal, setShowSoloModal] = useState(null)
   const [showPollComposer, setShowPollComposer] = useState(false)
+  const [showPlusPicker, setShowPlusPicker] = useState(false)
+  const [showQuestionComposer, setShowQuestionComposer] = useState(false)
   const [channels, setChannels] = useState([])
   const [channelsLoaded, setChannelsLoaded] = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
 
   const { name, avatar, online, isGroup } = normChat(chat)
-  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll } = useAppContext()
+  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll, syncQuestionReveals, askSpontaneousQuestion } = useAppContext()
   const bottomRef = useRef(null)
+
+  const isDm = chat.type === 'dm'
+
+  useEffect(() => {
+    if (!baseId || !isDm) return
+    syncQuestionReveals().catch(err => console.error('[ThreadView] syncQuestionReveals failed', err))
+  }, [baseId, isDm, syncQuestionReveals])
 
   useEffect(() => {
     if (!baseId) return
@@ -118,7 +130,6 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       .finally(() => setChannelsLoaded(true))
   }, [baseId])
 
-  const isDm = chat.type === 'dm'
   const activeChannelName = isDm ? null : (channelId || 'general')
 
   const resolvedChannelId = useMemo(() => {
@@ -286,69 +297,89 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
  
       {/* Messages */}
       <div style={{ flex:1, overflowY:'auto', padding:'20px 16px', display:'flex', flexDirection:'column', gap:10 }}>
-        {messages.map((msg, i) => {
-          const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
-          if (msg.kind === 'poll') {
+        {isDm && <QuestionPrompt clr={clr} chat={chat} messages={messages} />}
+        {messages.length === 0 && !msgsLoading ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center' }}>
+            <p style={{ fontSize: 15, color: clr.textMid, margin: 0 }}>Start the conversation</p>
+          </div>
+        ) : (
+          messages.map((msg, i) => {
+            const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
+            if (msg.kind === 'poll') {
+              return (
+                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && isGroup && (
+                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                  )}
+                  <PollMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
+                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
+            if (msg.kind === 'game') {
+              return (
+                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && isGroup && (
+                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                  )}
+                  <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
+            if (msg.kind === 'question') {
+              return (
+                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && isGroup && (
+                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                  )}
+                  <QuestionMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
+                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
+            if (msg.kind === 'coffee_invite' || msg.payload?.type === 'coffee_invite') {
+              return (
+                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && isGroup && (
+                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                  )}
+                  <CoffeeInviteMessageCard message={msg} viewerId={currentUser?.id} clr={clr} />
+                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
             return (
               <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                 {!isMe && isGroup && (
                   <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
                 )}
-                <PollMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
+                <div style={{
+                  maxWidth: '72%',
+                  padding: '11px 14px',
+                  borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                  backgroundColor: isMe ? clr.indigo : clr.indigoLt,
+                  color: isMe ? '#FFFFFF' : clr.textDark,
+                  fontSize: 14, lineHeight: 1.5,
+                  boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
+                }}>
+                  {msg.text}
+                </div>
                 <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
                   {msg.time ?? ''}
                 </span>
               </div>
             )
-          }
-          if (msg.kind === 'game') {
-            return (
-              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                {!isMe && isGroup && (
-                  <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
-                )}
-                <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
-                <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                  {msg.time ?? ''}
-                </span>
-              </div>
-            )
-          }
-          if (msg.kind === 'coffee_invite' || msg.payload?.type === 'coffee_invite') {
-            return (
-              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                {!isMe && isGroup && (
-                  <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
-                )}
-                <CoffeeInviteMessageCard message={msg} viewerId={currentUser?.id} clr={clr} />
-                <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                  {msg.time ?? ''}
-                </span>
-              </div>
-            )
-          }
-          return (
-            <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-              {!isMe && isGroup && (
-                <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
-              )}
-              <div style={{
-                maxWidth: '72%',
-                padding: '11px 14px',
-                borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                backgroundColor: isMe ? clr.indigo : clr.indigoLt,
-                color: isMe ? '#FFFFFF' : clr.textDark,
-                fontSize: 14, lineHeight: 1.5,
-                boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
-              }}>
-                {msg.text}
-              </div>
-              <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                {msg.time ?? ''}
-              </span>
-            </div>
-          )
-        })}
+          })
+        )}
         <div ref={bottomRef} />
       </div>
  
@@ -380,17 +411,65 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
           <div style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setShowGamePicker(true)}
+              onClick={() => setShowPlusPicker(prev => !prev)}
               style={{
                 width: 42, height: 42, borderRadius: '50%', border: `1.5px solid ${clr.border}`,
                 backgroundColor: clr.white,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', flexShrink: 0, fontSize: 18,
+                cursor: 'pointer', flexShrink: 0, fontSize: 22, lineHeight: 1,
+                color: clr.textMid, fontFamily: 'inherit',
               }}
-              aria-label="Start a game"
+              aria-label="Actions"
             >
-              🎮
+              +
             </button>
+
+            {showPlusPicker && (
+              <div style={{
+                position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 60,
+                width: 160, backgroundColor: clr.white, borderRadius: 16,
+                border: `1px solid ${clr.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                padding: 6, display: 'flex', flexDirection: 'column', gap: 4,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowPlusPicker(false); setShowPollComposer(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    borderRadius: 10, border: 'none', backgroundColor: 'transparent',
+                    color: clr.textDark, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    textAlign: 'left', fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>📊</span> Poll
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPlusPicker(false); setShowGamePicker(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    borderRadius: 10, border: 'none', backgroundColor: 'transparent',
+                    color: clr.textDark, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    textAlign: 'left', fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>🎮</span> Game
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPlusPicker(false); setShowQuestionComposer(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    borderRadius: 10, border: 'none', backgroundColor: 'transparent',
+                    color: clr.textDark, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    textAlign: 'left', fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>💬</span> Question
+                </button>
+              </div>
+            )}
+
             {showGamePicker && (
               <GamePicker
                 anchor="bottom-left"
@@ -456,6 +535,21 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
               allowMultiple,
             })
             setShowPollComposer(false)
+          }}
+        />
+      )}
+
+      {showQuestionComposer && (
+        <AskQuestionComposer
+          clr={clr}
+          onClose={() => setShowQuestionComposer(false)}
+          onSend={async ({ question, myAnswer }) => {
+            await askSpontaneousQuestion({
+              chatId: baseId || chat.id,
+              question,
+              myAnswer,
+            })
+            setShowQuestionComposer(false)
           }}
         />
       )}

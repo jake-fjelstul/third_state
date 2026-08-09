@@ -16,6 +16,7 @@ import ImageUploader from '../components/ui/ImageUploader.jsx'
 import PollComposer from '../components/chat/PollComposer.jsx'
 import PollMessageCard from '../components/chat/PollMessageCard.jsx'
 import GameMessageCard from '../components/games/GameMessageCard.jsx'
+import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
 import { createCircleInviteLink, buildCircleInviteMessage } from '../lib/invites.js'
 import QRCard from '../components/ui/QRCard.jsx'
 
@@ -1253,6 +1254,25 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
                     </div>
                   )}
                   <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                  <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
+                    {msg.time ?? ''}
+                  </span>
+                </div>
+              )
+            }
+
+            if (msg.kind === 'question') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
+                      {msg.senderAvatar && (
+                        <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                      )}
+                      <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                    </div>
+                  )}
+                  <QuestionMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
                   <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
                     {msg.time ?? ''}
                   </span>

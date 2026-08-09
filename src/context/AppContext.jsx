@@ -42,6 +42,15 @@ import { redeemInvite } from '../lib/invites'
 import { createChatGame, commitGameMove, resignGame } from '../lib/games'
 import { createPoll as createPollDb } from '../lib/polls'
 import { blockUser, unblockUser, listBlockedUserIds } from '../lib/moderation'
+import {
+  getDailyQuestion as getDailyQuestionDb,
+  answerDailyQuestion as answerDailyQuestionDb,
+  dismissDailyQuestion as dismissDailyQuestionDb,
+  syncQuestionReveals as syncQuestionRevealsDb,
+  getPendingQuestion as getPendingQuestionDb,
+  askSpontaneousQuestion as askSpontaneousQuestionDb,
+  answerSpontaneousQuestion as answerSpontaneousQuestionDb,
+} from '../lib/questions'
 
 const AppContext = createContext(null)
 
@@ -947,6 +956,34 @@ export function AppProvider({ children }) {
     return await resignGame(gameId)
   }, [])
 
+  const getDailyQuestion = useCallback(async () => {
+    return await getDailyQuestionDb()
+  }, [])
+
+  const answerDailyQuestion = useCallback(async (text) => {
+    return await answerDailyQuestionDb(text)
+  }, [])
+
+  const dismissDailyQuestion = useCallback(async (permanent) => {
+    return await dismissDailyQuestionDb(permanent)
+  }, [])
+
+  const syncQuestionReveals = useCallback(async () => {
+    return await syncQuestionRevealsDb()
+  }, [])
+
+  const getPendingQuestion = useCallback(async (chatId) => {
+    return await getPendingQuestionDb(chatId)
+  }, [])
+
+  const askSpontaneousQuestion = useCallback(async ({ chatId, question, myAnswer }) => {
+    return await askSpontaneousQuestionDb({ chatId, question, myAnswer })
+  }, [])
+
+  const answerSpontaneousQuestion = useCallback(async ({ id, text }) => {
+    return await answerSpontaneousQuestionDb({ id, text })
+  }, [])
+
   const value = useMemo(
     () => ({
       currentUser,
@@ -1012,9 +1049,16 @@ export function AppProvider({ children }) {
       forfeitGame,
       blockedUserIds,
       blockUserById,
-      unblockUserById
+      unblockUserById,
+      getDailyQuestion,
+      answerDailyQuestion,
+      dismissDailyQuestion,
+      syncQuestionReveals,
+      getPendingQuestion,
+      askSpontaneousQuestion,
+      answerSpontaneousQuestion,
     }),
-    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById, getDailyQuestion, answerDailyQuestion, dismissDailyQuestion, syncQuestionReveals, getPendingQuestion, askSpontaneousQuestion, answerSpontaneousQuestion],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
