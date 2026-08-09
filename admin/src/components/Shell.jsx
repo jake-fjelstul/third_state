@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   Activity,
   TrendingUp,
@@ -8,15 +8,12 @@ import {
   Calendar,
   Link2,
   Flag,
-  RotateCw,
   LogOut,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { PeriodToggle } from './ui/PeriodToggle'
 
-export function Shell({ children, period, onPeriodChange, onRefresh }) {
+export function Shell({ children }) {
   const [userEmail, setUserEmail] = useState('')
-  const location = useLocation()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -31,16 +28,14 @@ export function Shell({ children, period, onPeriodChange, onRefresh }) {
   }
 
   const navItems = [
-    { path: '/', label: 'Overview', icon: Activity, title: 'Overview' },
-    { path: '/growth', label: 'Growth', icon: TrendingUp, title: 'Growth' },
-    { path: '/onboarding', label: 'Onboarding', icon: UserPlus, title: 'Onboarding' },
-    { path: '/circles', label: 'Circles', icon: Users, title: 'Circles' },
-    { path: '/events', label: 'Events', icon: Calendar, title: 'Events' },
-    { path: '/connections', label: 'Connections', icon: Link2, title: 'Connections' },
-    { path: '/moderation', label: 'Moderation', icon: Flag, title: 'Moderation' },
+    { path: '/', label: 'Overview', icon: Activity },
+    { path: '/growth', label: 'Growth', icon: TrendingUp },
+    { path: '/onboarding', label: 'Onboarding', icon: UserPlus },
+    { path: '/circles', label: 'Circles', icon: Users },
+    { path: '/events', label: 'Events', icon: Calendar },
+    { path: '/connections', label: 'Connections', icon: Link2 },
+    { path: '/moderation', label: 'Moderation', icon: Flag },
   ]
-
-  const currentNav = navItems.find((item) => item.path === location.pathname) || navItems[0]
 
   return (
     <div className="min-h-screen bg-ink flex">
@@ -112,31 +107,7 @@ export function Shell({ children, period, onPeriodChange, onRefresh }) {
 
       {/* Main Content Column */}
       <main className="flex-1 ml-[64px] min-[900px]:ml-[220px] min-h-screen p-6 min-[900px]:p-8 max-w-[1400px]">
-        {/* Sticky Page Header */}
-        <header className="sticky top-0 z-20 bg-ink/80 backdrop-blur-md pb-6 pt-2 mb-6 flex items-center justify-between border-b border-line/40">
-          <h1 className="font-display font-bold text-22px md:text-[22px] text-text">
-            {currentNav.title}
-          </h1>
-
-          <div className="flex items-center gap-3">
-            {onPeriodChange && (
-              <PeriodToggle value={period} onChange={onPeriodChange} />
-            )}
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                className="p-2 bg-panel border border-line rounded-lg text-muted hover:text-text hover:bg-raised transition-colors"
-                title="Refresh page data"
-              >
-                <RotateCw className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Page Body */}
-        <div>{children}</div>
+        {children}
       </main>
     </div>
   )

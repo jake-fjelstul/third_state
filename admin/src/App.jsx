@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthGate } from './components/AuthGate'
 import { Shell } from './components/Shell'
 import { Overview } from './pages/Overview'
+import { Growth } from './pages/Growth'
+import { Onboarding } from './pages/Onboarding'
 import { Panel } from './components/ui/Panel'
 
 function PlaceholderPage({ title }) {
@@ -26,11 +28,39 @@ export function App() {
   return (
     <BrowserRouter>
       <AuthGate>
-        <Shell period={period} onPeriodChange={setPeriod} onRefresh={handleRefresh}>
+        <Shell>
           <Routes>
-            <Route path="/" element={<Overview period={period} refreshTrigger={refreshTrigger} />} />
-            <Route path="/growth" element={<PlaceholderPage title="Growth" />} />
-            <Route path="/onboarding" element={<PlaceholderPage title="Onboarding" />} />
+            <Route
+              path="/"
+              element={
+                <Overview
+                  period={period}
+                  onPeriodChange={setPeriod}
+                  onRefresh={handleRefresh}
+                  key={`overview-${refreshTrigger}`}
+                />
+              }
+            />
+            <Route
+              path="/growth"
+              element={
+                <Growth
+                  period={period}
+                  onPeriodChange={setPeriod}
+                  onRefresh={handleRefresh}
+                  key={`growth-${refreshTrigger}`}
+                />
+              }
+            />
+            <Route
+              path="/onboarding"
+              element={
+                <Onboarding
+                  onRefresh={handleRefresh}
+                  key={`onboarding-${refreshTrigger}`}
+                />
+              }
+            />
             <Route path="/circles" element={<PlaceholderPage title="Circles" />} />
             <Route path="/events" element={<PlaceholderPage title="Events" />} />
             <Route path="/connections" element={<PlaceholderPage title="Connections" />} />
