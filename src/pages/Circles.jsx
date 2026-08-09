@@ -425,7 +425,7 @@ export default function Circles() {
   const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion, blockedUserIds } = useAppContext()
 
   const [searchParams, setSearchParams] = useSearchParams()
-  const validTabs = ['circles', 'connections', 'network']
+  const validTabs = ['circles', 'connections', 'memories', 'network']
   const tabFromUrl = searchParams.get('tab')
   const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'circles'
   const setActiveTab = (tab) => setSearchParams({ tab }, { replace: true })
@@ -549,18 +549,18 @@ export default function Circles() {
       <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, padding: '16px 20px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif", textAlign: 'center' }}>
         Circles
       </h1>
-      <div style={{ padding: '16px 20px 0' }}>
+      <div style={{ padding: '16px 16px 0' }}>
         {/* ── Tabs ── */}
-        <div style={{ display: 'flex', width: '100%', borderBottom: `2px solid ${clr.border}`, marginBottom: 20 }}>
+        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', borderBottom: `2px solid ${clr.border}`, marginBottom: 20, gap: 0 }}>
           {[
-            { id: 'circles', label: 'My Circles' },
+            { id: 'circles',     label: 'Circles' },
             { id: 'connections', label: 'Connections' },
-            { id: 'memories', label: 'Memories', to: '/memories' },
-            { id: 'network', label: 'Network Graph' }
+            { id: 'memories',    label: 'Memories' },
+            { id: 'network',     label: 'Network' }
           ].map(tab => (
-            <button key={tab.id} onClick={() => tab.to ? navigate(tab.to, { state: { from: location.pathname + location.search } }) : setActiveTab(tab.id)} style={{
-              flex: 1, minWidth: 0, padding: '0 4px 12px 4px', textAlign: 'center',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+              padding: '0 0 12px 0', textAlign: 'center',
+              whiteSpace: 'nowrap',
               background: 'none', border: 'none', cursor: 'pointer',
               fontSize: 14, fontWeight: 700, position: 'relative',
               color: activeTab === tab.id ? clr.indigo : clr.textLight,
