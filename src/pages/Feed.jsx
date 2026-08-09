@@ -1145,7 +1145,7 @@ function SocialBattery() {
               {batteryPoints < 35
                 ? '💡 Join a circle or attend an event to charge up'
                 : batteryPoints < 60
-                  ? '💡 Send a message or RSVP to boost your battery'
+                  ? '💡 Send a message or join a circle to boost your battery'
                   : '✨ Great work — keep socializing!'}
             </p>
           </div>

@@ -434,6 +434,32 @@ export function AppProvider({ children }) {
     return () => { supabase.removeChannel(sub) }
   }, [session?.user?.id])
 
+  // Global realtime subscription for user profile changes (e.g. battery updates, settings)
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const sub = supabase
+      .channel(`my-profile-changes:${session.user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${session.user.id}`,
+        },
+        (payload) => {
+          const profile = payload.new
+          if (!profile) return
+          if (typeof profile.battery_points === 'number') setBatteryPoints(profile.battery_points)
+          if (typeof profile.reconnect_threshold_days === 'number') setReconnectThresholdDays(profile.reconnect_threshold_days)
+          if (typeof profile.search_radius === 'number') setSearchRadius(profile.search_radius)
+          if (typeof profile.theme === 'string') setTheme(profile.theme)
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(sub) }
+  }, [session?.user?.id])
+
   // Restore local-only UI state from localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -457,8 +483,7 @@ export function AppProvider({ children }) {
   }, [discoverySwipes])
 
   const chargeBattery = useCallback(async (points, reason) => {
-    const optimistic = Math.max(0, Math.min(100, (batteryPoints || 0) + points))
-    setBatteryPoints(optimistic)
+    setBatteryPoints(prev => Math.max(0, Math.min(100, (prev || 0) + points)))
     try {
       const { data, error } = await supabase.rpc('adjust_battery', { p_points: points, p_reason: reason || null })
       if (error) throw error
@@ -469,22 +494,32 @@ export function AppProvider({ children }) {
       await refreshProfile().catch(() => {})
       throw err
     }
-  }, [batteryPoints, refreshProfile])
+  }, [refreshProfile])
 
-  // Inactivity drain (once per session load)
+  // Inactivity drain (once per session load, using accurate timestamps)
   useEffect(() => {
     if (!currentUser?.id) return
     const today = new Date().toDateString()
-    const lastDate = window.localStorage.getItem('ts_last_active')
-    if (lastDate && lastDate !== today) {
-      const last = new Date(lastDate)
-      const now = new Date()
-      const days = Math.floor((now - last) / (1000 * 60 * 60 * 24))
-      if (days > 0) {
-        const drain = Math.min(days * 8, 40)
-        chargeBattery(-drain, `${days} day${days > 1 ? 's' : ''} inactive`).catch(() => {})
+    const now = Date.now()
+    const rawLast = window.localStorage.getItem('ts_last_active_at') || window.localStorage.getItem('ts_last_active')
+
+    if (rawLast) {
+      const lastTime = new Date(rawLast).getTime()
+      if (!isNaN(lastTime)) {
+        const diffMs = now - lastTime
+        // Only drain if at least 24 full hours (86,400,000 ms) have passed since last activity
+        if (diffMs >= 24 * 60 * 60 * 1000) {
+          const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+          if (days > 0) {
+            const drain = Math.min(days * 8, 40)
+            chargeBattery(-drain, `${days} day${days > 1 ? 's' : ''} inactive`).catch(() => {})
+          }
+        }
       }
     }
+
+    const isoNow = new Date().toISOString()
+    window.localStorage.setItem('ts_last_active_at', isoNow)
     window.localStorage.setItem('ts_last_active', today)
     setLastActiveDate(today)
   }, [chargeBattery, currentUser?.id])
@@ -704,10 +739,10 @@ export function AppProvider({ children }) {
     if (!session?.user || !chatId || !text?.trim()) return
     // daily-throttled battery reward
     const today = new Date().toDateString()
-    const dmKey = `ts_msg_${chatId}_${today}`
-    if (typeof window !== 'undefined' && !window.sessionStorage.getItem(dmKey)) {
+    const msgKey = `ts_last_msg_reward_${session.user.id}_${today}`
+    if (typeof window !== 'undefined' && !window.localStorage.getItem(msgKey)) {
       chargeBattery(5, 'Sent a message')
-      window.sessionStorage.setItem(dmKey, '1')
+      window.localStorage.setItem(msgKey, '1')
     }
 
     // optimistically bump preview locally; realtime will reconcile
