@@ -31,7 +31,8 @@ export async function syncQuestionReveals() {
 
 export async function getPendingQuestion(chatId) {
   if (!chatId) return null
-  const { data, error } = await supabase.rpc('get_pending_question_for_chat', { p_chat_id: chatId })
+  const cleanId = String(chatId).split('---')[0]
+  const { data, error } = await supabase.rpc('get_pending_question_for_chat', { p_chat_id: cleanId })
   if (error) throw error
   const row = data?.[0]
   if (!row) return null
@@ -41,6 +42,9 @@ export async function getPendingQuestion(chatId) {
     askerId: row.asker_id,
     askerName: row.asker_name,
     askerAvatar: row.asker_avatar || '',
+    recipientId: row.recipient_id,
+    recipientName: row.recipient_name,
+    recipientAvatar: row.recipient_avatar || '',
     questionText: row.question_text,
     status: row.status,
     expiresAt: row.expires_at,
@@ -49,8 +53,9 @@ export async function getPendingQuestion(chatId) {
 }
 
 export async function askSpontaneousQuestion({ chatId, question, myAnswer }) {
+  const cleanId = String(chatId).split('---')[0]
   const { data, error } = await supabase.rpc('ask_spontaneous_question', {
-    p_chat_id: chatId,
+    p_chat_id: cleanId,
     p_question: question,
     p_my_answer: myAnswer,
   })
@@ -63,5 +68,10 @@ export async function answerSpontaneousQuestion({ id, text }) {
     p_id: id,
     p_text: text,
   })
+  if (error) throw error
+}
+
+export async function cancelSpontaneousQuestion(id) {
+  const { error } = await supabase.rpc('cancel_spontaneous_question', { p_id: id })
   if (error) throw error
 }

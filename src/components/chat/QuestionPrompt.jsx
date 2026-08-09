@@ -8,6 +8,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
     dismissDailyQuestion,
     getPendingQuestion,
     answerSpontaneousQuestion,
+    cancelSpontaneousQuestion,
     currentUser,
   } = useAppContext()
 
@@ -15,6 +16,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
   const [pendingSq, setPendingSq] = useState(null)
   const [text, setText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const dropdownRef = useRef(null)
@@ -30,13 +32,14 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
 
   useEffect(() => {
     let cancelled = false
-    if (!isDm || !chat?.id) return
+    const cleanChatId = (chat?.id || '').split('---')[0]
+    if (!isDm || !cleanChatId) return
 
     // Fetch pending spontaneous question first
-    getPendingQuestion(chat.id)
+    getPendingQuestion(cleanChatId)
       .then(sq => {
-        if (!cancelled && sq) {
-          setPendingSq(sq)
+        if (!cancelled) {
+          setPendingSq(sq || null)
         }
       })
       .catch(err => console.error('[QuestionPrompt] getPendingQuestion error', err))
@@ -73,9 +76,11 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
   if (dismissed) return null
   if (!isDm) return null
 
-  // Spontaneous question takes priority if present for recipient
-  const activeSq = pendingSq && pendingSq.askerId !== currentUser?.id
-  const activeDaily = !activeSq && (
+  // Spontaneous question state
+  const isMyAskerSq = pendingSq && pendingSq.askerId === currentUser?.id
+  const isRecipientSq = pendingSq && pendingSq.askerId !== currentUser?.id
+
+  const activeDaily = !isRecipientSq && !isMyAskerSq && (
     dailyQ &&
     dailyQ.enabled &&
     !dailyQ.alreadyAnswered &&
@@ -83,11 +88,75 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
     hasMessageFromEach()
   )
 
-  if (!activeSq && !activeDaily) return null
+  if (!isRecipientSq && !isMyAskerSq && !activeDaily) return null
 
-  const questionText = activeSq ? activeSq.questionText : dailyQ?.questionText
-  const badgeLabel = activeSq
-    ? `Question from ${activeSq.askerName || 'Connection'}`
+  // Asker view for pending spontaneous question
+  if (isMyAskerSq) {
+    const handleCancel = async () => {
+      if (cancelling) return
+      setCancelling(true)
+      try {
+        await cancelSpontaneousQuestion(pendingSq.id)
+        setPendingSq(null)
+      } catch (err) {
+        console.error('[QuestionPrompt] cancel question failed', err)
+      } finally {
+        setCancelling(false)
+      }
+    }
+
+    return (
+      <div style={{
+        margin: '0 0 12px 0',
+        padding: '14px 16px',
+        borderRadius: 16,
+        backgroundColor: clr?.white || '#FFFFFF',
+        border: `1.5px solid ${clr?.border || '#E5E7EB'}`,
+        boxShadow: '0 4px 16px rgba(91,95,239,0.08)',
+        animation: 'slideDown 0.25s ease',
+        position: 'relative',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
+            color: clr?.indigo || '#5B5FEF', backgroundColor: 'var(--indigoLt, #EEF0FF)',
+            padding: '3px 8px', borderRadius: 8,
+          }}>
+            💡 Question pending for {pendingSq.recipientName || 'Connection'}
+          </span>
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={cancelling}
+            style={{
+              fontSize: 12, fontWeight: 600, color: '#DC2626',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px',
+            }}
+          >
+            {cancelling ? 'Cancelling…' : 'Cancel Question'}
+          </button>
+        </div>
+
+        <p style={{
+          margin: '0 0 4px 0', fontSize: 14, fontWeight: 700, color: clr?.textDark || '#1F2937',
+          lineHeight: 1.4,
+        }}>
+          "{pendingSq.questionText}"
+        </p>
+
+        <p style={{
+          margin: 0, fontSize: 12, color: clr?.textMid || '#6B7280',
+        }}>
+          Waiting for {pendingSq.recipientName || 'Connection'} to answer. Both answers will reveal once answered.
+        </p>
+      </div>
+    )
+  }
+
+  // Recipient view or Daily Question view
+  const questionText = isRecipientSq ? pendingSq.questionText : dailyQ?.questionText
+  const badgeLabel = isRecipientSq
+    ? `Question from ${pendingSq.askerName || 'Connection'}`
     : 'Question of the Day'
 
   const handleSubmit = async (e) => {
@@ -96,8 +165,8 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
     setSubmitting(true)
 
     try {
-      if (activeSq) {
-        await answerSpontaneousQuestion({ id: activeSq.id, text: text.trim() })
+      if (isRecipientSq) {
+        await answerSpontaneousQuestion({ id: pendingSq.id, text: text.trim() })
         setPendingSq(null)
       } else {
         await answerDailyQuestion(text.trim())
@@ -184,55 +253,59 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
             {submitting ? 'Sending…' : 'Send'}
           </button>
 
-          {/* Chevron Dropdown button */}
-          <button
-            type="button"
-            onClick={() => setDropdownOpen(prev => !prev)}
-            style={{
-              width: 32, height: 32, borderRadius: '50%', border: `1px solid ${clr?.border || '#E5E7EB'}`,
-              backgroundColor: clr?.bg || '#F9FAFB', color: clr?.textMid || '#6B7280',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', fontFamily: 'inherit', padding: 0,
-            }}
-            aria-label="Options"
-          >
-            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </button>
+          {!isRecipientSq && (
+            <>
+              {/* Chevron Dropdown button */}
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(prev => !prev)}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%', border: `1px solid ${clr?.border || '#E5E7EB'}`,
+                  backgroundColor: clr?.bg || '#F9FAFB', color: clr?.textMid || '#6B7280',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+                }}
+                aria-label="Options"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </button>
 
-          {/* Dropdown Menu */}
-          {dropdownOpen && (
-            <div style={{
-              position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
-              minWidth: 180, backgroundColor: clr?.white || '#FFFFFF',
-              border: `1px solid ${clr?.border || '#E5E7EB'}`,
-              borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-              overflow: 'hidden', padding: '4px 0',
-            }}>
-              <button
-                type="button"
-                onClick={() => handleDismiss(false)}
-                style={{
-                  width: '100%', padding: '10px 14px', border: 'none', background: 'none',
-                  textAlign: 'left', fontSize: 13, fontWeight: 600, color: clr?.textDark || '#1F2937',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                Not today
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDismiss(true)}
-                style={{
-                  width: '100%', padding: '10px 14px', border: 'none', background: 'none',
-                  textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#DC2626',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                Turn off daily questions
-              </button>
-            </div>
+              {/* Dropdown Menu */}
+              {dropdownOpen && (
+                <div style={{
+                  position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
+                  minWidth: 180, backgroundColor: clr?.white || '#FFFFFF',
+                  border: `1px solid ${clr?.border || '#E5E7EB'}`,
+                  borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                  overflow: 'hidden', padding: '4px 0',
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => handleDismiss(false)}
+                    style={{
+                      width: '100%', padding: '10px 14px', border: 'none', background: 'none',
+                      textAlign: 'left', fontSize: 13, fontWeight: 600, color: clr?.textDark || '#1F2937',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    Not today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDismiss(true)}
+                    style={{
+                      width: '100%', padding: '10px 14px', border: 'none', background: 'none',
+                      textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#DC2626',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    Turn off daily questions
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </form>
