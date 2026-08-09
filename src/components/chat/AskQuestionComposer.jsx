@@ -24,11 +24,12 @@ function getRandomPrompt(current) {
   return filtered[Math.floor(Math.random() * filtered.length)]
 }
 
-export default function AskQuestionComposer({ clr, onClose, onSend }) {
+export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, onCancelPending }) {
   const [question, setQuestion] = useState(() => getRandomPrompt())
   const [isCustom, setIsCustom] = useState(false)
   const [myAnswer, setMyAnswer] = useState('')
   const [busy, setBusy] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState('')
 
   const valid = question.trim().length > 0 && myAnswer.trim().length > 0
@@ -46,11 +47,27 @@ export default function AskQuestionComposer({ clr, onClose, onSend }) {
     }
   }
 
+  const handleCancelPendingClick = async () => {
+    if (!onCancelPending || cancelling) return
+    setCancelling(true)
+    try {
+      await onCancelPending(pendingSq.id)
+    } catch (err) {
+      setError(err?.message || 'Could not cancel question')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   const submit = async () => {
     if (!valid || busy) return
     setBusy(true)
     setError('')
     try {
+      // If a pending question exists, cancel it first before sending the new one
+      if (pendingSq && onCancelPending) {
+        await onCancelPending(pendingSq.id)
+      }
       await onSend({ question: question.trim(), myAnswer: myAnswer.trim() })
     } catch (err) {
       setError(err?.message || 'Could not send question')
@@ -87,6 +104,35 @@ export default function AskQuestionComposer({ clr, onClose, onSend }) {
         <p style={{ margin: '0 0 14px', fontSize: 12, color: clr?.textMid || '#6B7280' }}>
           Answers are hidden until both of you reply.
         </p>
+
+        {pendingSq && (
+          <div style={{
+            margin: '0 0 14px', padding: '10px 12px', borderRadius: 12,
+            backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+          }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase' }}>
+                Pending question active
+              </div>
+              <div style={{ fontSize: 12, color: '#7F1D1D', marginTop: 2 }} className="truncate">
+                "{pendingSq.questionText}"
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelPendingClick}
+              disabled={cancelling}
+              style={{
+                fontSize: 11, fontWeight: 700, color: '#DC2626', backgroundColor: '#FFFFFF',
+                border: '1px solid #FCA5A5', borderRadius: 6, padding: '4px 8px',
+                cursor: 'pointer', shrink: 0, whiteSpace: 'nowrap',
+              }}
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel & Replace'}
+            </button>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <label style={{ fontSize: 11, fontWeight: 700, color: clr?.textMid || '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

@@ -111,7 +111,8 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const [newChannelName, setNewChannelName] = useState('')
 
   const { name, avatar, online, isGroup } = normChat(chat)
-  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll, syncQuestionReveals, askSpontaneousQuestion } = useAppContext()
+  const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll, syncQuestionReveals, askSpontaneousQuestion, getPendingQuestion, cancelSpontaneousQuestion } = useAppContext()
+  const [pendingSq, setPendingSq] = useState(null)
   const bottomRef = useRef(null)
 
   const isDm = chat.type === 'dm'
@@ -119,7 +120,10 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   useEffect(() => {
     if (!baseId || !isDm) return
     syncQuestionReveals().catch(err => console.error('[ThreadView] syncQuestionReveals failed', err))
-  }, [baseId, isDm, syncQuestionReveals])
+    getPendingQuestion(baseId)
+      .then(setPendingSq)
+      .catch(err => console.error('[ThreadView] getPendingQuestion error', err))
+  }, [baseId, isDm, syncQuestionReveals, getPendingQuestion])
 
   useEffect(() => {
     if (!baseId) return
@@ -295,9 +299,11 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
         </div>
       )}
  
+      {/* Floating Question Prompt beneath Header */}
+      {isDm && <QuestionPrompt clr={clr} chat={chat} messages={messages} />}
+
       {/* Messages */}
-      <div style={{ flex:1, overflowY:'auto', padding:'20px 16px', display:'flex', flexDirection:'column', gap:10 }}>
-        {isDm && <QuestionPrompt clr={clr} chat={chat} messages={messages} />}
+      <div style={{ flex:1, overflowY:'auto', padding:'12px 16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
         {messages.length === 0 && !msgsLoading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center' }}>
             <p style={{ fontSize: 15, color: clr.textMid, margin: 0 }}>Start the conversation</p>
@@ -467,6 +473,28 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                 >
                   <span style={{ fontSize: 16 }}>💬</span> Question
                 </button>
+                {pendingSq && pendingSq.askerId === currentUser?.id && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setShowPlusPicker(false)
+                      try {
+                        await cancelSpontaneousQuestion(pendingSq.id)
+                        setPendingSq(null)
+                      } catch (err) {
+                        console.error('Failed to cancel question', err)
+                      }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                      borderRadius: 10, border: 'none', backgroundColor: 'transparent',
+                      color: '#DC2626', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      textAlign: 'left', fontFamily: 'inherit',
+                    }}
+                  >
+                    <span style={{ fontSize: 16 }}>❓</span> Cancel Question
+                  </button>
+                )}
               </div>
             )}
 
@@ -542,6 +570,11 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       {showQuestionComposer && (
         <AskQuestionComposer
           clr={clr}
+          pendingSq={pendingSq}
+          onCancelPending={async (id) => {
+            await cancelSpontaneousQuestion(id)
+            setPendingSq(null)
+          }}
           onClose={() => setShowQuestionComposer(false)}
           onSend={async ({ question, myAnswer }) => {
             await askSpontaneousQuestion({
@@ -550,6 +583,8 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
               myAnswer,
             })
             setShowQuestionComposer(false)
+            const updated = await getPendingQuestion(baseId || chat.id)
+            setPendingSq(updated || null)
           }}
         />
       )}

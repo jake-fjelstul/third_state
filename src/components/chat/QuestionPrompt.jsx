@@ -54,7 +54,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
       .catch(err => console.error('[QuestionPrompt] getDailyQuestion error', err))
 
     return () => { cancelled = true }
-  }, [chat?.id, isDm, getDailyQuestion, getPendingQuestion])
+  }, [chat?.id, isDm, messages.length, getDailyQuestion, getPendingQuestion])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -90,6 +90,19 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
 
   if (!isRecipientSq && !isMyAskerSq && !activeDaily) return null
 
+  const cardStyle = {
+    margin: '10px 16px 4px',
+    padding: '14px 16px',
+    borderRadius: 16,
+    backgroundColor: clr?.white || '#FFFFFF',
+    border: `1.5px solid ${clr?.border || '#E5E7EB'}`,
+    boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+    flexShrink: 0,
+    zIndex: 15,
+    animation: 'slideDown 0.25s ease',
+    position: 'relative',
+  }
+
   // Asker view for pending spontaneous question
   if (isMyAskerSq) {
     const handleCancel = async () => {
@@ -106,16 +119,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
     }
 
     return (
-      <div style={{
-        margin: '0 0 12px 0',
-        padding: '14px 16px',
-        borderRadius: 16,
-        backgroundColor: clr?.white || '#FFFFFF',
-        border: `1.5px solid ${clr?.border || '#E5E7EB'}`,
-        boxShadow: '0 4px 16px rgba(91,95,239,0.08)',
-        animation: 'slideDown 0.25s ease',
-        position: 'relative',
-      }}>
+      <div style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
@@ -191,16 +195,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
   }
 
   return (
-    <div style={{
-      margin: '0 0 12px 0',
-      padding: '14px 16px',
-      borderRadius: 16,
-      backgroundColor: clr?.white || '#FFFFFF',
-      border: `1.5px solid ${clr?.border || '#E5E7EB'}`,
-      boxShadow: '0 4px 16px rgba(91,95,239,0.08)',
-      animation: 'slideDown 0.25s ease',
-      position: 'relative',
-    }}>
+    <div style={cardStyle}>
       {/* Top row: Badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <span style={{
