@@ -798,6 +798,9 @@ export function AppProvider({ children }) {
   const resetDiscoverySwipes = useCallback(() => {
     const today = new Date().toDateString()
     setDiscoverySwipes({ date: today, person: 0, circle: 0, event: 0 })
+    import('@capacitor/preferences').then(({ Preferences }) => {
+      Preferences.remove({ key: 'ts.discovery.passed' }).catch(() => {})
+    }).catch(() => {})
   }, [])
 
   // ---------- Connection Request Flow ----------

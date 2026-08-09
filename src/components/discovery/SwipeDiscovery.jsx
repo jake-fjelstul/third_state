@@ -19,6 +19,10 @@ const clr = {
   border:   'var(--border)',
 }
 
+// Note: Using client-side storage (@capacitor/preferences) for passes as a lightweight solution.
+// A server-side passes table would be the long-term solution to sync across devices/reinstalls.
+const PASSED_STORAGE_KEY = 'ts.discovery.passed'
+
 function scoreCard(card, currentUser) {
   let score = 0
   let reason = ''
@@ -173,12 +177,15 @@ function DiscoveryCard({ card }) {
 }
 
 export default function SwipeDiscovery({ onClose }) {
-  const { joinCircle, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser, connections, joinedCircles, isRsvpd, blockedUserIds } = useAppContext()
+  const { joinCircle, rsvpEvent, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser, connections, joinedCircles, isRsvpd, blockedUserIds } = useAppContext()
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events'])
   const [cardIndex, setCardIndex] = useState(0)
   
   const [dragX, setDragX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [actionPending, setActionPending] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  const [passedCards, setPassedCards] = useState({ person: [], circle: [], event: [] })
   
   const [showMessageDraft, setShowMessageDraft] = useState(false)
   const [draftMessage, setDraftMessage] = useState('')
@@ -196,6 +203,25 @@ export default function SwipeDiscovery({ onClose }) {
 
   useEffect(() => {
     let cancelled = false
+    import('@capacitor/preferences').then(({ Preferences }) => {
+      Preferences.get({ key: PASSED_STORAGE_KEY }).then(({ value }) => {
+        if (!cancelled && value) {
+          try {
+            const parsed = JSON.parse(value)
+            setPassedCards({
+              person: Array.isArray(parsed?.person) ? parsed.person : [],
+              circle: Array.isArray(parsed?.circle) ? parsed.circle : [],
+              event: Array.isArray(parsed?.event) ? parsed.event : [],
+            })
+          } catch {}
+        }
+      }).catch(() => {})
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
     Promise.all([listProfiles(), listCircles(), listUpcomingEvents({ limit: 50 })])
       .then(([ppl, crc, evts]) => {
         if (!cancelled) {
@@ -207,6 +233,11 @@ export default function SwipeDiscovery({ onClose }) {
       .catch(err => console.error('[SwipeDiscovery] load failed', err))
     return () => { cancelled = true }
   }, [])
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(''), 3000)
+  }
 
   const toggleFilter = (f) => {
     setActiveFilters(prev => {
@@ -239,6 +270,7 @@ export default function SwipeDiscovery({ onClose }) {
             if (p.id === currentUser?.id) return false
             if (connections.some(c => c.id === p.id)) return false
             if (blockedUserIds?.includes(p.id)) return false
+            if (passedCards.person?.includes(p.id)) return false
             const dist = personDistanceTo(p)
             return dist == null || dist <= searchRadius
           })
@@ -253,7 +285,7 @@ export default function SwipeDiscovery({ onClose }) {
       const allowed = Math.max(0, 5 - (swipes.circle || 0))
       if (allowed > 0) {
         const candidates = circles
-          .filter(c => !joinedCircles.includes(c.id) && getMockDist(c.id) <= searchRadius)
+          .filter(c => !joinedCircles.includes(c.id) && !passedCards.circle?.includes(c.id) && getMockDist(c.id) <= searchRadius)
           .map(c => scoreCard({ type: 'circle', data: c, distance: getMockDist(c.id) }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
           .slice(0, allowed)
@@ -265,7 +297,7 @@ export default function SwipeDiscovery({ onClose }) {
       const allowed = Math.max(0, 5 - (swipes.event || 0))
       if (allowed > 0) {
         const candidates = events
-          .filter(e => !isRsvpd(e.id) && getMockDist(e.id) <= searchRadius)
+          .filter(e => !isRsvpd(e.id) && !passedCards.event?.includes(e.id) && getMockDist(e.id) <= searchRadius)
           .map(e => scoreCard({ type: 'event', data: e, distance: getMockDist(e.id) }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
           .slice(0, allowed)
@@ -275,7 +307,7 @@ export default function SwipeDiscovery({ onClose }) {
 
     return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius, circles, people, events, currentUser, blockedUserIds])
+  }, [activeFilters, searchRadius, circles, people, events, currentUser, blockedUserIds, passedCards])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]
@@ -284,40 +316,79 @@ export default function SwipeDiscovery({ onClose }) {
     setCardIndex(i => i + 1)
   }
 
-  const handleSwipeRight = () => {
-    if (!currentCard) return
-    recordSwipe(currentCard.type)
-    if (currentCard.type === 'circle') {
-      joinCircle(currentCard.data.id)
-      advanceCard()
-    } else if (currentCard.type === 'event') {
-      advanceCard()
-    } else if (currentCard.type === 'person') {
-      setCurrentMatchCard(currentCard)
-      setDraftMessage(`Hey ${currentCard.data.name.split(' ')[0]}! I'd love to connect 👋`)
-      setShowMessageDraft(true)
+  const handleSwipeRight = async () => {
+    if (!currentCard || actionPending) return
+    setActionPending(true)
+
+    try {
+      if (currentCard.type === 'circle') {
+        await joinCircle(currentCard.data.id)
+        recordSwipe(currentCard.type)
+        triggerToast(`Joined ${currentCard.data.name}`)
+        advanceCard()
+      } else if (currentCard.type === 'event') {
+        await rsvpEvent(currentCard.data)
+        recordSwipe(currentCard.type)
+        triggerToast(`You're going to ${currentCard.data.title}`)
+        advanceCard()
+      } else if (currentCard.type === 'person') {
+        setCurrentMatchCard(currentCard)
+        setDraftMessage(`Hey ${currentCard.data.name.split(' ')[0]}! I'd love to connect 👋`)
+        setShowMessageDraft(true)
+      }
+    } catch (err) {
+      console.error('[SwipeDiscovery] handleSwipeRight failed', err)
+      triggerToast(err?.message || 'Action failed')
+    } finally {
+      setActionPending(false)
     }
   }
 
-  const handleSwipeLeft = () => {
-    if (!currentCard) return
+  const handleSwipeLeft = async () => {
+    if (!currentCard || actionPending) return
     recordSwipe(currentCard.type)
+
+    const cardType = currentCard.type
+    const cardId = currentCard.data.id
+
+    setPassedCards(prev => {
+      const existing = prev[cardType] || []
+      if (existing.includes(cardId)) return prev
+      const updated = [...existing, cardId].slice(-500)
+      const nextState = { ...prev, [cardType]: updated }
+
+      import('@capacitor/preferences').then(({ Preferences }) => {
+        Preferences.set({
+          key: PASSED_STORAGE_KEY,
+          value: JSON.stringify(nextState),
+        }).catch(() => {})
+      }).catch(() => {})
+
+      return nextState
+    })
+
     advanceCard()
   }
 
   const handleDragStart = (e) => {
+    if (actionPending) return
     setIsDragging(true)
     dragStartX.current = e.clientX
     cardRef.current?.setPointerCapture(e.pointerId)
   }
 
   const handleDragMove = (e) => {
-    if (!isDragging) return
+    if (!isDragging || actionPending) return
     setDragX(e.clientX - dragStartX.current)
   }
 
   const handleDragEnd = () => {
+    if (!isDragging) return
     setIsDragging(false)
+    if (actionPending) {
+      setDragX(0)
+      return
+    }
     const threshold = 100
     if (dragX > threshold) {
       setDragX(500)
@@ -337,12 +408,9 @@ export default function SwipeDiscovery({ onClose }) {
   }
 
   const handleWheel = (e) => {
-    if (isSwiping.current || isDragging) return
+    if (isSwiping.current || isDragging || actionPending) return
     
-    // Check if horizontal scrolling
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      // deltaX > 0 means the user is swiping left on trackpad (content moves left)
-      // Accumulate inverted deltaX to simulate dragX
       wheelAccumulator.current -= e.deltaX
       setDragX(wheelAccumulator.current)
       
@@ -511,8 +579,12 @@ export default function SwipeDiscovery({ onClose }) {
               You've seen all the matches in your area based on your current filters. Check back later or try adjusting your settings.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 240 }}>
-              {Object.keys(discoverySwipes).some(k => discoverySwipes[k] > 0 && k !== 'date') && (
-                <button onClick={() => { resetDiscoverySwipes(); setCardIndex(0) }} style={{
+              {(Object.keys(discoverySwipes).some(k => discoverySwipes[k] > 0 && k !== 'date') || Object.values(passedCards).some(arr => arr.length > 0)) && (
+                <button onClick={() => {
+                  resetDiscoverySwipes()
+                  setPassedCards({ person: [], circle: [], event: [] })
+                  setCardIndex(0)
+                }} style={{
                   padding: '16px', borderRadius: 999, border: 'none', cursor: 'pointer',
                   background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
                   color: '#FFFFFF', fontSize: 15, fontWeight: 800,
@@ -540,18 +612,24 @@ export default function SwipeDiscovery({ onClose }) {
           flexShrink: 0, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24,
           paddingBottom: 'max(40px, env(safe-area-inset-bottom))'
         }}>
-          <button onClick={() => { 
-            setDragX(-500)
-            setTimeout(() => {
-              handleSwipeLeft()
-              setDragX(0)
-            }, 250)
-          }} style={{
-            width: 64, height: 64, borderRadius: '50%', backgroundColor: clr.white,
-            border: `1.5px solid ${clr.border}`, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
-          }}>
+          <button
+            disabled={actionPending}
+            onClick={() => {
+              if (actionPending) return
+              setDragX(-500)
+              setTimeout(() => {
+                handleSwipeLeft()
+                setDragX(0)
+              }, 250)
+            }}
+            style={{
+              width: 64, height: 64, borderRadius: '50%', backgroundColor: clr.white,
+              border: `1.5px solid ${clr.border}`, cursor: actionPending ? 'not-allowed' : 'pointer',
+              opacity: actionPending ? 0.5 : 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
+            }}
+          >
             <svg width="24" height="24" fill="none" stroke={clr.textLight} strokeWidth="2.5" viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -566,22 +644,43 @@ export default function SwipeDiscovery({ onClose }) {
             </span>
           </div>
 
-          <button onClick={() => { 
-            setDragX(500)
-            setTimeout(() => {
-              handleSwipeRight()
-              setDragX(0)
-            }, 250)
-          }} style={{
-            width: 72, height: 72, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(91,95,239,0.4)'
-          }}>
+          <button
+            disabled={actionPending}
+            onClick={() => {
+              if (actionPending) return
+              setDragX(500)
+              setTimeout(() => {
+                handleSwipeRight()
+                setDragX(0)
+              }, 250)
+            }}
+            style={{
+              width: 72, height: 72, borderRadius: '50%', border: 'none',
+              cursor: actionPending ? 'not-allowed' : 'pointer',
+              opacity: actionPending ? 0.5 : 1,
+              background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(91,95,239,0.4)'
+            }}
+          >
             <svg width="32" height="32" fill="none" stroke="#FFFFFF" strokeWidth="3" viewBox="0 0 24 24">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Toast message */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: clr.textDark, color: clr.bg, padding: '12px 24px',
+          borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999,
+          display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+          animation: 'slideUp 0.3s ease',
+        }}>
+          {toastMessage}
         </div>
       )}
 
@@ -647,30 +746,41 @@ export default function SwipeDiscovery({ onClose }) {
             />
 
             <button
+              disabled={actionPending}
               onClick={async () => {
+                if (actionPending) return
+                setActionPending(true)
                 try {
-                  connectWithPerson(currentMatchCard.data)
+                  await connectWithPerson(currentMatchCard.data)
                   const chatId = await startDM(currentMatchCard.data)
                   await sendMessage(chatId, draftMessage)
+                  recordSwipe(currentMatchCard.type)
+                  triggerToast(`Connected with ${currentMatchCard.data.name.split(' ')[0]}!`)
+                  setShowMessageDraft(false)
+                  setCurrentMatchCard(null)
+                  advanceCard()
                 } catch (err) {
                   console.error('[SwipeDiscovery] connect/message failed', err)
+                  triggerToast(err?.message || 'Failed to connect')
+                } finally {
+                  setActionPending(false)
                 }
-                setShowMessageDraft(false)
-                setCurrentMatchCard(null)
-                advanceCard()
               }}
               style={{
                 width: '100%', padding: '15px 0', borderRadius: 999, border: 'none',
                 background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
-                color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+                color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: actionPending ? 'not-allowed' : 'pointer',
+                opacity: actionPending ? 0.6 : 1,
                 boxShadow: '0 6px 20px rgba(91,95,239,0.38)', marginBottom: 16,
               }}
             >
-              Send Message →
+              {actionPending ? 'Sending…' : 'Send Message →'}
             </button>
 
             <button
+              disabled={actionPending}
               onClick={() => {
+                if (actionPending) return
                 setShowMessageDraft(false)
                 setCurrentMatchCard(null)
                 advanceCard()
