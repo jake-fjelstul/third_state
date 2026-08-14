@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
@@ -23,7 +23,11 @@ import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
 import AssistantBar from '../components/feed/AssistantBar.jsx'
 import AssistantModal from '../components/assistant/AssistantModal.jsx'
 import { checkContent } from '../lib/contentFilter.js'
-import { LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost } from '../lib/lfg'
+import {
+  LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost,
+  listMyLfgPosts, listJoinedLfgPosts, getLfgJoiners,
+  leaveLfgPost, cancelLfgPost, timeLeftLabel,
+} from '../lib/lfg'
 
 const clr = {
   bg: 'var(--bg)',
@@ -393,7 +397,7 @@ function CreateCard({ action, onClick }) {
   )
 }
 
-function CreateModals({ show, onClose, onShowToast, people, connections, refreshCircles }) {
+function CreateModals({ show, onClose, onShowToast, people, connections, refreshCircles, refreshLfg }) {
   const navigate = useNavigate()
   const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle, blockedUserIds } = useAppContext()
   const [coffeeSearch, setCoffeeSearch] = useState('')
@@ -451,12 +455,14 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
       setLfgVenues([]); setLfgLocation(null)
       onClose()
       onShowToast('LFG posted!')
+      await refreshLfg?.()
     } catch (err) {
       setLfgError(err?.message || 'Could not post. Please try again.')
     } finally {
       setLfgSubmitting(false)
     }
   }
+
 
   const [coverFile, setCoverFile] = useState(null)
   const [coverPreview, setCoverPreview] = useState(null)
@@ -1460,9 +1466,45 @@ export default function Feed() {
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [assistantPrompt, setAssistantPrompt] = useState(null) // null = closed, string = open
 
+  const [myLfg, setMyLfg] = useState([])
+  const [joinedLfg, setJoinedLfg] = useState([])
+  const [lfgSheetPost, setLfgSheetPost] = useState(null)
+  const [lfgJoiners, setLfgJoiners] = useState([])
+  const [lfgJoinersLoading, setLfgJoinersLoading] = useState(false)
+
+  const refreshLfg = useCallback(async () => {
+    if (!currentUser?.id) return
+    try {
+      const [mine, joined] = await Promise.all([
+        listMyLfgPosts(currentUser.id),
+        listJoinedLfgPosts(currentUser.id),
+      ])
+      setMyLfg(mine)
+      setJoinedLfg(joined)
+    } catch (err) {
+      console.error('[Feed] lfg load failed', err)
+    }
+  }, [currentUser?.id])
+
+  useEffect(() => { refreshLfg() }, [refreshLfg])
+
+  const openLfgSheet = async (post) => {
+    setLfgSheetPost(post)
+    setLfgJoiners([])
+    setLfgJoinersLoading(true)
+    try {
+      setLfgJoiners(await getLfgJoiners(post.id))
+    } catch (err) {
+      console.error('[Feed] joiners load failed', err)
+    } finally {
+      setLfgJoinersLoading(false)
+    }
+  }
+
   const [people, setPeople] = useState([])
   const [circles, setCircles] = useState([])
   const [events, setEvents] = useState([])
+
   useEffect(() => {
     let cancelled = false
     listProfiles({ excludeUserId: currentUser?.id })
@@ -1672,7 +1714,7 @@ export default function Feed() {
               }} />
             </section>
 
-            <section>
+            <section style={{ marginBottom: 24 }}>
               <div style={{ height: 24, marginBottom: 14 }}></div>
               <button type="button" onClick={() => setShowDiscovery(true)} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                 style={{ width: '100%', borderRadius: 24, border: 'none', background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 60%, #A78BFA 100%)', padding: '24px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 28px rgba(91,95,239,0.3)', transition: 'transform 0.2s ease' }}
@@ -1688,9 +1730,51 @@ export default function Feed() {
               </button>
             </section>
 
+            {(myLfg.length > 0 || joinedLfg.length > 0) && (
+              <section style={{ marginBottom: 24 }}>
+                <SectionHeader title="Happening now" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[...myLfg.map(p => ({ ...p, mine: true })), ...joinedLfg.map(p => ({ ...p, mine: false }))].map(post => (
+                    <button
+                      key={post.id}
+                      type="button"
+                      onClick={() => openLfgSheet(post)}
+                      style={{
+                        width: '100%', textAlign: 'left', cursor: 'pointer',
+                        border: `1px solid ${clr.border}`, borderLeft: '3px solid #FCD34D',
+                        borderRadius: 16, padding: '14px 16px',
+                        backgroundColor: clr.white, fontFamily: 'inherit',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: clr.textDark }}>
+                          {post.activity}
+                        </p>
+                        <p style={{ margin: '3px 0 0', fontSize: 12, color: clr.textMid }}>
+                          {post.mine ? 'Your post' : `${(post.authorName || '').split(' ')[0]}'s post`}
+                          {post.placeName ? ` · ${post.placeName}` : ''}
+                        </p>
+                      </div>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, color: '#B45309',
+                        backgroundColor: 'rgba(245,158,11,0.15)',
+                        padding: '4px 9px', borderRadius: 999, flexShrink: 0,
+                      }}>
+                        {timeLeftLabel(post.expiresAt)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <div style={{ marginTop: 28 }}>
               <SocialBattery />
             </div>
+
+
+
 
             {upcomingMeetups.length > 0 && (
               <section style={{ marginTop: 8, marginBottom: 8 }}>
@@ -1727,7 +1811,7 @@ export default function Feed() {
         )}
       </div>
 
-      <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} people={people} connections={connections} refreshCircles={async () => {
+      <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} refreshLfg={refreshLfg} people={people} connections={connections} refreshCircles={async () => {
         try {
           const list = await listCircles()
           setCircles(list)
@@ -1758,6 +1842,151 @@ export default function Feed() {
           onCancelRsvp={(evtId) => cancelRsvp(evtId)}
         />
       )}
+
+      {/* ── LFG Joiner / Details Sheet ── */}
+      {lfgSheetPost && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 300,
+            backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', alignItems: 'flex-end',
+            justifyContent: 'center', overflow: 'hidden',
+          }}
+          onClick={() => setLfgSheetPost(null)}
+        >
+          <div
+            style={{
+              width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
+              backgroundColor: clr.white,
+              borderRadius: '24px 24px 0 0',
+              padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
+              maxHeight: 'calc(100dvh - 16px)',
+              overflowY: 'auto',
+              animation: 'slideUp 0.25s ease',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
+            </div>
+
+            {/* Header: Activity & Countdown */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: 20, fontWeight: 800, color: clr.textDark, lineHeight: 1.3 }}>
+                  {lfgSheetPost.activity}
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {lfgSheetPost.placeName && (
+                    <div style={{ fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>📍</span> {lfgSheetPost.placeName} {lfgSheetPost.placeAddress ? `(${lfgSheetPost.placeAddress})` : ''}
+                    </div>
+                  )}
+                  {lfgSheetPost.startsAt && (
+                    <div style={{ fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>🕒</span> Starts at {new Date(lfgSheetPost.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <span style={{
+                fontSize: 12, fontWeight: 800, color: '#B45309',
+                backgroundColor: 'rgba(245,158,11,0.15)',
+                padding: '6px 12px', borderRadius: 999, flexShrink: 0,
+              }}>
+                ⏱️ {timeLeftLabel(lfgSheetPost.expiresAt)}
+              </span>
+            </div>
+
+            {/* Joiners section */}
+            <div style={{ marginBottom: 24, paddingTop: 16, borderTop: `1px solid ${clr.border}` }}>
+              <p style={{ fontSize: 13, fontWeight: 800, color: clr.textDark, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                {lfgSheetPost.mine ? "Who's in" : "You're in"}
+              </p>
+
+              {lfgJoinersLoading ? (
+                <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>Loading…</p>
+              ) : lfgJoiners.length === 0 && lfgSheetPost.mine ? (
+                <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>No one yet — hang tight.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {lfgJoiners.map(j => (
+                    <div key={j.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 16, backgroundColor: clr.bg }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <img src={avatarFor({ avatar_url: j.avatar, name: j.name })} alt={j.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                        <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>{j.name}</span>
+                      </div>
+                      {j.id !== currentUser?.id && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const chatId = await startDM({ id: j.id, name: j.name })
+                              setLfgSheetPost(null)
+                              navigate(`/chat/${chatId}`)
+                            } catch (err) {
+                              console.error('[Feed] startDM to joiner failed', err)
+                            }
+                          }}
+                          style={{
+                            padding: '8px 16px', borderRadius: 999, border: `1.5px solid ${clr.indigo}`,
+                            backgroundColor: clr.white, color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                          }}
+                        >
+                          Message →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            {lfgSheetPost.mine ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await cancelLfgPost(lfgSheetPost.id)
+                    await refreshLfg()
+                    setLfgSheetPost(null)
+                    showToast('LFG post cancelled')
+                  } catch (err) {
+                    console.error('[Feed] cancelLfgPost failed', err)
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '14px 0', borderRadius: 999, border: 'none',
+                  backgroundColor: '#FEE2E2', color: '#DC2626', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                Cancel post
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await leaveLfgPost(lfgSheetPost.id)
+                    await refreshLfg()
+                    setLfgSheetPost(null)
+                    showToast('Left LFG post')
+                  } catch (err) {
+                    console.error('[Feed] leaveLfgPost failed', err)
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '14px 0', borderRadius: 999, border: `1.5px solid ${clr.border}`,
+                  backgroundColor: clr.white, color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Leave
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* Modals for Phase 2 */}
       {/* Onboarding Modal */}

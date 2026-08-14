@@ -72,15 +72,8 @@ export async function createLfgPost({
   return data
 }
 
-export async function listActiveLfgPosts() {
-  const { data, error } = await supabase
-    .from('lfg_posts')
-    .select('*, author:profiles!lfg_posts_user_id_fkey(id, name, avatar_url)')
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(50)
-  if (error) throw error
-  return (data || []).map(row => ({
+function mapLfgRow(row) {
+  return {
     id: row.id,
     userId: row.user_id,
     activity: row.activity,
@@ -93,7 +86,72 @@ export async function listActiveLfgPosts() {
     visibility: row.visibility,
     authorName: row.author?.name || '',
     authorAvatar: row.author?.avatar_url || '',
+  }
+}
+
+export async function listActiveLfgPosts() {
+  const { data, error } = await supabase
+    .from('lfg_posts')
+    .select('*, author:profiles!lfg_posts_user_id_fkey(id, name, avatar_url)')
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return (data || []).map(mapLfgRow)
+}
+
+export async function listMyLfgPosts(userId) {
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('lfg_posts')
+    .select('*')
+    .eq('user_id', userId)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []).map(mapLfgRow)
+}
+
+export async function listJoinedLfgPosts(userId) {
+  if (!userId) return []
+  const { data: joins, error: jErr } = await supabase
+    .from('lfg_joins')
+    .select('post_id')
+    .eq('user_id', userId)
+  if (jErr) throw jErr
+  const ids = (joins || []).map(j => j.post_id)
+  if (ids.length === 0) return []
+  const { data, error } = await supabase
+    .from('lfg_posts')
+    .select('*, author:profiles!lfg_posts_user_id_fkey(id, name, avatar_url)')
+    .in('id', ids)
+    .gt('expires_at', new Date().toISOString())
+    .order('starts_at', { ascending: true })
+  if (error) throw error
+  return (data || []).map(mapLfgRow)
+}
+
+export async function getLfgJoiners(postId) {
+  const { data, error } = await supabase.rpc('lfg_post_joiners', { p_post_id: postId })
+  if (error) throw error
+  return (data || []).map(r => ({
+    id: r.user_id,
+    name: r.name,
+    avatar: r.avatar_url,
+    joinedAt: r.joined_at,
   }))
+}
+
+export async function leaveLfgPost(postId) {
+  const { error } = await supabase.rpc('leave_lfg_post', { p_post_id: postId })
+  if (error) throw error
+  return true
+}
+
+export async function cancelLfgPost(postId) {
+  const { error } = await supabase.from('lfg_posts').delete().eq('id', postId)
+  if (error) throw error
+  return true
 }
 
 export async function joinLfgPost(postId) {
