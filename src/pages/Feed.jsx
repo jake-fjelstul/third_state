@@ -26,7 +26,7 @@ import { checkContent } from '../lib/contentFilter.js'
 import {
   LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost,
   listMyLfgPosts, listJoinedLfgPosts, getLfgJoiners,
-  leaveLfgPost, cancelLfgPost, timeLeftLabel,
+  leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews,
 } from '../lib/lfg'
 
 const clr = {
@@ -1468,6 +1468,7 @@ export default function Feed() {
 
   const [myLfg, setMyLfg] = useState([])
   const [joinedLfg, setJoinedLfg] = useState([])
+  const [lfgPreviews, setLfgPreviews] = useState({})
   const [lfgSheetPost, setLfgSheetPost] = useState(null)
   const [lfgJoiners, setLfgJoiners] = useState([])
   const [lfgJoinersLoading, setLfgJoinersLoading] = useState(false)
@@ -1481,6 +1482,8 @@ export default function Feed() {
       ])
       setMyLfg(mine)
       setJoinedLfg(joined)
+      const ids = [...mine, ...joined].map(p => p.id)
+      setLfgPreviews(await getLfgJoinPreviews(ids))
     } catch (err) {
       console.error('[Feed] lfg load failed', err)
     }
@@ -1732,39 +1735,95 @@ export default function Feed() {
 
             {(myLfg.length > 0 || joinedLfg.length > 0) && (
               <section style={{ marginBottom: 24 }}>
-                <SectionHeader title="Happening now" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingLeft: 4 }}>
+                  <span style={{
+                    width: 7, height: 7, borderRadius: '50%', backgroundColor: '#FCD34D',
+                    animation: 'lfgPulse 2s ease-in-out infinite', flexShrink: 0,
+                  }} />
+                  <h2 style={{
+                    margin: 0, fontSize: 13, fontWeight: 800, color: '#FCD34D',
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                  }}>
+                    Happening now
+                  </h2>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[...myLfg.map(p => ({ ...p, mine: true })), ...joinedLfg.map(p => ({ ...p, mine: false }))].map(post => (
-                    <button
-                      key={post.id}
-                      type="button"
-                      onClick={() => openLfgSheet(post)}
-                      style={{
-                        width: '100%', textAlign: 'left', cursor: 'pointer',
-                        border: `1px solid ${clr.border}`, borderLeft: '3px solid #FCD34D',
-                        borderRadius: 16, padding: '14px 16px',
-                        backgroundColor: clr.white, fontFamily: 'inherit',
-                        display: 'flex', alignItems: 'center', gap: 12,
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: clr.textDark }}>
-                          {post.activity}
-                        </p>
-                        <p style={{ margin: '3px 0 0', fontSize: 12, color: clr.textMid }}>
-                          {post.mine ? 'Your post' : `${(post.authorName || '').split(' ')[0]}'s post`}
-                          {post.placeName ? ` · ${post.placeName}` : ''}
-                        </p>
-                      </div>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, color: '#B45309',
-                        backgroundColor: 'rgba(245,158,11,0.15)',
-                        padding: '4px 9px', borderRadius: 999, flexShrink: 0,
-                      }}>
-                        {timeLeftLabel(post.expiresAt)}
-                      </span>
-                    </button>
-                  ))}
+                  {[...myLfg.map(p => ({ ...p, mine: true })), ...joinedLfg.map(p => ({ ...p, mine: false }))].map(post => {
+                    const joiners = lfgPreviews[post.id] || []
+                    return (
+                      <button
+                        key={post.id}
+                        type="button"
+                        onClick={() => openLfgSheet(post)}
+                        style={{
+                          width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+                          background: 'linear-gradient(135deg, #3A2E14 0%, #241C0C 100%)',
+                          border: '1px solid rgba(252,211,77,0.22)',
+                          borderRadius: 18, padding: '14px 16px',
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                        }}
+                      >
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                          backgroundColor: 'rgba(252,211,77,0.12)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                               stroke="#FCD34D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+                          </svg>
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{
+                            margin: 0, fontSize: 15, fontWeight: 700, color: '#FFFFFF',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {post.activity}
+                          </p>
+                          <p style={{
+                            margin: '3px 0 0', fontSize: 12, color: 'rgba(253,230,138,0.65)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {post.mine ? 'Your post' : `${(post.authorName || '').split(' ')[0]}'s post`}
+                            {post.placeName ? ` · ${post.placeName}` : ''}
+                          </p>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 800, color: '#241C0C',
+                            backgroundColor: '#FCD34D', padding: '3px 9px', borderRadius: 999,
+                          }}>
+                            {timeLeftLabel(post.expiresAt)}
+                          </span>
+                          {joiners.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              {joiners.slice(0, 3).map((j, i) => (
+                                <img
+                                  key={j.id}
+                                  src={avatarFor(j)}
+                                  alt=""
+                                  style={{
+                                    width: 20, height: 20, borderRadius: '50%', objectFit: 'cover',
+                                    border: '1.5px solid #241C0C',
+                                    marginLeft: i === 0 ? 0 : -7, zIndex: 3 - i, position: 'relative',
+                                  }}
+                                />
+                              ))}
+                              {joiners.length > 3 && (
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(253,230,138,0.7)', marginLeft: 5 }}>
+                                  +{joiners.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </section>
             )}

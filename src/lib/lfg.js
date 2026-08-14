@@ -168,3 +168,22 @@ export function timeLeftLabel(expiresAt, now = new Date()) {
   if (mins < 60) return `${mins}m left`
   return `${Math.round(mins / 60)}h left`
 }
+
+export async function getLfgJoinPreviews(postIds) {
+  if (!postIds || postIds.length === 0) return {}
+  const { data, error } = await supabase
+    .from('lfg_joins')
+    .select('post_id, user_id, profiles:user_id(id, name, avatar_url)')
+    .in('post_id', postIds)
+  if (error) return {}
+  const byPost = {}
+  for (const row of data || []) {
+    if (!byPost[row.post_id]) byPost[row.post_id] = []
+    byPost[row.post_id].push({
+      id: row.user_id,
+      name: row.profiles?.name || '',
+      avatar: row.profiles?.avatar_url || '',
+    })
+  }
+  return byPost
+}

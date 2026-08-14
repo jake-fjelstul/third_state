@@ -88,3 +88,9 @@ body {
 .noscrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .noscrollbar::-webkit-scrollbar { display: none; }
 
+@keyframes lfgPulse {
+  0%   { transform: scale(1);   opacity: 1; }
+  50%  { transform: scale(1.5); opacity: 0.35; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
