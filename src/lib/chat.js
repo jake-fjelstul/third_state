@@ -59,7 +59,7 @@ export async function listChats() {
 export async function getChat(chatId) {
   if (!chatId) return null
   const [chatRes, membersRes, channelsRes] = await Promise.all([
-    supabase.from('chats').select('*, circles(name, emoji)').eq('id', chatId).maybeSingle(),
+    supabase.from('chats').select('*, circles(name, emoji, icon)').eq('id', chatId).maybeSingle(),
     supabase.from('chat_members').select('user_id, profiles(id, name, avatar_url)').eq('chat_id', chatId),
     supabase.from('chat_channels').select('*').eq('chat_id', chatId),
   ])
@@ -73,6 +73,7 @@ export async function getChat(chatId) {
     circleId: chatRes.data.circle_id,
     name: chatRes.data.name || chatRes.data.circles?.name || '',
     emoji: chatRes.data.circles?.emoji || '',
+    icon: chatRes.data.circles?.icon || '',
     members: (membersRes.data || []).map(r => ({
       id: r.profiles?.id,
       name: r.profiles?.name,

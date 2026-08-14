@@ -10,6 +10,7 @@ import { buildMapsUrl } from '../lib/geocoding'
 import { useChatMessages } from '../hooks/useChatMessages.js'
 import { listChannels, createChannel as createChannelApi } from '../lib/chat.js'
 import { avatarFor } from '../lib/avatar'
+import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { resolveCircleCover } from '../lib/circleCover'
 import { uploadCircleCover, deleteCircleCover } from '../lib/storage'
 import ImageUploader from '../components/ui/ImageUploader.jsx'
@@ -243,8 +244,8 @@ export default function CircleDetail() {
               <path d="M19 12H5M12 5l-7 7 7 7" />
             </svg>
           </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>
-            {circle.name} {circle.emoji}
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {circle.name} <CircleIcon circle={circle} size={16} color="#FFFFFF" />
           </span>
           <div style={{ position: 'relative', zIndex: 21 }}>
             <button type="button" onClick={() => setShowDropdown(!showDropdown)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
@@ -338,9 +339,8 @@ export default function CircleDetail() {
               width: 68, height: 68, borderRadius: '50%',
               backgroundColor: 'rgba(255,255,255,0.22)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 32,
             }}>
-              {circle.emoji ?? '⭕'}
+              <CircleIcon circle={circle} size={32} color="#FFFFFF" />
             </div>
           </div>
         </div>

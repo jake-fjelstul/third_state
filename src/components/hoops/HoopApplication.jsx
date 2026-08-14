@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import CircleIcon from '../ui/CircleIcon.jsx'
 import { checkContent } from '../../lib/contentFilter'
 
 const clr = {
@@ -76,8 +77,8 @@ export default function HoopApplication({ circle, onClose }) {
   const renderOverview = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)`, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
-          {circle.emoji || '⭕'}
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)`, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircleIcon circle={circle} size={36} color="#FFFFFF" />
         </div>
         <h2 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: '0 0 8px' }}>Join {circle.name}</h2>
         <p style={{ fontSize: 16, color: clr.textMid, margin: '0 0 32px' }}>Complete these steps to apply.</p>

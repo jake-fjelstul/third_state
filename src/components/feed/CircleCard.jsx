@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { resolveCircleCover } from '../../lib/circleCover'
+import CircleIcon from '../ui/CircleIcon'
 
 export default function CircleCard({ circle, joined }) {
   const isPrivate = circle.type === 'private'
@@ -14,7 +15,7 @@ export default function CircleCard({ circle, joined }) {
         {cover.kind === 'image' && <img src={cover.url} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/10 to-transparent" />
         <div className="absolute left-4 top-3 flex items-center gap-2 text-sm font-medium text-white">
-          <span className="text-lg">{circle.emoji}</span>
+          <CircleIcon circle={circle} size={18} color="#FFFFFF" />
           <span className="line-clamp-1">{circle.name}</span>
         </div>
         <div className="absolute bottom-3 left-4 flex items-center gap-2 text-[11px] text-slate-100">

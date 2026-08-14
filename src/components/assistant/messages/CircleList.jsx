@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ConfirmCard from './ConfirmCard.jsx'
 import { assistantText } from '../../../lib/assistant/conversation.js'
+import CircleIcon from '../../ui/CircleIcon.jsx'
 
 export default function CircleList({ message, ctx, clr, onClose, onAppendMessages }) {
   const [pendingJoin, setPendingJoin] = useState(null) // circle | null
@@ -55,9 +56,9 @@ export default function CircleList({ message, ctx, clr, onClose, onAppendMessage
               <div style={{
                 width: 46, height: 46, borderRadius: 14, flexShrink: 0,
                 backgroundColor: clr.indigoLt,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                {c.emoji ?? '⭕'}
+                <CircleIcon circle={c} size={22} color={clr.indigo} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

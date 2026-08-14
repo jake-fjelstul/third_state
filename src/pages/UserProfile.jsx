@@ -6,6 +6,7 @@ import { listUpcomingEventsForUser } from '../lib/events'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import { resolveCircleCover } from '../lib/circleCover'
+import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { getAvailabilityForUser, checkConflictAt, computeFreeSlots } from '../lib/availability'
 import { getConnectionStats } from '../lib/connectionStats'
 import TimePicker from '../components/TimePicker.jsx'
@@ -420,9 +421,9 @@ export default function UserProfile() {
                   const cover = resolveCircleCover(c)
                   return (
                   <div key={c.id} onClick={() => navigate(`/circles/${c.id}`)} style={{ backgroundColor:clr.white, padding:16, borderRadius:20, display:'flex', alignItems:'center', gap:14, cursor:'pointer', boxShadow:'0 2px 12px rgba(0,0,0,0.06)' }}>
-                    <div style={{ width:48, height:48, borderRadius:14, position: 'relative', overflow: 'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, background: cover.kind === 'gradient' ? cover.value : undefined }}>
+                    <div style={{ width:48, height:48, borderRadius:14, position: 'relative', overflow: 'hidden', display:'flex', alignItems:'center', justifyContent:'center', background: cover.kind === 'gradient' ? cover.value : undefined }}>
                       {cover.kind === 'image' && <img src={cover.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-                      <span style={{ position: 'relative' }}>{c.emoji}</span>
+                      <CircleIcon circle={c} size={22} color="#FFFFFF" style={{ position: 'relative' }} />
                     </div>
                     <div>
                       <h4 style={{ margin:'0 0 2px', fontSize:15, fontWeight:700, color:clr.textDark }}>{c.name}</h4>

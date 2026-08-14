@@ -5,6 +5,7 @@ import { listUpcomingEvents } from '../../lib/events'
 import { useAppContext } from '../../context/AppContext.jsx'
 import { avatarFor } from '../../lib/avatar'
 import { resolveCircleCover } from '../../lib/circleCover'
+import CircleIcon from '../ui/CircleIcon.jsx'
 import { haversineMiles } from '../../lib/geo'
 
 /* ── Colors (from app theme) ── */
@@ -105,11 +106,11 @@ function DiscoveryCard({ card }) {
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         <div style={{
-          height: 160, background: cover.kind === 'gradient' ? cover.value : 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:64, position: 'relative', overflow: 'hidden'
+          height: 160, background: cover.kind === 'gradient' ? cover.value : undefined,
+          display:'flex', alignItems:'center', justifyContent:'center', position: 'relative', overflow: 'hidden'
         }}>
           {cover.kind === 'image' && <img src={cover.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-          <span style={{ position: 'relative' }}>{c.emoji ?? '⭕'}</span>
+          <CircleIcon circle={c} size={48} color="#FFFFFF" style={{ position: 'relative' }} />
         </div>
         <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column' }}>
           <div style={{ display:'flex', gap: 8, marginBottom:12, flexWrap: 'wrap' }}>

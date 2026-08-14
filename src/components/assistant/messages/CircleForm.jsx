@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { assistantText, assistantNavigate } from '../../../lib/assistant/conversation.js'
 import { useAppContext } from '../../../context/AppContext.jsx'
-
-const COMMON_EMOJIS = ['✨', '⭕', '🔥', '🎨', '📸', '⚽', '🏃', '☕', '📚', '🎵', '🎮', '🍕', '🧗', '🚲', '🧘', '🎬', '🐶', '✈️', '💡', '🌱', '🏀', '🎤', '🎲', '❤️']
+import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON } from '../../../lib/circleIcons'
+import CircleIcon from '../../ui/CircleIcon.jsx'
 
 export default function CircleForm({ message, clr, onComplete }) {
   const ctx = useAppContext()
   const prefill = message.payload?.prefill || {}
   const [name, setName] = useState(prefill.name || '')
-  const [emoji, setEmoji] = useState(prefill.emoji || '✨')
+  const [selectedIcon, setSelectedIcon] = useState(prefill.icon || DEFAULT_CIRCLE_ICON)
   const [category, setCategory] = useState(prefill.category || '')
   const [description, setDescription] = useState('')
   const [vibe, setVibe] = useState('')
@@ -37,7 +37,7 @@ export default function CircleForm({ message, clr, onComplete }) {
     try {
       const created = await ctx.createCircle({
         name: name.trim(),
-        emoji,
+        icon: selectedIcon,
         city: ctx.currentUser?.city || '',
         type: 'open',
         category: category.trim() || 'social',
@@ -49,7 +49,7 @@ export default function CircleForm({ message, clr, onComplete }) {
         hoops: [],
       })
       onComplete([
-        assistantText(`Circle "${name.trim()}" is live! ${emoji}`),
+        assistantText(`Circle "${name.trim()}" is live!`),
         assistantNavigate('Go to your new circle', `/circles/${created.id}`, created.name),
       ])
     } catch (err) {
@@ -59,13 +59,15 @@ export default function CircleForm({ message, clr, onComplete }) {
     }
   }
 
+  const SelectedComp = CIRCLE_ICONS.find(i => i.key === selectedIcon)?.Comp || CIRCLE_ICONS[0].Comp
+
   return (
     <div style={{
       backgroundColor: clr.white, borderRadius: 18, padding: 16,
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}>
       <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: clr.textDark }}>
-        ⭕ {message.text}
+        <SelectedComp size={16} color={clr.indigo} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }} /> {message.text}
       </p>
       <form onSubmit={handleSubmit}>
         <label style={labelStyle}>Circle Icon</label>
@@ -73,23 +75,25 @@ export default function CircleForm({ message, clr, onComplete }) {
           <div style={{
             width: 40, height: 40, borderRadius: 12, backgroundColor: clr.indigoLt,
             border: `1.5px solid ${clr.indigo}`, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 22, flexShrink: 0,
+            justifyContent: 'center', flexShrink: 0,
           }}>
-            {emoji}
+            <SelectedComp size={22} color={clr.indigo} strokeWidth={2} />
           </div>
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-            {COMMON_EMOJIS.map(e => (
+            {CIRCLE_ICONS.map(({ key, Comp, label }) => (
               <button
-                key={e}
+                key={key}
                 type="button"
-                onClick={() => setEmoji(e)}
+                aria-label={label}
+                onClick={() => setSelectedIcon(key)}
                 style={{
-                  width: 34, height: 34, borderRadius: 10, border: emoji === e ? `2px solid ${clr.indigo}` : `1px solid ${clr.border}`,
-                  backgroundColor: emoji === e ? clr.indigoLt : clr.bg,
-                  fontSize: 18, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 44, height: 44, borderRadius: 12, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  border: selectedIcon === key ? '1.5px solid var(--indigo)' : '1.5px solid var(--border)',
+                  backgroundColor: selectedIcon === key ? 'var(--indigoLt)' : 'var(--white)',
                 }}
               >
-                {e}
+                <Comp size={20} color={selectedIcon === key ? 'var(--indigo)' : 'var(--textMid)'} strokeWidth={2} />
               </button>
             ))}
           </div>

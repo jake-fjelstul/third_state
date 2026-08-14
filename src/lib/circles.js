@@ -8,6 +8,7 @@ function mapCircleRow(row) {
     id: row.id,
     name: row.name,
     emoji: row.emoji,
+    icon: row.icon,
     city: row.city,
     type: row.type,
     category: row.category,
@@ -135,11 +136,11 @@ export async function getCircle(circleId) {
 
 // ---------- writes ----------
 
-export async function createCircle({ userId, name, emoji, city, type, category, interestTag, coverGradient, coverImageUrl, description, vibe, rules }) {
+export async function createCircle({ userId, name, emoji, icon, city, type, category, interestTag, coverGradient, coverImageUrl, description, vibe, rules }) {
   const { data, error } = await supabase
     .from('circles')
     .insert({
-      name, emoji, city, type, category,
+      name, emoji, icon, city, type, category,
       interest_tag: interestTag,
       cover_gradient: coverGradient,
       cover_image_url: coverImageUrl || null,
@@ -182,6 +183,7 @@ export async function updateCircle(circleId, patch) {
   const dbPatch = {}
   if (patch.name !== undefined) dbPatch.name = patch.name
   if (patch.emoji !== undefined) dbPatch.emoji = patch.emoji
+  if (patch.icon !== undefined) dbPatch.icon = patch.icon
   if (patch.city !== undefined) dbPatch.city = patch.city
   if (patch.type !== undefined) dbPatch.type = patch.type
   if (patch.category !== undefined) dbPatch.category = patch.category

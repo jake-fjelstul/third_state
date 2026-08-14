@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listChannels } from '../lib/chat'
 import { avatarFor } from '../lib/avatar'
+import { relativeTime } from '../lib/battery'
+import CircleIcon from '../components/ui/CircleIcon.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -100,7 +102,7 @@ export default function Notifications() {
             width: 48, height: 48, borderRadius: '12px',
             backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            <span style={{ fontSize: '24px' }}>{notif.circle?.emoji || (notif.type === 'application_approved' ? '✅' : '❌')}</span>
+            {notif.circle ? <CircleIcon circle={notif.circle} size={24} color={clr.indigo} /> : <span style={{ fontSize: '24px' }}>{notif.type === 'application_approved' ? '✅' : '❌'}</span>}
           </div>
         ) : notif.type === 'circle_activity' ? (
           <div style={{

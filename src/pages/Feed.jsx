@@ -12,6 +12,8 @@ import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
+import CircleIcon from '../components/ui/CircleIcon.jsx'
+import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON } from '../lib/circleIcons.js'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -139,9 +141,9 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
       <div style={{
         width: 52, height: 52, borderRadius: 14, flexShrink: 0,
         backgroundColor: accent.bg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {circle.emoji ?? '⭕'}
+        <CircleIcon circle={circle} size={24} color={accent.accent} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
@@ -409,7 +411,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [lfgLocation, setLfgLocation] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
   const [coverPreview, setCoverPreview] = useState(null)
-  const [selectedCircleEmoji, setSelectedCircleEmoji] = useState('✨')
+  const [selectedCircleIcon, setSelectedCircleIcon] = useState(DEFAULT_CIRCLE_ICON)
   const [recurrenceRule, setRecurrenceRule] = useState('none')
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
@@ -500,7 +502,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         try {
           const created = await createCircle({
             name,
-            emoji: selectedCircleEmoji,
+            icon: selectedCircleIcon,
             city: currentUser?.city || 'Austin, TX',
             type: circlePrivacy === 'private' ? 'private' : 'open',
             category: 'social',
@@ -532,7 +534,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
       }}>
         <Handle /><Header title="Create a Circle" />
         
-        {/* Emoji Icon Picker */}
+        {/* Lucide Icon Picker */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
             Circle Icon
@@ -541,23 +543,24 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             <div style={{
               width: 48, height: 48, borderRadius: 16, backgroundColor: clr.indigoLt,
               border: `1.5px solid ${clr.indigo}`, display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: 26, flexShrink: 0,
+              justifyContent: 'center', flexShrink: 0,
             }}>
-              {selectedCircleEmoji}
+              <CircleIcon circle={{ icon: selectedCircleIcon }} size={24} color={clr.indigo} />
             </div>
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-              {['✨', '⭕', '🔥', '🎨', '📸', '⚽', '🏃', '☕', '📚', '🎵', '🎮', '🍕', '🧗', '🚲', '🧘', '🎬', '🐶', '✈️', '💡', '🌱', '🏀', '🎤', '🎲', '❤️'].map(e => (
+              {CIRCLE_ICONS.map(({ key, Comp, label }) => (
                 <button
-                  key={e}
+                  key={key}
                   type="button"
-                  onClick={() => setSelectedCircleEmoji(e)}
+                  aria-label={label}
+                  onClick={() => setSelectedCircleIcon(key)}
                   style={{
-                    width: 38, height: 38, borderRadius: 12, border: selectedCircleEmoji === e ? `2px solid ${clr.indigo}` : `1px solid ${clr.border}`,
-                    backgroundColor: selectedCircleEmoji === e ? clr.indigoLt : clr.bg,
-                    fontSize: 20, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 40, height: 40, borderRadius: 12, border: selectedCircleIcon === key ? `2px solid ${clr.indigo}` : `1px solid ${clr.border}`,
+                    backgroundColor: selectedCircleIcon === key ? clr.indigoLt : clr.bg,
+                    cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  {e}
+                  <Comp size={20} color={selectedCircleIcon === key ? clr.indigo : clr.textMid} strokeWidth={2} />
                 </button>
               ))}
             </div>

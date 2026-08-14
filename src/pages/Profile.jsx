@@ -8,6 +8,7 @@ import ImageUploader from '../components/ui/ImageUploader.jsx'
 import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 import { uploadAvatar, deleteAvatar } from '../lib/storage'
 import { avatarFor } from '../lib/avatar'
+import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
 import { buildInviteMessage, classifyContact, createInvite, createPersonalInviteLink } from '../lib/invites.js'
 import QRCard from '../components/ui/QRCard.jsx'
@@ -463,9 +464,8 @@ export default function Profile() {
                     backgroundColor: circleBgs[i % circleBgs.length],
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     marginBottom: 12,
-                    fontSize: 24,
                   }}>
-                    {circle.emoji ?? '⭕'}
+                    <CircleIcon circle={circle} size={24} color={clr.indigo} />
                   </div>
                   <p style={{ fontSize:15, fontWeight:700, color: clr.textDark, margin:'0 0 4px 0', lineHeight:1.3 }}>
                     {circle.name}

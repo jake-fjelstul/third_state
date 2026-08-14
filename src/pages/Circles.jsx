@@ -5,6 +5,7 @@ import { listCircles, listJoinedCircleMembers } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import Memories from './Memories.jsx'
+import CircleIcon from '../components/ui/CircleIcon.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -102,9 +103,9 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
       <div style={{
         width: 52, height: 52, borderRadius: 14, flexShrink: 0,
         backgroundColor: accent.bg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {circle.emoji ?? '⭕'}
+        <CircleIcon circle={circle} size={24} color={accent.accent} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
@@ -216,7 +217,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
       const y = cy + R1 * Math.sin(angle)
       nodes.push({
         id: `circle-${c.id}`, type: 'circle', label: c.name.slice(0, 10) + (c.name.length > 10 ? '…' : ''),
-        emoji: c.emoji ?? '⭕', circleId: c.id,
+        name: c.name, emoji: c.emoji, icon: c.icon, circleId: c.id,
         x: clampX(x, r), y: clampY(y, r),
         radius: r, matchFilter: match, strength: 'strong'
       })
@@ -261,7 +262,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
         const y = cy + R2 * Math.sin(angle)
         nodes.push({
           id: `circle-${c.id}`, type: 'circle', label: c.name.slice(0, 10) + (c.name.length > 10 ? '…' : ''),
-          emoji: c.emoji ?? '⭕', circleId: c.id,
+          name: c.name, emoji: c.emoji, icon: c.icon, circleId: c.id,
           x: clampX(x, r), y: clampY(y, r),
           radius: r, matchFilter: match, strength: 'medium'
         })
@@ -375,7 +376,9 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
                 {node.type === 'circle' && (
                   <>
                     <circle cx={0} cy={0} r={node.radius} fill={colors.circleNodeBg} stroke={colors.circleNodeBorder} strokeWidth="2" />
-                    <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize="18">{node.emoji}</text>
+                    <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="700" fill="#FFFFFF">
+                      {(node.name || node.label || '?').charAt(0).toUpperCase()}
+                    </text>
                     <text x={0} y={node.radius + 14} textAnchor="middle" fontSize={10} fontWeight={600} fill={colors.labelOther} style={{ pointerEvents: 'none', userSelect: 'none' }}>
                       {node.label}
                     </text>
@@ -626,9 +629,9 @@ export default function Circles() {
                     </div>
                     <div style={{
                       width: 48, height: 48, borderRadius: 14, flexShrink: 0, backgroundColor: CIRCLE_COLORS[rankIndex % 4].bg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {circle.emoji ?? '⭕'}
+                      <CircleIcon circle={circle} size={24} color={clr.indigo} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -735,8 +738,8 @@ export default function Circles() {
                         </div>
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                           {person.sharedCircles.slice(0, 2).map(c => (
-                            <span key={c.id} style={{ fontSize: 10, color: clr.textLight, backgroundColor: clr.bg, padding: '2px 8px', borderRadius: 999 }}>
-                              {c.emoji} {c.name.slice(0, 12)}
+                            <span key={c.id} style={{ fontSize: 10, color: clr.textLight, backgroundColor: clr.bg, padding: '2px 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <CircleIcon circle={c} size={12} color={clr.textLight} /> {c.name.slice(0, 12)}
                             </span>
                           ))}
                           {hasDM && (
@@ -802,7 +805,9 @@ export default function Circles() {
 
                       {selectedNode.type === 'circle' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 52, height: 52, borderRadius: 14, backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>{selectedNode.emoji}</div>
+                          <div style={{ width: 52, height: 52, borderRadius: 14, backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <CircleIcon circle={selectedNode} size={26} color={clr.indigo} />
+                          </div>
                           <div style={{ flex: 1 }}>
                             <p style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{selectedNode.label}</p>
                             <ActivityBadge score={getActivityScore(circles.find(c => c.id === selectedNode.circleId))} />
