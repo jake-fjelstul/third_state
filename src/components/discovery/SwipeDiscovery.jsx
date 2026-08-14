@@ -769,7 +769,7 @@ export default function SwipeDiscovery({ onClose }) {
       {toastMessage && (
         <div style={{
           position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-          backgroundColor: clr.textDark, color: clr.bg, padding: '12px 24px',
+          backgroundColor: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px',
           borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999,
           display: 'flex', alignItems: 'center', gap: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.2)',

@@ -879,7 +879,7 @@ export default function CircleDetail() {
       {toastMsg && (
         <div style={{
           position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)',
-          background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999,
+          background: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999,
           fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap'
         }}>
           {toastMsg}
@@ -890,7 +890,7 @@ export default function CircleDetail() {
         <div style={{
           position: 'fixed', bottom: 100, left: '50%', zIndex: 400,
           transform: 'translateX(-50%)',
-          backgroundColor: clr.textDark, color: '#FFF',
+          backgroundColor: 'var(--toast-bg)', color: 'var(--toast-text)',
           padding: '12px 24px', borderRadius: 999,
           fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
           boxShadow: '0 6px 20px rgba(0,0,0,0.25)',

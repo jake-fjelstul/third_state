@@ -1022,7 +1022,7 @@ export default function Profile() {
       {toastMsg && (
         <div style={{
           position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)',
-          background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999,
+          background: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999,
           fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap'
         }}>
           {toastMsg}

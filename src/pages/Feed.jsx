@@ -1717,7 +1717,7 @@ export default function Feed() {
             <section style={{ marginBottom: 24 }}>
               <div style={{ height: 24, marginBottom: 14 }}></div>
               <button type="button" onClick={() => setShowDiscovery(true)} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                style={{ width: '100%', borderRadius: 24, border: 'none', background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 60%, #A78BFA 100%)', padding: '24px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 28px rgba(91,95,239,0.3)', transition: 'transform 0.2s ease' }}
+                style={{ width: '100%', borderRadius: 24, border: '1px solid rgba(199,210,254,0.18)', background: 'linear-gradient(135deg, #3E3D96 0%, #2F2E78 60%, #25254F 100%)', padding: '24px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 6px 20px rgba(62,61,150,0.28)', transition: 'transform 0.2s ease' }}
               >
                 <div style={{ textAlign: 'left' }}>
                   <p style={{ fontSize: 20, fontWeight: 800, color: '#FFFFFF', margin: '0 0 4px 0' }}>Meet Someone New</p>
@@ -1820,7 +1820,7 @@ export default function Feed() {
         }
       }} />
       {showDiscovery && <div style={{ position: 'fixed', inset: 0, zIndex: 200, animation: 'expandUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}><SwipeDiscovery onClose={() => setShowDiscovery(false)} /></div>}
-      {toastMsg && <div style={{ position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)', background: clr.textDark, color: '#FFF', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap' }}>{toastMsg}</div>}
+      {toastMsg && <div style={{ position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)', background: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap' }}>{toastMsg}</div>}
 
       {/* ── Assistant Modal ── */}
       {assistantPrompt !== null && (

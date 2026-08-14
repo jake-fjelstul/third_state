@@ -775,7 +775,7 @@ export default function Settings() {
 
       {/* Success Toast */}
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)', backgroundColor: clr.textDark, color: clr.bg, padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+        <div style={{ position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
           <span style={{ fontSize: 18 }}>✅</span> {toastMessage}
         </div>
       )}

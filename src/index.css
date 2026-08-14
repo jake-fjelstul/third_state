@@ -29,6 +29,8 @@
   --modal-suggest-chip-bg: rgba(254, 243, 199, 0.95);
   --modal-suggest-chip-text: #B45309;
   --channel-bar-pad-left: 16px;
+  --toast-bg: #1A1A2E;
+  --toast-text: #FFFFFF;
 }
 
 @media (min-width: 640px) {
@@ -51,6 +53,8 @@ html.dark {
   --modal-suggest-border: rgba(251, 191, 36, 0.45);
   --modal-suggest-chip-bg: rgba(245, 158, 11, 0.22);
   --modal-suggest-chip-text: #FCD34D;
+  --toast-bg: #2D2D3D;
+  --toast-text: #F3F4F6;
 }
 
 html {
