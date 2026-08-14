@@ -1231,7 +1231,6 @@ export default function Feed() {
   } = useAppContext()
   const [showDiscovery, setShowDiscovery] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [assistantPrompt, setAssistantPrompt] = useState(null) // null = closed, string = open
 
@@ -1349,45 +1348,79 @@ export default function Feed() {
     return 'Good evening'
   }
 
+  const askAssistantRow = (
+    <button
+      type="button"
+      onClick={() => { const q = searchQuery.trim(); if (q) { setAssistantPrompt(q); setSearchQuery('') } }}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+        padding: '14px 16px', borderRadius: 16, cursor: 'pointer',
+        border: `1.5px solid ${clr.indigo}`,
+        backgroundColor: clr.white, textAlign: 'left',
+        fontFamily: 'inherit', marginBottom: 4,
+      }}
+    >
+      <span style={{ fontSize: 18, lineHeight: 1 }}>✦</span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          Ask about "{searchQuery}"
+        </span>
+        <span style={{ display: 'block', fontSize: 12, color: clr.textMid, marginTop: 2 }}>
+          Get help finding or creating something
+        </span>
+      </span>
+      <svg width="16" height="16" fill="none" stroke={clr.indigo} strokeWidth="2.5" viewBox="0 0 24 24">
+        <path d="M9 18l6-6-6-6" />
+      </svg>
+    </button>
+  )
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: "'DM Sans','Inter',sans-serif", paddingBottom: 110 }}>
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
         {!completeness.isComplete && <ProfileCompletionCard completeness={completeness} />}
         {/* ── Greeting ── */}
-        <div style={{ padding: '12px 0 16px' }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: clr.textDark, margin: '0 0 6px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display','Georgia',serif" }}>
-            {getGreeting()}, {firstName} 👋
+        <div style={{ padding: '14px 0 14px' }}>
+          <h1 style={{
+            fontSize: 26, fontWeight: 800, color: clr.textDark,
+            margin: 0, letterSpacing: '-0.02em',
+            fontFamily: "'DM Serif Display','Georgia',serif",
+            paddingLeft: 4,
+          }}>
+            {getGreeting()}, {firstName}
           </h1>
-          <p style={{ fontSize: 14, color: clr.textMid, margin: 0, lineHeight: 1.6 }}>Join or create circles and meet your people.</p>
         </div>
 
         {/* ── Search Bar ── */}
-        <div style={{ position: 'relative', marginBottom: 24 }}>
-          <svg width="18" height="18" fill="none" stroke={clr.textLight} strokeWidth="2.5" viewBox="0 0 24 24" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-          <input
-            value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-            placeholder="Search people, circles, events..."
-            style={{ width: '100%', boxSizing: 'border-box', padding: '14px 16px 14px 46px', borderRadius: 999, border: searchFocused ? `2px solid ${clr.indigo}` : '2px solid transparent', backgroundColor: clr.white, fontSize: 15, color: clr.textDark, outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.2s ease, box-shadow 0.2s ease', boxShadow: searchFocused ? `0 0 0 4px rgba(91,95,239,0.1)` : '0 2px 10px rgba(0,0,0,0.03)' }}
+        <div>
+          <AssistantBar
+            clr={clr}
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search or ask anything..."
+            onSubmit={(text) => { if (text) setAssistantPrompt(text) }}
           />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: clr.textLight, border: 'none', cursor: 'pointer', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="11" height="11" fill="none" stroke="#FFF" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            </button>
-          )}
         </div>
 
         {/* ── View Controller ── */}
         {searchResults ? (
           <div style={{ animation: 'slideUp 0.15s ease' }}>
             {searchResults.people.length === 0 && searchResults.circles.length === 0 && searchResults.events.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, margin: '0 0 8px 0' }}>No results for "{searchQuery}"</p>
-                <p style={{ fontSize: 14, color: clr.textMid, margin: 0 }}>Try adjusting your search terms.</p>
+              <div style={{ padding: '8px 0' }}>
+                {askAssistantRow}
+                <div style={{ padding: '28px 20px 20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, margin: '0 0 6px 0' }}>
+                    Nothing matched "{searchQuery}"
+                  </p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    Try asking instead — the assistant can search more broadly or create something new.
+                  </p>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {askAssistantRow}
                 {searchResults.people.length > 0 && (
                   <section><SectionHeader title="People" /><HScrollRow>{searchResults.people.map(p => <PersonCard key={p.id} person={p} />)}</HScrollRow></section>
                 )}
@@ -1429,12 +1462,7 @@ export default function Feed() {
               </button>
             </section>
 
-            {/* ── Assistant Bar ── */}
-            <div style={{ marginTop: 24 }}>
-              <AssistantBar clr={clr} onSubmit={(text) => setAssistantPrompt(text)} />
-            </div>
-
-            <div>
+            <div style={{ marginTop: 28 }}>
               <SocialBattery />
             </div>
 

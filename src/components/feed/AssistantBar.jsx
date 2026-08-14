@@ -9,8 +9,7 @@ const EXAMPLES = [
   'meet someone new in my area',
 ]
 
-export default function AssistantBar({ onSubmit, clr }) {
-  const [text, setText] = useState('')
+export default function AssistantBar({ onSubmit, clr, value, onChange, placeholder }) {
   const [exampleIdx, setExampleIdx] = useState(0)
   const intervalRef = useRef(null)
 
@@ -23,14 +22,15 @@ export default function AssistantBar({ onSubmit, clr }) {
 
   const submit = (e) => {
     e?.preventDefault?.()
-    const t = text.trim()
-    onSubmit(t)   // empty string = open with help
-    setText('')
+    const t = (value || '').trim()
+    onSubmit(t)
+    onChange?.('')
   }
 
   // Tapping the rotating example auto-submits that prompt.
   const submitExample = () => {
     onSubmit(EXAMPLES[exampleIdx])
+    onChange?.('')
   }
 
   return (
@@ -108,9 +108,12 @@ export default function AssistantBar({ onSubmit, clr }) {
           {/* Input row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="What are you looking for?"
+              value={value || ''}
+              onChange={(e) => onChange?.(e.target.value)}
+              placeholder={placeholder || 'What are you looking for?'}
+              enterKeyHint="search"
+              autoComplete="off"
+              autoCorrect="off"
               style={{
                 flex: 1,
                 border: 'none',
