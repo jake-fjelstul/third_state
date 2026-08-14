@@ -261,3 +261,22 @@ export async function updateMessagePayload(messageId, payload) {
   if (error) throw error
 }
 
+export async function toggleMessageReaction(messageId, emoji) {
+  const { data, error } = await supabase.rpc('toggle_message_reaction', {
+    p_message_id: messageId,
+    p_emoji: emoji,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function listChatReactions(chatId) {
+  const { data, error } = await supabase
+    .from('message_reactions')
+    .select('id, message_id, user_id, emoji')
+    .eq('chat_id', chatId)
+  if (error) throw error
+  return data || []
+}
+
+

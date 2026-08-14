@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { listMessages, mapMessageRow } from '../lib/chat'
+import { listMessages, mapMessageRow, listChatReactions } from '../lib/chat'
 
 /**
  * Subscribes to new messages for a chat (optionally filtered to a channel).
- * Returns { messages, loading, error, append, refresh }.
+ * Returns { messages, loading, error, append, refresh, reactions, applyLocalReaction }.
  */
 export function useChatMessages({ chatId, channelId = null } = {}) {
   const [messages, setMessages] = useState([])
+  const [reactions, setReactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const channelIdRef = useRef(channelId)
@@ -16,6 +17,7 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
   useEffect(() => {
     if (!chatId) {
       setMessages([])
+      setReactions([])
       setLoading(false)
       return
     }
@@ -29,6 +31,10 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
       })
       .catch(err => { if (!cancelled) setError(err) })
       .finally(() => { if (!cancelled) setLoading(false) })
+
+    listChatReactions(chatId)
+      .then(rows => { if (!cancelled) setReactions(rows) })
+      .catch(() => {})
 
     // Realtime: subscribe to inserts on this chat. Filter by channel client-side
     // so users get every message at the chat level (server-side filter doesn't
@@ -64,6 +70,24 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
           })
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_reactions', filter: `chat_id=eq.${chatId}` },
+        (payload) => {
+          const row = payload.new
+          if (!row) return
+          setReactions(prev => prev.some(r => r.id === row.id) ? prev : [...prev, row])
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'message_reactions' },
+        (payload) => {
+          const oldRow = payload.old
+          if (!oldRow?.id) return
+          setReactions(prev => prev.filter(r => r.id !== oldRow.id))
+        }
+      )
       .subscribe()
 
     return () => {
@@ -81,5 +105,16 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
     setMessages(rows)
   }
 
-  return { messages, loading, error, append, refresh }
+  const applyLocalReaction = (messageId, emoji, userId, added) => {
+    setReactions(prev => {
+      if (added) {
+        const exists = prev.some(r => r.message_id === messageId && r.user_id === userId && r.emoji === emoji)
+        if (exists) return prev
+        return [...prev, { id: `local-${messageId}-${emoji}-${userId}`, message_id: messageId, user_id: userId, emoji }]
+      }
+      return prev.filter(r => !(r.message_id === messageId && r.user_id === userId && r.emoji === emoji))
+    })
+  }
+
+  return { messages, loading, error, append, refresh, reactions, applyLocalReaction }
 }

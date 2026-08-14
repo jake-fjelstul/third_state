@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listCircles } from '../lib/circles'
 import { useChatMessages } from '../hooks/useChatMessages.js'
-import { listChannels, createChannel } from '../lib/chat.js'
+import { listChannels, createChannel, toggleMessageReaction } from '../lib/chat.js'
 import { avatarFor } from '../lib/avatar'
 import GameMessageCard from '../components/games/GameMessageCard.jsx'
 import GamePicker from '../components/games/GamePicker.jsx'
@@ -31,6 +31,8 @@ const clr = {
   green:      'var(--green)',
   activeRow:  '#EEF0FF',
 }
+
+const REACTION_EMOJIS = ['❤️', '👍', '👎', '😂', '😮', '😢']
  
 /* ── tiny helpers ── */
 function GroupAvatar({ name, color = clr.indigo }) {
@@ -150,7 +152,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
 
   const channelsReady = isDm || channelsLoaded
 
-  const { messages, loading: msgsLoading } = useChatMessages({
+  const { messages, loading: msgsLoading, reactions, applyLocalReaction } = useChatMessages({
     chatId: channelsReady ? baseId : null,
     channelId: resolvedChannelId,
   })
@@ -264,6 +266,35 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     const withinWeek = (now - d) < 7 * 24 * 60 * 60 * 1000
     if (withinWeek) return `${d.toLocaleDateString([], { weekday: 'long' })} ${t}`
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${t}`
+  }
+
+  const reactionsFor = (messageId) => {
+    const mine = new Set()
+    const counts = new Map()
+    for (const r of reactions || []) {
+      if (r.message_id !== messageId) continue
+      counts.set(r.emoji, (counts.get(r.emoji) || 0) + 1)
+      if (r.user_id === currentUser?.id) mine.add(r.emoji)
+    }
+    return { counts, mine }
+  }
+
+  const handleReact = async (msg, emoji) => {
+    if (!msg?.id || !currentUser?.id) return
+    const { mine } = reactionsFor(msg.id)
+    const willAdd = !mine.has(emoji)
+    applyLocalReaction(msg.id, emoji, currentUser.id, willAdd)
+    setActionMsg(null)
+    try {
+      const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
+      await Haptics.impact({ style: ImpactStyle.Light })
+    } catch {}
+    try {
+      await toggleMessageReaction(msg.id, emoji)
+    } catch (err) {
+      applyLocalReaction(msg.id, emoji, currentUser.id, !willAdd)
+      console.error('[Chat] reaction failed', err)
+    }
   }
 
   return (
@@ -468,11 +499,11 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                     <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
                   )}
                   <div
-                    onTouchStart={(e) => { if (msg.senderId !== currentUser?.id) startLongPress(msg, e) }}
+                    onTouchStart={(e) => startLongPress(msg, e)}
                     onTouchMove={moveLongPress}
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
-                    onContextMenu={(e) => { e.preventDefault(); if (msg.senderId !== currentUser?.id) setActionMsg(msg) }}
+                    onContextMenu={(e) => { e.preventDefault(); setActionMsg(msg) }}
                     style={{
                       maxWidth: '72%',
                       padding: '11px 14px',
@@ -489,6 +520,37 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                   >
                     {msg.text}
                   </div>
+                  {(() => {
+                    const { counts, mine } = reactionsFor(msg.id)
+                    if (counts.size === 0) return null
+                    return (
+                      <div style={{
+                        display: 'flex', flexWrap: 'wrap', gap: 4,
+                        marginTop: -4, marginLeft: 4, marginRight: 4,
+                        justifyContent: isMe ? 'flex-end' : 'flex-start',
+                      }}>
+                        {[...counts.entries()].map(([emoji, count]) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleReact(msg, emoji)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 3,
+                              padding: '2px 7px', borderRadius: 999,
+                              border: `1px solid ${mine.has(emoji) ? clr.indigo : clr.border}`,
+                              backgroundColor: mine.has(emoji) ? clr.indigoLt : clr.white,
+                              fontSize: 12, cursor: 'pointer', lineHeight: 1.6,
+                            }}
+                          >
+                            <span>{emoji}</span>
+                            {count > 1 && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: clr.textMid }}>{count}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
               </Fragment>
             )
@@ -721,18 +783,43 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
               <div style={{ width: 36, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
             </div>
-            <button
-              type="button"
-              onClick={() => { const m = actionMsg; setActionMsg(null); setReportMsg(m) }}
-              style={{
-                width: '100%', minHeight: 48, borderRadius: 14, border: 'none',
-                backgroundColor: clr.bg, color: clr.textDark,
-                fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              🚩 Report message
-            </button>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              gap: 4, padding: '6px 4px 14px',
+            }}>
+              {REACTION_EMOJIS.map(emoji => {
+                const active = reactionsFor(actionMsg.id).mine.has(emoji)
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => handleReact(actionMsg, emoji)}
+                    style={{
+                      flex: 1, minHeight: 48, borderRadius: 999, border: 'none',
+                      backgroundColor: active ? clr.indigoLt : 'transparent',
+                      fontSize: 26, lineHeight: 1, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+            {actionMsg.senderId !== currentUser?.id && (
+              <button
+                type="button"
+                onClick={() => { const m = actionMsg; setActionMsg(null); setReportMsg(m) }}
+                style={{
+                  width: '100%', minHeight: 48, borderRadius: 14, border: 'none',
+                  backgroundColor: clr.bg, color: clr.textDark,
+                  fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                🚩 Report message
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setActionMsg(null)}
