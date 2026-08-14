@@ -60,18 +60,32 @@ export default function Notifications() {
         padding: '16px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
         border: `1px solid ${clr.border}`,
+        borderLeft: notif.isRead ? `1px solid ${clr.border}` : '3px solid #F59E0B',
         display: 'flex',
         gap: 16,
         position: 'relative',
         opacity: notif.isRead ? 0.7 : 1,
         transition: 'opacity 0.3s ease'
       }}>
-        {!notif.isRead && (
-          <div style={{
-            position: 'absolute', top: 16, right: 16, width: 8, height: 8,
-            borderRadius: '50%', backgroundColor: '#F59E0B',
-          }} />
-        )}
+        <button
+          type="button"
+          aria-label="Dismiss notification"
+          onClick={(e) => {
+            e.stopPropagation()
+            dismissNotification(notif.id)
+          }}
+          style={{
+            position: 'absolute', top: 8, right: 8,
+            width: 32, height: 32, borderRadius: '50%',
+            border: 'none', background: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0, lineHeight: 0,
+          }}
+        >
+          <svg width="14" height="14" fill="none" stroke={clr.textLight} strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+          </svg>
+        </button>
         
         {/* Icon / Avatar */}
         {notif.type === 'event_approaching' ? (
@@ -116,7 +130,7 @@ export default function Notifications() {
         )}
 
         {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 28 }}>
           <p style={{ margin: '0 0 4px', fontSize: 15, color: clr.textDark, lineHeight: 1.4, wordBreak: 'break-word' }}>
             {notif.type === 'connection_request' ? (
               <><span style={{ fontWeight: 700 }}>{notif.user?.name}</span> {notif.message}</>
@@ -398,21 +412,27 @@ export default function Notifications() {
         margin: '0 auto',
         padding: '12px 20px 80px',
       }}>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24, minHeight: 34 }}>
-          <h1 style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, pointerEvents: 'none' }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{
+            fontSize: 28, fontWeight: 800, color: clr.textDark,
+            margin: 0, textAlign: 'center',
+          }}>
             Notifications
           </h1>
-          {unreadCount > 0 ? (
-            <button
-              onClick={markAllNotificationsRead}
-              style={{
-                background: 'none', border: 'none', color: clr.indigo,
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '4px 8px',
-              }}
-            >
-              Mark all read
-            </button>
-          ) : <div />}
+          {unreadCount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+              <button
+                onClick={markAllNotificationsRead}
+                style={{
+                  background: 'none', border: 'none', color: clr.indigo,
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  padding: '4px 8px', minHeight: 32,
+                }}
+              >
+                Mark all read
+              </button>
+            </div>
+          )}
         </div>
 
         {visibleNotifications.length === 0 ? (
