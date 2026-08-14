@@ -1720,7 +1720,7 @@ export default function Feed() {
             <section style={{ marginBottom: 24 }}>
               <div style={{ height: 24, marginBottom: 14 }}></div>
               <button type="button" onClick={() => setShowDiscovery(true)} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                style={{ width: '100%', borderRadius: 24, border: '1px solid rgba(199,210,254,0.18)', background: 'linear-gradient(135deg, #3E3D96 0%, #2F2E78 60%, #25254F 100%)', padding: '24px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 6px 20px rgba(62,61,150,0.28)', transition: 'transform 0.2s ease' }}
+                style={{ width: '100%', borderRadius: 24, border: '1px solid var(--discover-edge)', background: 'linear-gradient(135deg, var(--discover-a) 0%, var(--discover-b) 100%)', padding: '24px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 6px 20px rgba(62,61,150,0.28)', transition: 'transform 0.2s ease' }}
               >
                 <div style={{ textAlign: 'left' }}>
                   <p style={{ fontSize: 20, fontWeight: 800, color: '#FFFFFF', margin: '0 0 4px 0' }}>Meet Someone New</p>
@@ -1737,11 +1737,11 @@ export default function Feed() {
               <section style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingLeft: 4 }}>
                   <span style={{
-                    width: 7, height: 7, borderRadius: '50%', backgroundColor: '#FCD34D',
+                    width: 7, height: 7, borderRadius: '50%', backgroundColor: 'var(--lfg-accent)',
                     animation: 'lfgPulse 2s ease-in-out infinite', flexShrink: 0,
                   }} />
                   <h2 style={{
-                    margin: 0, fontSize: 13, fontWeight: 800, color: '#FCD34D',
+                    margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--lfg-accent)',
                     textTransform: 'uppercase', letterSpacing: '0.08em',
                   }}>
                     Happening now
@@ -1758,8 +1758,8 @@ export default function Feed() {
                         onClick={() => openLfgSheet(post)}
                         style={{
                           width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-                          background: 'linear-gradient(135deg, #3A2E14 0%, #241C0C 100%)',
-                          border: '1px solid rgba(252,211,77,0.22)',
+                          background: 'linear-gradient(135deg, var(--lfg-card-a) 0%, var(--lfg-card-b) 100%)',
+                          border: '1px solid var(--lfg-edge)',
                           borderRadius: 18, padding: '14px 16px',
                           display: 'flex', alignItems: 'center', gap: 12,
                           boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
@@ -1767,24 +1767,24 @@ export default function Feed() {
                       >
                         <div style={{
                           width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-                          backgroundColor: 'rgba(252,211,77,0.12)',
+                          backgroundColor: 'var(--lfg-icon-bg)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                               stroke="#FCD34D" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                               stroke="var(--lfg-accent)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
                           </svg>
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{
-                            margin: 0, fontSize: 15, fontWeight: 700, color: '#FFFFFF',
+                            margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--lfg-title)',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           }}>
                             {post.activity}
                           </p>
                           <p style={{
-                            margin: '3px 0 0', fontSize: 12, color: 'rgba(253,230,138,0.65)',
+                            margin: '3px 0 0', fontSize: 12, color: 'var(--lfg-sub)',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           }}>
                             {post.mine ? 'Your post' : `${(post.authorName || '').split(' ')[0]}'s post`}
@@ -1794,8 +1794,8 @@ export default function Feed() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
                           <span style={{
-                            fontSize: 11, fontWeight: 800, color: '#241C0C',
-                            backgroundColor: '#FCD34D', padding: '3px 9px', borderRadius: 999,
+                            fontSize: 11, fontWeight: 800, color: 'var(--lfg-pill-ink)',
+                            backgroundColor: 'var(--lfg-pill-bg)', padding: '3px 9px', borderRadius: 999,
                           }}>
                             {timeLeftLabel(post.expiresAt)}
                           </span>
@@ -1808,13 +1808,13 @@ export default function Feed() {
                                   alt=""
                                   style={{
                                     width: 20, height: 20, borderRadius: '50%', objectFit: 'cover',
-                                    border: '1.5px solid #241C0C',
+                                    border: '1.5px solid var(--lfg-card-b)',
                                     marginLeft: i === 0 ? 0 : -7, zIndex: 3 - i, position: 'relative',
                                   }}
                                 />
                               ))}
                               {joiners.length > 3 && (
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(253,230,138,0.7)', marginLeft: 5 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--lfg-sub)', marginLeft: 5 }}>
                                   +{joiners.length - 3}
                                 </span>
                               )}

@@ -31,6 +31,33 @@
   --channel-bar-pad-left: 16px;
   --toast-bg: #1A1A2E;
   --toast-text: #FFFFFF;
+
+  /* Create wheel — light theme: pale tints, dark text */
+  --wheel-circle-a: #C7CBF5;  --wheel-circle-b: #A9AEEE;
+  --wheel-event-a:  #A9DED5;  --wheel-event-b:  #86CDC1;
+  --wheel-lfg-a:    #F0DBA8;  --wheel-lfg-b:    #E5C883;
+  --wheel-coffee-a: #F0C2CB;  --wheel-coffee-b: #E5A3B0;
+  --wheel-ink:      #1A1A2E;
+  --wheel-ink-soft: rgba(26,26,46,0.66);
+  --wheel-icon-circle: #3E3D96;
+  --wheel-icon-event:  #0F5A50;
+  --wheel-icon-lfg:    #8A6410;
+  --wheel-icon-coffee: #8C3A4E;
+
+  /* Discovery button */
+  --discover-a: #5B5FEF;  --discover-b: #7B6FFF;
+  --discover-ink: #FFFFFF;
+  --discover-edge: rgba(255,255,255,0.22);
+
+  /* Happening now */
+  --lfg-card-a: #FBF0D6;  --lfg-card-b: #F5E4BC;
+  --lfg-edge:   rgba(138,100,16,0.28);
+  --lfg-accent: #8A6410;
+  --lfg-title:  #1A1A2E;
+  --lfg-sub:    rgba(88,64,10,0.78);
+  --lfg-pill-bg:  #8A6410;
+  --lfg-pill-ink: #FBF0D6;
+  --lfg-icon-bg: rgba(138,100,16,0.14);
 }
 
 @media (min-width: 640px) {
@@ -55,6 +82,30 @@ html.dark {
   --modal-suggest-chip-text: #FCD34D;
   --toast-bg: #2D2D3D;
   --toast-text: #F3F4F6;
+
+  --wheel-circle-a: #3E3D96;  --wheel-circle-b: #2A2963;
+  --wheel-event-a:  #12655B;  --wheel-event-b:  #0C443D;
+  --wheel-lfg-a:    #8A6410;  --wheel-lfg-b:    #5E430B;
+  --wheel-coffee-a: #8C3A4E;  --wheel-coffee-b: #5F2634;
+  --wheel-ink:      #FFFFFF;
+  --wheel-ink-soft: rgba(255,255,255,0.72);
+  --wheel-icon-circle: #C7D2FE;
+  --wheel-icon-event:  #99F6E4;
+  --wheel-icon-lfg:    #FDE68A;
+  --wheel-icon-coffee: #FECDD3;
+
+  --discover-a: #3E3D96;  --discover-b: #25254F;
+  --discover-ink: #FFFFFF;
+  --discover-edge: rgba(199,210,254,0.18);
+
+  --lfg-card-a: #3A2E14;  --lfg-card-b: #241C0C;
+  --lfg-edge:   rgba(252,211,77,0.22);
+  --lfg-accent: #FCD34D;
+  --lfg-title:  #FFFFFF;
+  --lfg-sub:    rgba(253,230,138,0.65);
+  --lfg-pill-bg:  #FCD34D;
+  --lfg-pill-ink: #241C0C;
+  --lfg-icon-bg: rgba(252,211,77,0.12);
 }
 
 html {

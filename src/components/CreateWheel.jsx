@@ -239,7 +239,7 @@ export default function CreateWheel({ onAction }) {
                   transform: `rotate(${s.angle}deg)`,
                   transformOrigin: `${cx}px ${cy}px`,
                 }}>
-                  <path d={slicePath} fill={`url(#grad-${s.id})`} stroke={s.edge} strokeWidth="1" />
+                  <path d={slicePath} fill={`url(#grad-${s.id})`} stroke={s.edge} strokeWidth="1" strokeOpacity="0.35" />
                 </g>
                 
                 {/* Un-rotated Text securely rooted at computed geometry coordinate */}
@@ -254,10 +254,10 @@ export default function CreateWheel({ onAction }) {
                   >
                     {s.paths.map((d, pi) => <path key={pi} d={d} />)}
                   </g>
-                  <text y="5" fill="#FFFFFF" fontSize="14" fontWeight="bold" textAnchor="middle" letterSpacing="0.02em">
+                  <text y="5" fill="var(--wheel-ink)" fontSize="14" fontWeight="bold" textAnchor="middle" letterSpacing="0.02em">
                     {s.title}
                   </text>
-                  <text y="22" fill="rgba(255,255,255,0.72)" fontSize="10.5" textAnchor="middle" letterSpacing="0.01em">
+                  <text y="22" fill="var(--wheel-ink-soft)" fontSize="10.5" textAnchor="middle" letterSpacing="0.01em">
                     {s.desc}
                   </text>
                 </g>

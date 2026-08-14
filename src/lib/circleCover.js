@@ -7,6 +7,13 @@
  * match the app's create wheel and assistant ring.
  */
 
+const PALETTE_LIGHT = [
+  ['#C7CBF5', '#A9AEEE'], ['#A9DED5', '#86CDC1'],
+  ['#D3C0E8', '#BCA2DA'], ['#F0DBA8', '#E5C883'],
+  ['#F0C2CB', '#E5A3B0'], ['#B8D4E4', '#94BDD4'],
+  ['#CBDCB6', '#AFC994'], ['#E8C6B0', '#DAA98C'],
+]
+
 const PALETTE = [
   ['#3E3D96', '#25254F'], // indigo
   ['#12655B', '#0B3B36'], // teal
@@ -41,7 +48,10 @@ function seedFor(circle) {
 
 export function circleGradientFor(circle) {
   const h = hashString(seedFor(circle))
-  const [from, to] = PALETTE[h % PALETTE.length]
+  const isDark = typeof document !== 'undefined'
+    && document.documentElement.classList.contains('dark')
+  const pal = isDark ? PALETTE : PALETTE_LIGHT
+  const [from, to] = pal[h % pal.length]
   const angle = ANGLES[(h >> 3) % ANGLES.length]
   return `linear-gradient(${angle}deg, ${from} 0%, ${to} 100%)`
 }
