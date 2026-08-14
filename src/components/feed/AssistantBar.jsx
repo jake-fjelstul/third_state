@@ -6,7 +6,7 @@ const EXAMPLES = [
   'events this weekend',
   'create a yoga circle',
   'host a coffee meetup Saturday',
-  'meet someone new in my area',
+  'meet someone new',
 ]
 
 export default function AssistantBar({ onSubmit, clr, value, onChange, placeholder }) {

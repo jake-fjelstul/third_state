@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 import { profileCompleteness } from '../lib/profileCompleteness.jsx'
@@ -1225,6 +1225,16 @@ function SocialBattery() {
 /* ── Main Feed ── */
 export default function Feed() {
   const navigate = useNavigate()
+  const [feedSearchParams, setFeedSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    if (feedSearchParams.get('discover') === '1') {
+      setShowDiscovery(true)
+      feedSearchParams.delete('discover')
+      setFeedSearchParams(feedSearchParams, { replace: true })
+    }
+  }, [feedSearchParams, setFeedSearchParams])
+
   const {
     currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd, circleMembershipVersion,
     startDM, recentInviter, clearRecentInviter, skipIntentCapture, updateMyIntents, connections, blockedUserIds

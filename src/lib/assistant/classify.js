@@ -16,6 +16,7 @@ export const INTENT_TYPES = {
   JOIN_CIRCLE:   'join_circle',
   RSVP_EVENT:    'rsvp_event',
   NAVIGATE:      'navigate',
+  DISCOVER:      'discover',
   HELP:          'help',
 }
 
@@ -41,6 +42,7 @@ export function classify(text = '', slots = {}, entityCandidates = []) {
     [INTENT_TYPES.JOIN_CIRCLE]: 0,
     [INTENT_TYPES.RSVP_EVENT]: 0,
     [INTENT_TYPES.NAVIGATE]: 0,
+    [INTENT_TYPES.DISCOVER]: 0,
     [INTENT_TYPES.HELP]: 0,
   }
 
@@ -105,6 +107,12 @@ export function classify(text = '', slots = {}, entityCandidates = []) {
     matchedSignals.push('verb: help (+30)')
   }
 
+  // --- Signal 1b: Discovery phrasing (Weight 45) ---
+  if (/\b(meet someone new|someone new|swipe|discover|browse people|anyone new|new people)\b/i.test(t)) {
+    scores[INTENT_TYPES.DISCOVER] += 45
+    matchedSignals.push('phrase: discovery (+45)')
+  }
+
   // --- Signal 2: Object-Noun Match (Weight 25) ---
   if (/\b(events?|meetups?|gathering|party|hangout|chess event)\b/i.test(t)) {
     scores[INTENT_TYPES.FIND_EVENTS] += 25
@@ -126,10 +134,12 @@ export function classify(text = '', slots = {}, entityCandidates = []) {
 
   // --- Signal 3: Slot Presence (Weight 20) ---
   if (slots.person?.name) {
-    scores[INTENT_TYPES.START_DM] += 20
-    scores[INTENT_TYPES.CONNECT_PERSON] += 20
-    scores[INTENT_TYPES.FIND_PEOPLE] += 15
-    matchedSignals.push('slot: person present (+20)')
+    const hasMessageVerb = /\b(message|text|dm|chat with|send message|write to)\b/i.test(t)
+    const hasConnectVerb = /\b(connect with|introduce me to|add friend|connect me to)\b/i.test(t)
+    if (hasMessageVerb) scores[INTENT_TYPES.START_DM] += 25
+    if (hasConnectVerb) scores[INTENT_TYPES.CONNECT_PERSON] += 25
+    scores[INTENT_TYPES.FIND_PEOPLE] += 30
+    matchedSignals.push('slot: person present (+30 find)')
   }
 
   if (slots.time?.kind && slots.time.kind !== 'none') {
@@ -156,12 +166,10 @@ export function classify(text = '', slots = {}, entityCandidates = []) {
       scores[INTENT_TYPES.FIND_EVENTS] += 25
       matchedSignals.push('entity: top event match (+25)')
     } else if (topKind === 'person') {
-      if (scores[INTENT_TYPES.START_DM] > 0 || scores[INTENT_TYPES.CONNECT_PERSON] > 0) {
-        scores[INTENT_TYPES.START_DM] += 25
-      } else {
-        scores[INTENT_TYPES.FIND_PEOPLE] += 25
-      }
-      matchedSignals.push('entity: top person match (+25)')
+      scores[INTENT_TYPES.FIND_PEOPLE] += 25
+      if (scores[INTENT_TYPES.START_DM] > 0) scores[INTENT_TYPES.START_DM] += 15
+      if (scores[INTENT_TYPES.CONNECT_PERSON] > 0) scores[INTENT_TYPES.CONNECT_PERSON] += 15
+      matchedSignals.push('entity: top person match (+25 find)')
     } else if (topKind === 'circle') {
       scores[INTENT_TYPES.FIND_CIRCLES] += 25
       matchedSignals.push('entity: top circle match (+25)')

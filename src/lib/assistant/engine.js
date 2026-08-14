@@ -8,7 +8,7 @@ import { parseSlots } from './slots.js'
 import { buildIndex, resolve } from './entities.js'
 import { classify, INTENT_TYPES } from './classify.js'
 import { ACTION_REGISTRY, getMissingSlots } from './actions.js'
-import { handleFindPeople, handleFindCircles, handleFindEvents, handleNavigate, handleHelp } from './handlers.js'
+import { handleFindPeople, handleFindCircles, handleFindEvents, handleNavigate, handleHelp, handleDiscover } from './handlers.js'
 import {
   assistantText, assistantPeople, assistantCircles, assistantEvents, assistantNavigate, assistantHelp
 } from './conversation.js'
@@ -54,11 +54,30 @@ export async function runAssistant(text, ctx = {}, pendingState = null) {
 
   // 7. Low Confidence (< 0.4) or Entity Ambiguity -> Ask or Disambiguate
   if (classification.confidence < 0.4 && !isEntityAmbiguous) {
+    const q = slots.topic?.value || text.trim()
+    const [people, circles, events] = await Promise.all([
+      handleFindPeople({ topic: q, ctx }).catch(() => []),
+      handleFindCircles({ topic: q, ctx }).catch(() => []),
+      handleFindEvents({ topic: q, ctx }).catch(() => []),
+    ])
+    const hits = []
+    for (const group of [people, circles, events]) {
+      for (const m of group) {
+        if (m.kind === 'people' || m.kind === 'circles' || m.kind === 'events') hits.push(m)
+      }
+    }
+    if (hits.length > 0) {
+      return {
+        messages: [assistantText(`Here's what I found for "${q}".`), ...hits],
+        pendingState: null,
+      }
+    }
     return {
       messages: [
-        assistantText("I'm not completely sure what you'd like to do. Could you clarify if you're looking for people, circles, or events?")
+        assistantText(`I couldn't find anything for "${q}". You could start a circle or host an event around it — or browse Discover for something new.`),
+        assistantNavigate('Open Discover', '/feed?discover=1', 'Discover'),
       ],
-      pendingState: { originalText: text, awaiting: 'clarification', turns: 1 }
+      pendingState: null,
     }
   }
 
@@ -148,6 +167,10 @@ export async function runAssistant(text, ctx = {}, pendingState = null) {
       const pagePath = topEntity?.path || slots.topic?.value || '/feed'
       const res = handleNavigate({ topic: pagePath })
       responseMessages = attachReasonAndAlternative(res, topEntity, alternativeMsg)
+      break
+    }
+    case INTENT_TYPES.DISCOVER: {
+      responseMessages = handleDiscover()
       break
     }
     case INTENT_TYPES.HELP:

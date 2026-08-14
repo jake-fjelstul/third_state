@@ -98,20 +98,13 @@ export function handleNavigate({ topic }) {
   ]
 }
 
-export function handleHelp() {
-  return [assistantHelp()]
+export function handleDiscover() {
+  return [
+    assistantText("Let's find you someone new — swipe through people, circles and events."),
+    assistantNavigate('Open Discover', '/feed?discover=1', 'Discover'),
+  ]
 }
 
-/** Top-level dispatcher. */
-export async function dispatchIntent({ intent, topic }, ctx) {
-  switch (intent) {
-    case 'find_people':   return await handleFindPeople({ topic, ctx })
-    case 'find_circles':  return await handleFindCircles({ topic, ctx })
-    case 'find_events':   return await handleFindEvents({ topic, ctx })
-    case 'create_event':  return handleCreateEvent({ topic })
-    case 'create_circle': return handleCreateCircle({ topic })
-    case 'navigate':      return handleNavigate({ topic })
-    case 'help':
-    default:              return handleHelp()
-  }
+export function handleHelp() {
+  return [assistantHelp()]
 }
