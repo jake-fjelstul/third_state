@@ -50,7 +50,11 @@ export function useCalendar() {
       await checkStatus()
       await refresh()
     } catch (e) {
-      setError(e?.message || 'Could not connect calendar')
+      const msg = e?.message || 'Could not connect calendar'
+      if (!msg.toLowerCase().includes('cancelled')) {
+        setError(msg)
+      }
+      await checkStatus().catch(() => {})
     } finally {
       setLoading(false)
     }

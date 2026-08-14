@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listCircles } from '../lib/circles'
@@ -16,6 +16,7 @@ import CoffeeInviteMessageCard from '../components/chat/CoffeeInviteMessageCard.
 import QuestionPrompt from '../components/chat/QuestionPrompt.jsx'
 import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
 import AskQuestionComposer from '../components/chat/AskQuestionComposer.jsx'
+import ReportModal from '../components/moderation/ReportModal.jsx'
  
 const clr = {
   bg:         'var(--bg)',
@@ -109,6 +110,9 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const [channelsLoaded, setChannelsLoaded] = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
+  const [actionMsg, setActionMsg] = useState(null)
+  const [reportMsg, setReportMsg] = useState(null)
+  const longPressRef = useRef({ timer: null, startX: 0, startY: 0, fired: false })
 
   const { name, avatar, online, isGroup } = normChat(chat)
   const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll, syncQuestionReveals, askSpontaneousQuestion, getPendingQuestion, cancelSpontaneousQuestion } = useAppContext()
@@ -200,7 +204,68 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     sendMessage(baseId || chat.id, input, resolvedChannelId)
     setInput('')
   }
- 
+
+  const startLongPress = (msg, e) => {
+    const t = e.touches?.[0]
+    longPressRef.current.startX = t ? t.clientX : 0
+    longPressRef.current.startY = t ? t.clientY : 0
+    longPressRef.current.fired = false
+    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer)
+    longPressRef.current.timer = setTimeout(async () => {
+      longPressRef.current.fired = true
+      try {
+        const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
+        await Haptics.impact({ style: ImpactStyle.Medium })
+      } catch {}
+      setActionMsg(msg)
+    }, 450)
+  }
+
+  const moveLongPress = (e) => {
+    const t = e.touches?.[0]
+    if (!t) return
+    const dx = Math.abs(t.clientX - longPressRef.current.startX)
+    const dy = Math.abs(t.clientY - longPressRef.current.startY)
+    if (dx > 10 || dy > 10) cancelLongPress()
+  }
+
+  const cancelLongPress = () => {
+    if (longPressRef.current.timer) {
+      clearTimeout(longPressRef.current.timer)
+      longPressRef.current.timer = null
+    }
+  }
+
+  const handleTouchEnd = (e) => {
+    if (longPressRef.current.fired) {
+      try { e.preventDefault() } catch {}
+      try { e.stopPropagation() } catch {}
+      longPressRef.current.fired = false
+    }
+    cancelLongPress()
+  }
+
+  const showTimeSeparator = (msg, prev) => {
+    if (!prev) return true
+    if (!msg?.createdAt || !prev?.createdAt) return false
+    return (new Date(msg.createdAt) - new Date(prev.createdAt)) > 15 * 60 * 1000
+  }
+
+  const formatSeparator = (iso) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    const now = new Date()
+    const sameDay = d.toDateString() === now.toDateString()
+    const yest = new Date(now); yest.setDate(now.getDate() - 1)
+    const isYesterday = d.toDateString() === yest.toDateString()
+    const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    if (sameDay) return t
+    if (isYesterday) return `Yesterday ${t}`
+    const withinWeek = (now - d) < 7 * 24 * 60 * 60 * 1000
+    if (withinWeek) return `${d.toLocaleDateString([], { weekday: 'long' })} ${t}`
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${t}`
+  }
+
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -309,80 +374,123 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
             <p style={{ fontSize: 15, color: clr.textMid, margin: 0 }}>Start the conversation</p>
           </div>
         ) : (
-          messages.map((msg, i) => {
+          messages.map((msg, i, arr) => {
+            const prev = i > 0 ? arr[i - 1] : null
+            const needsSeparator = showTimeSeparator(msg, prev)
             const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
             if (msg.kind === 'poll') {
               return (
-                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && isGroup && (
-                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                <Fragment key={i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
+                        {formatSeparator(msg.createdAt)}
+                      </span>
+                    </div>
                   )}
-                  <PollMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
-                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                    {!isMe && isGroup && (
+                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                    )}
+                    <PollMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
+                  </div>
+                </Fragment>
               )
             }
             if (msg.kind === 'game') {
               return (
-                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && isGroup && (
-                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                <Fragment key={i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
+                        {formatSeparator(msg.createdAt)}
+                      </span>
+                    </div>
                   )}
-                  <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
-                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                    {!isMe && isGroup && (
+                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                    )}
+                    <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                  </div>
+                </Fragment>
               )
             }
             if (msg.kind === 'question') {
               return (
-                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && isGroup && (
-                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                <Fragment key={i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
+                        {formatSeparator(msg.createdAt)}
+                      </span>
+                    </div>
                   )}
-                  <QuestionMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
-                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                    {!isMe && isGroup && (
+                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                    )}
+                    <QuestionMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
+                  </div>
+                </Fragment>
               )
             }
             if (msg.kind === 'coffee_invite' || msg.payload?.type === 'coffee_invite') {
               return (
-                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && isGroup && (
-                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                <Fragment key={i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
+                        {formatSeparator(msg.createdAt)}
+                      </span>
+                    </div>
                   )}
-                  <CoffeeInviteMessageCard message={msg} viewerId={currentUser?.id} clr={clr} />
-                  <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                    {!isMe && isGroup && (
+                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                    )}
+                    <CoffeeInviteMessageCard message={msg} viewerId={currentUser?.id} clr={clr} />
+                  </div>
+                </Fragment>
               )
             }
             return (
-              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                {!isMe && isGroup && (
-                  <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+              <Fragment key={i}>
+                {needsSeparator && (
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
+                      {formatSeparator(msg.createdAt)}
+                    </span>
+                  </div>
                 )}
-                <div style={{
-                  maxWidth: '72%',
-                  padding: '11px 14px',
-                  borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  backgroundColor: isMe ? clr.indigo : clr.indigoLt,
-                  color: isMe ? '#FFFFFF' : clr.textDark,
-                  fontSize: 14, lineHeight: 1.5,
-                  boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
-                }}>
-                  {msg.text}
+                <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                  {!isMe && isGroup && (
+                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                  )}
+                  <div
+                    onTouchStart={(e) => { if (msg.senderId !== currentUser?.id) startLongPress(msg, e) }}
+                    onTouchMove={moveLongPress}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                    onContextMenu={(e) => { e.preventDefault(); if (msg.senderId !== currentUser?.id) setActionMsg(msg) }}
+                    style={{
+                      maxWidth: '72%',
+                      padding: '11px 14px',
+                      borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      backgroundColor: isMe ? clr.indigo : clr.indigoLt,
+                      color: isMe ? '#FFFFFF' : clr.textDark,
+                      fontSize: 14, lineHeight: 1.5,
+                      boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
+                      WebkitTouchCallout: 'none',
+                      WebkitUserSelect: 'none',
+                      userSelect: 'none',
+                      touchAction: 'pan-y',
+                    }}
+                  >
+                    {msg.text}
+                  </div>
                 </div>
-                <span style={{ fontSize:11, color: clr.textLight, marginTop:4, marginLeft:4, marginRight:4 }}>
-                  {msg.time ?? ''}
-                </span>
-              </div>
+              </Fragment>
             )
           })
         )}
@@ -588,6 +696,68 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
           }}
         />
       )}
+
+      {actionMsg && (
+        <div
+          onClick={() => setActionMsg(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 999,
+            backgroundColor: 'rgba(15,15,30,0.4)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 500,
+              backgroundColor: clr.white,
+              borderRadius: '24px 24px 0 0',
+              padding: '20px 20px calc(24px + env(safe-area-inset-bottom))',
+              boxSizing: 'border-box',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <div style={{ width: 36, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
+            </div>
+            <button
+              type="button"
+              onClick={() => { const m = actionMsg; setActionMsg(null); setReportMsg(m) }}
+              style={{
+                width: '100%', minHeight: 48, borderRadius: 14, border: 'none',
+                backgroundColor: clr.bg, color: clr.textDark,
+                fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              🚩 Report message
+            </button>
+            <button
+              type="button"
+              onClick={() => setActionMsg(null)}
+              style={{
+                width: '100%', minHeight: 48, borderRadius: 14,
+                border: `1.5px solid ${clr.border}`,
+                backgroundColor: clr.white, color: clr.textMid,
+                fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ReportModal
+        open={!!reportMsg}
+        onClose={() => setReportMsg(null)}
+        reportedMessageId={reportMsg?.id}
+        reportedUserId={reportMsg?.senderId}
+        subjectName={reportMsg?.senderName ? `message from ${reportMsg.senderName}` : 'message'}
+        context={{ text: reportMsg?.text || '' }}
+      />
     </div>
   )
 }

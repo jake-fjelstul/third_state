@@ -20,7 +20,7 @@ const clr = {
 export default function Settings() {
   const navigate = useNavigate()
   const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById, getDailyQuestion, dismissDailyQuestion } = useAppContext()
-  const { isConnected: isCalendarConnected, isLoading: calendarLoading, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
+  const { isConnected: isCalendarConnected, isLoading: calendarLoading, error: calendarError, googleEvents, connect: connectCalendar, disconnect: disconnectCalendar } = useCalendar()
   const [toastMessage, setToastMessage] = useState('')
   const [radiusDraft, setRadiusDraft] = useState(searchRadius)
   const [reconnectDraft, setReconnectDraft] = useState(reconnectThresholdDays)
@@ -725,6 +725,15 @@ export default function Settings() {
                 {isCalendarConnected ? 'Disconnect' : 'Connect'}
               </button>
             </div>
+            {calendarError && (
+              <p style={{
+                margin: '10px 0 0', fontSize: 13, fontWeight: 600,
+                color: '#B91C1C', backgroundColor: '#FEE2E2',
+                padding: '10px 12px', borderRadius: 10, lineHeight: 1.4,
+              }}>
+                {calendarError}
+              </p>
+            )}
           </div>
         </div>
 

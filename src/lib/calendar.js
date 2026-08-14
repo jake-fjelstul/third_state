@@ -84,26 +84,52 @@ export async function connectCalendar() {
     const { App: CapApp } = await import('@capacitor/app')
 
     return new Promise((resolve, reject) => {
-      let listener = null
+      let urlListener = null
+      let finishListener = null
+      let settled = false
+      let timeoutId = null
 
-      listener = CapApp.addListener('appUrlOpen', async (event) => {
+      const cleanup = () => {
+        if (urlListener) { try { urlListener.remove() } catch {} urlListener = null }
+        if (finishListener) { try { finishListener.remove() } catch {} finishListener = null }
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null }
+      }
+
+      const settle = (fn, value) => {
+        if (settled) return
+        settled = true
+        cleanup()
+        fn(value)
+      }
+
+      CapApp.addListener('appUrlOpen', async (event) => {
         const url = event?.url || ''
         if (
           url.startsWith('com.thirdspace.social://calendar-callback') ||
           url.startsWith('thirdspace://calendar-callback')
         ) {
-          if (listener) listener.remove()
-          try {
-            await Browser.close()
-          } catch {}
+          try { await Browser.close() } catch {}
           setStoredCalendarToken('connected')
-          resolve({ ok: true })
+          settle(resolve, { ok: true })
         }
-      })
+      }).then((handle) => {
+        if (settled) { try { handle.remove() } catch {}; return }
+        urlListener = handle
+      }).catch(() => {})
 
-      Browser.open({ url: authUrl, presentationStyle: 'popover' }).catch((err) => {
-        if (listener) listener.remove()
-        reject(err)
+      Browser.addListener('browserFinished', () => {
+        settle(reject, new Error('Google Calendar connection was cancelled.'))
+      }).then((handle) => {
+        if (settled) { try { handle.remove() } catch {}; return }
+        finishListener = handle
+      }).catch(() => {})
+
+      timeoutId = setTimeout(() => {
+        settle(reject, new Error('Google Calendar connection timed out. Please try again.'))
+      }, 180000)
+
+      Browser.open({ url: authUrl }).catch((err) => {
+        settle(reject, err instanceof Error ? err : new Error('Could not open Google sign-in.'))
       })
     })
   } else {

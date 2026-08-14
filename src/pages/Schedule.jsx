@@ -204,7 +204,7 @@ export default function Schedule() {
   }, [])
 
   const {
-    isConfigured, isConnected, isLoading, googleEvents,
+    isConfigured, isConnected, isLoading, error: calendarError, googleEvents,
     connect, disconnect, addEventToGoogle,
   } = useCalendar()
 
@@ -394,47 +394,57 @@ export default function Schedule() {
             backgroundColor: isConnected ? '#F0FFF4' : clr.white,
             border: `1px solid ${isConnected ? '#86EFAC' : clr.border}`,
             borderRadius: 16, padding: '12px 16px',
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between',
+            display: 'block',
             marginBottom: 16,
             transition: 'all 0.4s ease',
           }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                backgroundColor: isConnected ? '#DCFCE7' : clr.bg,
-                display: 'flex', alignItems: 'center', 
-                justifyContent: 'center', fontSize: 16,
-              }}>
-                📅
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  backgroundColor: isConnected ? '#DCFCE7' : clr.bg,
+                  display: 'flex', alignItems: 'center', 
+                  justifyContent: 'center', fontSize: 16,
+                }}>
+                  📅
+                </div>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#064E3B' : clr.textDark, margin: 0 }}>
+                    {isConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
+                  </p>
+                  <p style={{ fontSize: 11, color: isConnected ? '#059669' : clr.textMid, margin: 0 }}>
+                    {isConnected ? 'Your events are syncing' : 'See all your events in one place'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#064E3B' : clr.textDark, margin: 0 }}>
-                  {isConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
-                </p>
-                <p style={{ fontSize: 11, color: isConnected ? '#059669' : clr.textMid, margin: 0 }}>
-                  {isConnected ? 'Your events are syncing' : 'See all your events in one place'}
-                </p>
-              </div>
+              {!isConnected && (
+                <button
+                  type="button"
+                  onClick={connect}
+                  disabled={isLoading || !isConfigured}
+                  title={!isConfigured ? 'Add your Google Client ID to .env to enable' : undefined}
+                  style={{
+                    padding: '8px 16px', borderRadius: 999,
+                    border: 'none',
+                    background: !isConfigured ? clr.textLight : `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
+                    color: '#FFFFFF',
+                    fontSize: 13, fontWeight: 700,
+                    cursor: isLoading || !isConfigured ? 'not-allowed' : 'pointer',
+                    boxShadow: !isConfigured ? 'none' : '0 2px 8px rgba(91,95,239,0.3)',
+                  }}
+                >
+                  {isLoading ? 'Connecting…' : 'Connect'}
+                </button>
+              )}
             </div>
-            {!isConnected && (
-              <button
-                type="button"
-                onClick={connect}
-                disabled={isLoading || !isConfigured}
-                title={!isConfigured ? 'Add your Google Client ID to .env to enable' : undefined}
-                style={{
-                  padding: '8px 16px', borderRadius: 999,
-                  border: 'none',
-                  background: !isConfigured ? clr.textLight : `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
-                  color: '#FFFFFF',
-                  fontSize: 13, fontWeight: 700,
-                  cursor: isLoading || !isConfigured ? 'not-allowed' : 'pointer',
-                  boxShadow: !isConfigured ? 'none' : '0 2px 8px rgba(91,95,239,0.3)',
-                }}
-              >
-                {isLoading ? 'Connecting…' : 'Connect'}
-              </button>
+            {calendarError && (
+              <p style={{
+                margin: '10px 0 0', fontSize: 12, fontWeight: 600,
+                color: '#B91C1C', backgroundColor: '#FEE2E2',
+                padding: '8px 10px', borderRadius: 8, lineHeight: 1.4,
+              }}>
+                {calendarError}
+              </p>
             )}
           </div>
         )}
