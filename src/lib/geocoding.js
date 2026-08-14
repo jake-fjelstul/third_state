@@ -19,7 +19,7 @@ export async function searchCities(query, { signal } = {}) {
     featuretype: 'city',
   })
   const res = await fetch(`${NOMINATIM}/search?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'User-Agent': 'ThirdSpace/1.0' },
     signal,
   })
   if (!res.ok) throw new Error(`Geocoding failed: ${res.status}`)
@@ -48,7 +48,7 @@ export async function reverseGeocode(lat, lng) {
     'accept-language': 'en',
   })
   const res = await fetch(`${NOMINATIM}/reverse?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'User-Agent': 'ThirdSpace/1.0' },
   })
   if (!res.ok) throw new Error(`Reverse geocoding failed: ${res.status}`)
   const row = await res.json()
@@ -91,7 +91,7 @@ export async function searchVenues(query, { near, radiusMeters = 50000, signal }
     params.set('bounded', '1')
   }
   const res = await fetch(`${NOMINATIM}/search?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'User-Agent': 'ThirdSpace/1.0' },
     signal,
   })
   if (!res.ok) throw new Error(`Venue search failed: ${res.status}`)

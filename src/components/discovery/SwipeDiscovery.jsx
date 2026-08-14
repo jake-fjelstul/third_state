@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { listCircles } from '../../lib/circles'
 import { listProfiles } from '../../lib/profiles'
 import { listUpcomingEvents } from '../../lib/events'
+import { listActiveLfgPosts, joinLfgPost, timeLeftLabel } from '../../lib/lfg'
 import { useAppContext } from '../../context/AppContext.jsx'
 import { avatarFor } from '../../lib/avatar'
 import { resolveCircleCover } from '../../lib/circleCover'
@@ -46,6 +47,9 @@ function scoreCard(card, currentUser) {
   } else if (card.type === 'event') {
     score += 5
     reason = 'Happening soon'
+  } else if (card.type === 'lfg') {
+    score += 10
+    reason = 'Free right now'
   }
   
   return { ...card, score, matchReason: reason }
@@ -174,19 +178,91 @@ function DiscoveryCard({ card }) {
       </div>
     )
   }
+
+  if (card.type === 'lfg') {
+    const p = card.data
+    const authorFirstName = p.authorName ? p.authorName.split(' ')[0] : 'Someone'
+    const formattedStartTime = p.startsAt
+      ? new Date(p.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : ''
+    return (
+      <div style={{
+        height: 520, display:'flex', flexDirection:'column',
+        backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+      }}>
+        {/* Amber accent header with Zap-style treatment */}
+        <div style={{
+          height: 160,
+          background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          position: 'relative', overflow: 'hidden', color: '#FCD34D', padding: '16px', textAlign: 'center'
+        }}>
+          <div style={{ fontSize: 44, marginBottom: 4 }}>⚡</div>
+          <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FCD34D' }}>
+            Looking For Group
+          </span>
+        </div>
+
+        <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column', gap: 14 }}>
+          <div style={{ display:'flex', alignItems:'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:'#FEF3C7', color:'#D97706', fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+              ⏱️ {timeLeftLabel(p.expiresAt)}
+            </span>
+            {p.visibility === 'friends' && (
+              <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                🔒 Friends only
+              </span>
+            )}
+          </div>
+
+          <h2 style={{ margin:0, fontSize:24, fontWeight:800, color: clr.textDark, lineHeight: 1.3 }}>
+            {p.activity}
+          </h2>
+
+          <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
+            <img
+              src={avatarFor({ avatar_url: p.authorAvatar, name: p.authorName })}
+              alt={authorFirstName}
+              style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }}
+            />
+            <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>
+              {authorFirstName} wants to hang out
+            </span>
+          </div>
+
+          {formattedStartTime && (
+            <div style={{ display:'flex', alignItems:'center', gap: 10, color: clr.textMid, fontSize: 15 }}>
+              <span style={{ fontSize: 18 }}>🕒</span> Starts at {formattedStartTime}
+            </div>
+          )}
+
+          {(p.placeName || p.placeAddress) && (
+            <div style={{ display:'flex', alignItems:'flex-start', gap: 10, color: clr.textMid, fontSize: 15 }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>📍</span>
+              <div>
+                {p.placeName && <div style={{ fontWeight: 700, color: clr.textDark }}>{p.placeName}</div>}
+                {p.placeAddress && <div style={{ fontSize: 13, color: clr.textLight }}>{p.placeAddress}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
   return null
 }
 
 export default function SwipeDiscovery({ onClose }) {
   const { joinCircle, rsvpEvent, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser, connections, joinedCircles, isRsvpd, blockedUserIds } = useAppContext()
-  const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events'])
+  const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events', 'lfg'])
   const [cardIndex, setCardIndex] = useState(0)
   
   const [dragX, setDragX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [actionPending, setActionPending] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
-  const [passedCards, setPassedCards] = useState({ person: [], circle: [], event: [] })
+  const [passedCards, setPassedCards] = useState({ person: [], circle: [], event: [], lfg: [] })
   
   const [showMessageDraft, setShowMessageDraft] = useState(false)
   const [draftMessage, setDraftMessage] = useState('')
@@ -201,6 +277,7 @@ export default function SwipeDiscovery({ onClose }) {
   const [circles, setCircles] = useState([])
   const [people, setPeople] = useState([])
   const [events, setEvents] = useState([])
+  const [lfgPosts, setLfgPosts] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -213,6 +290,7 @@ export default function SwipeDiscovery({ onClose }) {
               person: Array.isArray(parsed?.person) ? parsed.person : [],
               circle: Array.isArray(parsed?.circle) ? parsed.circle : [],
               event: Array.isArray(parsed?.event) ? parsed.event : [],
+              lfg: Array.isArray(parsed?.lfg) ? parsed.lfg : [],
             })
           } catch {}
         }
@@ -223,12 +301,13 @@ export default function SwipeDiscovery({ onClose }) {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([listProfiles(), listCircles(), listUpcomingEvents({ limit: 50 })])
-      .then(([ppl, crc, evts]) => {
+    Promise.all([listProfiles(), listCircles(), listUpcomingEvents({ limit: 50 }), listActiveLfgPosts()])
+      .then(([ppl, crc, evts, lfg]) => {
         if (!cancelled) {
           setPeople(ppl)
           setCircles(crc)
           setEvents(evts)
+          setLfgPosts(lfg)
         }
       })
       .catch(err => console.error('[SwipeDiscovery] load failed', err))
@@ -242,10 +321,10 @@ export default function SwipeDiscovery({ onClose }) {
 
   const toggleFilter = (f) => {
     setActiveFilters(prev => {
-      if (f === 'all') return ['people', 'circles', 'events']
+      if (f === 'all') return ['people', 'circles', 'events', 'lfg']
       if (prev.includes(f)) {
         const next = prev.filter(x => x !== f)
-        if (next.length === 0) return ['people', 'circles', 'events']
+        if (next.length === 0) return ['people', 'circles', 'events', 'lfg']
         return next
       }
       return [...prev, f]
@@ -306,9 +385,18 @@ export default function SwipeDiscovery({ onClose }) {
       }
     }
 
+    if (activeFilters.includes('lfg')) {
+      const candidates = lfgPosts
+        .filter(p => p.userId !== currentUser?.id)
+        .filter(p => !passedCards.lfg?.includes(p.id))
+        .filter(p => !blockedUserIds?.includes(p.userId))
+        .map(p => ({ type: 'lfg', data: p, score: 1000 - Math.round((new Date(p.expiresAt) - Date.now()) / 60000) }))
+      scoredCards.push(...candidates)
+    }
+
     return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius, circles, people, events, currentUser, blockedUserIds, passedCards])
+  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]
@@ -332,6 +420,10 @@ export default function SwipeDiscovery({ onClose }) {
         recordSwipe(currentCard.type)
         triggerToast(`You're going to ${currentCard.data.title}`)
         advanceCard()
+      } else if (currentCard.type === 'lfg') {
+        await joinLfgPost(currentCard.data.id)
+        triggerToast(`You're in — say hi to ${currentCard.data.authorName.split(' ')[0]}`)
+        advanceCard()
       } else if (currentCard.type === 'person') {
         setCurrentMatchCard(currentCard)
         setDraftMessage(`Hey ${currentCard.data.name.split(' ')[0]}! I'd love to connect 👋`)
@@ -344,6 +436,7 @@ export default function SwipeDiscovery({ onClose }) {
       setActionPending(false)
     }
   }
+
 
   const handleSwipeLeft = async () => {
     if (!currentCard || actionPending) return
@@ -449,6 +542,7 @@ export default function SwipeDiscovery({ onClose }) {
     { id: 'people', label: 'People 👤' },
     { id: 'circles', label: 'Circles 🔵' },
     { id: 'events', label: 'Events 📅' },
+    { id: 'lfg', label: 'Free now ⚡' },
   ]
 
   return (
@@ -484,7 +578,7 @@ export default function SwipeDiscovery({ onClose }) {
 
           <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, textAlign: 'right' }}>
-              {activeFilters.length === 3 ? 'Everything' : activeFilters.map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(' · ')}
+              {activeFilters.length === 4 ? 'Everything' : activeFilters.map(f => f === 'lfg' ? 'Free now' : f.charAt(0).toUpperCase() + f.slice(1)).join(' · ')}
             </span>
           </div>
         </div>
@@ -494,7 +588,7 @@ export default function SwipeDiscovery({ onClose }) {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: clr.textMid, marginRight: 4 }}>Filter by:</span>
             {FILTERS.map(f => {
-              const isActive = f.id === 'all' ? activeFilters.length === 3 : activeFilters.includes(f.id)
+              const isActive = f.id === 'all' ? activeFilters.length === 4 : activeFilters.includes(f.id)
               return (
                 <button key={f.id} onClick={() => toggleFilter(f.id)} style={{
                   padding: '10px 18px', borderRadius: 999, cursor: 'pointer',
@@ -553,7 +647,7 @@ export default function SwipeDiscovery({ onClose }) {
                 opacity: Math.min(dragX / 80, 1), border: '4px solid #FFF',
                 transform: 'rotate(-12deg)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
               }}>
-                {currentCard.type === 'person' ? '👋 CONNECT' : currentCard.type === 'circle' ? '✓ JOIN' : '✓ RSVP'}
+                {currentCard.type === 'person' ? '👋 CONNECT' : currentCard.type === 'circle' ? '✓ JOIN' : currentCard.type === 'lfg' ? '⚡ JOIN' : '✓ RSVP'}
               </div>
             )}
             {dragX < -40 && (
@@ -583,7 +677,7 @@ export default function SwipeDiscovery({ onClose }) {
               {(Object.keys(discoverySwipes).some(k => discoverySwipes[k] > 0 && k !== 'date') || Object.values(passedCards).some(arr => arr.length > 0)) && (
                 <button onClick={() => {
                   resetDiscoverySwipes()
-                  setPassedCards({ person: [], circle: [], event: [] })
+                  setPassedCards({ person: [], circle: [], event: [], lfg: [] })
                   setCardIndex(0)
                 }} style={{
                   padding: '16px', borderRadius: 999, border: 'none', cursor: 'pointer',
@@ -594,8 +688,8 @@ export default function SwipeDiscovery({ onClose }) {
                   Reset Swipe Limits
                 </button>
               )}
-              {activeFilters.length < 3 && (
-                <button onClick={() => { setActiveFilters(['people', 'circles', 'events']); setCardIndex(0) }} style={{
+              {activeFilters.length < 4 && (
+                <button onClick={() => { setActiveFilters(['people', 'circles', 'events', 'lfg']); setCardIndex(0) }} style={{
                   padding: '16px', borderRadius: 999, border: `1.5px solid ${clr.border}`, cursor: 'pointer',
                   background: clr.white, color: clr.textDark, fontSize: 15, fontWeight: 700,
                 }}>
@@ -641,7 +735,7 @@ export default function SwipeDiscovery({ onClose }) {
               {cardIndex + 1} / {allCards.length}
             </span>
             <span style={{ fontSize: 11, fontWeight: 700, color: clr.textLight, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {Math.max(0, 5 - (discoverySwipes.date === new Date().toDateString() ? (discoverySwipes[currentCard.type] || 0) : 0))} left
+              {currentCard.type === 'lfg' ? 'Unlimited' : `${Math.max(0, 5 - (discoverySwipes.date === new Date().toDateString() ? (discoverySwipes[currentCard.type] || 0) : 0))} left`}
             </span>
           </div>
 

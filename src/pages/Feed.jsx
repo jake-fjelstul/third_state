@@ -19,10 +19,11 @@ import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
 import { listBatteryHistory, relativeTime } from '../lib/battery.js'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
-import { buildMapsUrl } from '../lib/geocoding.js'
+import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
 import AssistantBar from '../components/feed/AssistantBar.jsx'
 import AssistantModal from '../components/assistant/AssistantModal.jsx'
 import { checkContent } from '../lib/contentFilter.js'
+import { LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost } from '../lib/lfg'
 
 const clr = {
   bg: 'var(--bg)',
@@ -409,6 +410,54 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [eventLocation, setEventLocation] = useState(null)
   const [coffeeLocation, setCoffeeLocation] = useState(null)
   const [lfgLocation, setLfgLocation] = useState(null)
+  const [lfgActivity, setLfgActivity] = useState('')
+  const [lfgWindow, setLfgWindow] = useState('now')
+  const [lfgCustomStart, setLfgCustomStart] = useState('')
+  const [lfgVisibility, setLfgVisibility] = useState('everyone')
+  const [lfgNotify, setLfgNotify] = useState(true)
+  const [lfgVenues, setLfgVenues] = useState([])
+  const [lfgVenuesLoading, setLfgVenuesLoading] = useState(false)
+  const [lfgSubmitting, setLfgSubmitting] = useState(false)
+  const [lfgError, setLfgError] = useState('')
+
+  const pickSuggestion = async (s) => {
+    setLfgActivity(s.label)
+    setLfgVenues([])
+    if (!biasNear) return
+    setLfgVenuesLoading(true)
+    try {
+      const list = await searchVenues(s.venueQuery, { near: biasNear })
+      setLfgVenues((list || []).slice(0, 4))
+    } catch { setLfgVenues([]) }
+    finally { setLfgVenuesLoading(false) }
+  }
+
+  const handleLfgSubmit = async (e) => {
+    e.preventDefault()
+    setLfgError('')
+    if (!lfgActivity.trim()) { setLfgError('What do you want to do?'); return }
+    setLfgSubmitting(true)
+    try {
+      const { startsAt, expiresAt } = resolveWindow(lfgWindow, lfgCustomStart || null)
+      await createLfgPost({
+        activity: lfgActivity.trim(),
+        startsAt, expiresAt,
+        visibility: lfgVisibility,
+        notifyConnections: lfgNotify,
+        place: lfgLocation,
+      })
+      setLfgActivity(''); setLfgWindow('now'); setLfgCustomStart('')
+      setLfgVisibility('everyone'); setLfgNotify(true)
+      setLfgVenues([]); setLfgLocation(null)
+      onClose()
+      onShowToast('LFG posted!')
+    } catch (err) {
+      setLfgError(err?.message || 'Could not post. Please try again.')
+    } finally {
+      setLfgSubmitting(false)
+    }
+  }
+
   const [coverFile, setCoverFile] = useState(null)
   const [coverPreview, setCoverPreview] = useState(null)
   const [selectedCircleIcon, setSelectedCircleIcon] = useState(DEFAULT_CIRCLE_ICON)
@@ -817,13 +866,139 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
       </form>
     )
     if (show === 'lfg') return (
-      <form onSubmit={e => { e.preventDefault(); setLfgLocation(null); onClose(); onShowToast('LFG posted!') }}>
-        {/* Intentionally a stub per requirements; persistence out of scope */}
+      <form onSubmit={handleLfgSubmit}>
         <Handle /><Header title="Looking For Group" />
-        <input required placeholder="What do you want to do? (Grab coffee, shoot hoops...)" style={inputStyle} />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          {["Right now", "In 1hr", "This evening", "Custom"].map(t => <span key={t} style={{ padding: '8px 14px', borderRadius: 999, border: `1.5px solid ${clr.border}`, fontSize: 13, fontWeight: 600, color: clr.textMid }}>{t}</span>)}
+
+        {/* 1. Activity text input */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            What do you want to do?
+          </label>
+          <input
+            required
+            value={lfgActivity}
+            onChange={e => setLfgActivity(e.target.value)}
+            placeholder="What do you want to do? (Grab coffee, shoot hoops...)"
+            style={inputStyle}
+          />
         </div>
+
+        {/* 2. Suggestion chips */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            Suggestions for now
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {suggestionsForNow().map(s => (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => pickSuggestion(s)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  border: lfgActivity === s.label ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
+                  backgroundColor: lfgActivity === s.label ? clr.indigoLt : clr.bg,
+                  color: lfgActivity === s.label ? clr.indigo : clr.textMid,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 3. Nearby Venue recommendations from suggestion tap */}
+        {lfgVenuesLoading && (
+          <div style={{ fontSize: 13, color: clr.textMid, marginBottom: 16, fontStyle: 'italic' }}>
+            Finding places nearby…
+          </div>
+        )}
+        {!lfgVenuesLoading && lfgVenues.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              Suggested Nearby Places
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {lfgVenues.map((v, idx) => (
+                <button
+                  key={`${v.name}-${idx}`}
+                  type="button"
+                  onClick={() => setLfgLocation({ name: v.name, address: v.address, lat: v.lat, lng: v.lng })}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: lfgLocation?.name === v.name ? `1.5px solid ${clr.indigo}` : `1px solid ${clr.border}`,
+                    backgroundColor: lfgLocation?.name === v.name ? clr.indigoLt : clr.white,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 700, color: clr.textDark }}>{v.name}</div>
+                  {v.address && (
+                    <div style={{ fontSize: 12, color: clr.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {v.address}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Time chips from LFG_WINDOWS */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            When
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {LFG_WINDOWS.map(w => (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => setLfgWindow(w.id)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  border: lfgWindow === w.id ? `1.5px solid ${clr.amber}` : `1.5px solid ${clr.border}`,
+                  backgroundColor: lfgWindow === w.id ? '#FEF3C7' : clr.bg,
+                  color: lfgWindow === w.id ? '#D97706' : clr.textMid,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 5. Custom datetime input if window === 'custom' */}
+        {lfgWindow === 'custom' && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              Start Time
+            </label>
+            <input
+              type="datetime-local"
+              value={lfgCustomStart}
+              onChange={e => setLfgCustomStart(e.target.value)}
+              onClick={(e) => { try { e.target.showPicker() } catch {} }}
+              style={inputStyle}
+            />
+          </div>
+        )}
+
+        {/* 6. Where / LocationAutocomplete */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Where</label>
           <LocationAutocomplete
@@ -833,7 +1008,69 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             clr={clr}
           />
         </div>
-        <button type="submit" style={{ ...submitStyle, background: `linear-gradient(135deg, #F59E0B, #FCD34D)`, color: '#FFF', boxShadow: '0 6px 20px rgba(245,158,11,0.3)' }}>Post LFG →</button>
+
+        {/* 7. Visibility segmented control */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            Visibility
+          </label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{
+              flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
+              padding: 14, borderRadius: 16,
+              border: lfgVisibility === 'everyone' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
+              background: lfgVisibility === 'everyone' ? clr.indigoLt : 'transparent',
+              cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
+            }}>
+              <input type="radio" name="lfgVis" checked={lfgVisibility === 'everyone'} onChange={() => setLfgVisibility('everyone')} style={{ accentColor: clr.indigo }} /> Everyone
+            </label>
+            <label style={{
+              flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
+              padding: 14, borderRadius: 16,
+              border: lfgVisibility === 'friends' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
+              background: lfgVisibility === 'friends' ? clr.indigoLt : 'transparent',
+              cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
+            }}>
+              <input type="radio" name="lfgVis" checked={lfgVisibility === 'friends'} onChange={() => setLfgVisibility('friends')} style={{ accentColor: clr.indigo }} /> Friends only
+            </label>
+          </div>
+        </div>
+
+        {/* 8. Notify connections checkbox */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark }}>
+            <input
+              type="checkbox"
+              checked={lfgNotify}
+              onChange={e => setLfgNotify(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: clr.indigo }}
+            />
+            Notify my connections
+          </label>
+        </div>
+
+        {/* 9. Error display */}
+        {lfgError && (
+          <div style={{ padding: '10px 14px', borderRadius: 12, backgroundColor: '#FEE2E2', color: '#DC2626', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+            {lfgError}
+          </div>
+        )}
+
+        {/* 10. Submit button */}
+        <button
+          type="submit"
+          disabled={lfgSubmitting}
+          style={{
+            ...submitStyle,
+            background: `linear-gradient(135deg, #F59E0B, #FCD34D)`,
+            color: '#FFF',
+            boxShadow: '0 6px 20px rgba(245,158,11,0.3)',
+            opacity: lfgSubmitting ? 0.7 : 1,
+            cursor: lfgSubmitting ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {lfgSubmitting ? 'Posting…' : 'Post LFG →'}
+        </button>
       </form>
     )
     if (show === 'coffee') {
