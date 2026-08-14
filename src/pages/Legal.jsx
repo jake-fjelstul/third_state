@@ -13,6 +13,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    overflowX: 'hidden',
+    overflowWrap: 'break-word',
   },
   contentCard: {
     width: '100%',
@@ -138,7 +140,7 @@ export function PrivacyPolicy() {
       <h2 style={styles.h2}>Google Calendar</h2>
       <p style={styles.p}>
         If you choose to connect your Google Calendar, we request the{' '}
-        <code style={{ backgroundColor: 'var(--bg)', padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontFamily: 'monospace' }}>
+        <code style={{ backgroundColor: 'var(--bg)', padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontFamily: 'monospace', overflowWrap: 'anywhere', wordBreak: 'break-word', maxWidth: '100%' }}>
           https://www.googleapis.com/auth/calendar.events
         </code>{' '}
         scope from the Google Calendar API. We use this access for exactly two purposes:
@@ -241,6 +243,21 @@ export function Terms() {
       </ul>
       <p style={styles.p}>
         We may remove content and suspend or terminate accounts that violate these rules.
+      </p>
+
+      <h2 style={styles.h2}>Zero tolerance for objectionable content and abusive behavior</h2>
+      <p style={styles.p}>
+        Third Space has no tolerance for objectionable content or abusive users.
+        By using Third Space you agree not to post content that is objectionable,
+        and not to engage in abusive, harassing, or threatening behavior toward
+        other users.
+      </p>
+      <p style={styles.p}>
+        Every user can report objectionable content and block abusive users from
+        within the app. We review all reports within 24 hours and remove content
+        or terminate accounts that violate these terms. Users who post
+        objectionable content or behave abusively will be ejected from Third
+        Space.
       </p>
 
       <h2 style={styles.h2}>Content you post</h2>

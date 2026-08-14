@@ -57,6 +57,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   useEffect(() => {
     if (!oauthLoading) return
@@ -93,6 +94,10 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setError('')
+    if (mode === 'signup' && !agreed) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     setOauthLoading(true)
     try {
       await signInWithGoogle()
@@ -104,6 +109,10 @@ function AuthPage() {
 
   const handleApple = async () => {
     setError('')
+    if (mode === 'signup' && !agreed) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     setOauthLoading(true)
     try {
       await signInWithApple()
@@ -111,6 +120,19 @@ function AuthPage() {
       setError(err.message || 'Could not start Apple sign-in')
       setOauthLoading(false)
     }
+  }
+
+  const openLegal = async (path) => {
+    const url = `https://third-space-app.com${path}`
+    try {
+      const { Capacitor } = await import('@capacitor/core')
+      if (Capacitor.isNativePlatform()) {
+        const { Browser } = await import('@capacitor/browser')
+        await Browser.open({ url })
+        return
+      }
+    } catch {}
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const handleSubmit = async (e) => {
@@ -122,6 +144,7 @@ function AuthPage() {
 
     try {
       if (mode === 'signup') {
+        if (!agreed) throw new Error('Please agree to the Terms of Service and Privacy Policy to continue.')
         if (!name.trim()) throw new Error('Name is required')
         if (!city?.label?.trim()) throw new Error('City is required')
         await signUp({
@@ -197,7 +220,55 @@ function AuthPage() {
           )}
           {error && <div style={{ color: '#E11D48', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#FFE4E6', borderRadius: 8 }}>{error}</div>}
           {resetSent && <div style={{ color: '#059669', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#D1FAE5', borderRadius: 8 }}>Check your email for the reset link!</div>}
-          
+
+          {mode === 'signup' && (
+            <label style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: 12, borderRadius: 12,
+              backgroundColor: clr.bg, border: `1.5px solid ${agreed ? clr.indigo : clr.border}`,
+              cursor: 'pointer', transition: 'border-color 0.2s',
+            }}>
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={e => setAgreed(e.target.checked)}
+                style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: clr.indigo, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 13, lineHeight: 1.5, color: clr.textMid }}>
+                I agree to the{' '}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); openLegal('/terms') }}
+                  style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: clr.indigo, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                >Terms of Service</button>
+                {' '}and{' '}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); openLegal('/privacy') }}
+                  style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: clr.indigo, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                >Privacy Policy</button>.
+                Third Space has zero tolerance for objectionable content or abusive users.
+              </span>
+            </label>
+          )}
+
+          {mode === 'signin' && (
+            <p style={{ fontSize: 12, lineHeight: 1.5, color: clr.textLight, margin: 0, textAlign: 'center' }}>
+              By signing in you agree to our{' '}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); openLegal('/terms') }}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: clr.indigo, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+              >Terms of Service</button>
+              {' '}and{' '}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); openLegal('/privacy') }}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: clr.indigo, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+              >Privacy Policy</button>.
+            </p>
+          )}
+
           {mode !== 'reset' && (
             <>
               <button
@@ -296,7 +367,7 @@ function AuthPage() {
           )}
 
           <div style={{ marginTop: 8 }}>
-            <button type="submit" disabled={loading} style={primaryBtnStyle(loading)}>
+            <button type="submit" disabled={loading || (mode === 'signup' && !agreed)} style={primaryBtnStyle(loading || (mode === 'signup' && !agreed))}>
               {loading ? 'Processing...' : mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Send Reset Link'}
             </button>
           </div>
@@ -305,7 +376,7 @@ function AuthPage() {
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
           {mode === 'signin' && (
             <>
-              <button type="button" onClick={() => setMode('signup')} style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, fontWeight: 500, color: clr.indigo }}>
+              <button type="button" onClick={() => { setMode('signup'); setError(''); setAgreed(false) }} style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, fontWeight: 500, color: clr.indigo }}>
                 Don't have an account? Sign up
               </button>
               <button type="button" onClick={() => setMode('reset')} style={{ background:'none', border:'none', cursor:'pointer', fontSize:13, fontWeight: 500, color: clr.textLight }}>
@@ -314,7 +385,7 @@ function AuthPage() {
             </>
           )}
           {mode === 'signup' && (
-            <button type="button" onClick={() => setMode('signin')} style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, fontWeight: 500, color: clr.indigo }}>
+            <button type="button" onClick={() => { setMode('signin'); setError(''); setAgreed(false) }} style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, fontWeight: 500, color: clr.indigo }}>
               Already have an account? Sign in
             </button>
           )}

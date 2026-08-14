@@ -266,10 +266,7 @@ export default function Profile() {
         {/* ── Top bar ── */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          paddingTop: 'calc(20px + var(--safe-t))',
-          paddingLeft: 'calc(24px + var(--safe-l))',
-          paddingRight: 'calc(24px + var(--safe-r))',
-          paddingBottom: 8,
+          padding: '20px 24px 8px',
         }}>
           <button type="button" onClick={() => navigate('/settings')} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
             <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2" viewBox="0 0 24 24">
