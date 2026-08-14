@@ -11,6 +11,10 @@
 :root {
   --safe-top: max(32px, calc(env(safe-area-inset-top) + 16px));
   --safe-bottom: max(48px, calc(env(safe-area-inset-bottom) + 24px));
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
   --bg: #F0F0F5;
   --white: #FFFFFF;
   --indigo: #5B5FEF;

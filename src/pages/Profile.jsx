@@ -266,7 +266,10 @@ export default function Profile() {
         {/* ── Top bar ── */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 24px 8px',
+          paddingTop: 'calc(20px + var(--safe-t))',
+          paddingLeft: 'calc(24px + var(--safe-l))',
+          paddingRight: 'calc(24px + var(--safe-r))',
+          paddingBottom: 8,
         }}>
           <button type="button" onClick={() => navigate('/settings')} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
             <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2" viewBox="0 0 24 24">
@@ -593,17 +596,24 @@ export default function Profile() {
       {/* ── Edit Modal ── */}
       {editing && (
         <div style={{
-          position:'fixed', inset:0, zIndex:50,
-          backgroundColor:'rgba(0,0,0,0.55)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          padding:'24px 16px',
+          position: 'fixed', inset: 0, zIndex: 50,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          paddingTop: 'calc(24px + var(--safe-t))',
+          paddingBottom: 'calc(24px + var(--safe-b))',
+          paddingLeft: 'calc(16px + var(--safe-l))',
+          paddingRight: 'calc(16px + var(--safe-r))',
         }}>
           <div
             className="profile-edit-modal"
             style={{
             width:'100%', maxWidth:440,
-            maxHeight: '90vh',
-            overflowY: 'auto',
+            margin: 'auto',
             backgroundColor: clr.white,
             color: clr.textDark,
             border: `1px solid ${clr.border}`,
@@ -873,12 +883,18 @@ export default function Profile() {
         <div style={{
           position: 'fixed', inset: 0, zIndex: 300,
           backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', flexDirection: 'column',
-          justifyContent: 'flex-end', alignItems: 'center'
+          justifyContent: 'flex-end', alignItems: 'center',
+          paddingTop: 'calc(24px + var(--safe-t))',
+          paddingLeft: 'var(--safe-l)',
+          paddingRight: 'var(--safe-r)',
         }} onClick={() => { setShowExternalInvite(false); setInviteInput(''); }}>
           <div style={{
             backgroundColor: clr.white, width: '100%', maxWidth: 500,
-            borderRadius: '24px 24px 0 0', padding: '24px 20px 32px',
-            animation: 'slideUp 0.25s ease', display: 'flex', flexDirection: 'column'
+            borderRadius: '24px 24px 0 0', padding: '24px 20px calc(32px + var(--safe-b))',
+            animation: 'slideUp 0.25s ease', display: 'flex', flexDirection: 'column',
+            maxHeight: '100%',
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
               <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
