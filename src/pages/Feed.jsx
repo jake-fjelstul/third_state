@@ -11,6 +11,7 @@ import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import CreateWheel from '../components/CreateWheel.jsx'
+import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -355,37 +356,6 @@ function SectionHeader({ title, subtitle }) {
 }
 
 /* ── CREATE ACTIONS ── */
-const CREATE_ACTIONS = [
-  {
-    id: 'circle',
-    label: 'New Circle',
-    description: 'Start a community',
-    emoji: '🔵',
-    gradient: 'linear-gradient(135deg, #5B5FEF, #818CF8)',
-  },
-  {
-    id: 'event',
-    label: 'New Event',
-    description: 'Host a meetup',
-    emoji: '📅',
-    gradient: 'linear-gradient(135deg, #0D9488, #34D399)',
-  },
-  {
-    id: 'lfg',
-    label: 'LFG',
-    description: "I'm free now",
-    emoji: '⚡',
-    gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)',
-  },
-  {
-    id: 'coffee',
-    label: 'Coffee Chat',
-    description: '1:1 meetup',
-    emoji: '☕',
-    gradient: 'linear-gradient(135deg, #E11D48, #FB7185)',
-  },
-]
-
 function CreateCard({ action, onClick }) {
   const [pressed, setPressed] = useState(false)
   return (
@@ -398,7 +368,7 @@ function CreateCard({ action, onClick }) {
       style={{
         borderRadius: 20,
         border: 'none',
-        background: action.gradient,
+        background: `linear-gradient(135deg, ${action.surface[0]}, ${action.surface[1]})`,
         padding: '18px 16px',
         cursor: 'pointer',
         textAlign: 'left',
@@ -407,9 +377,15 @@ function CreateCard({ action, onClick }) {
         boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
       }}
     >
-      <div style={{ fontSize: 28, marginBottom: 10 }}>{action.emoji}</div>
-      <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', margin: '0 0 3px 0' }}>{action.label}</p>
-      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{action.description}</p>
+      <div style={{ marginBottom: 10 }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke={action.accent} strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+          {action.paths.map((d, pi) => <path key={pi} d={d} />)}
+        </svg>
+      </div>
+      <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', margin: '0 0 3px 0' }}>{action.title}</p>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{action.desc}</p>
     </button>
   )
 }

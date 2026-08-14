@@ -48,7 +48,7 @@ export default function AssistantBar({ onSubmit, clr, value, onChange, placehold
           clipPath: 'inset(0 round 24px)',
           WebkitClipPath: 'inset(0 round 24px)',
           transform: 'translateZ(0)',
-          boxShadow: '0 0 28px rgba(123,111,255,0.18), 0 4px 16px rgba(0,0,0,0.08)',
+          boxShadow: '0 0 22px rgba(99,102,241,0.14), 0 4px 14px rgba(0,0,0,0.10)',
         }}
       >
         {/* Layer 1 — static colorful base. Defines the border's color identity. */}
@@ -59,11 +59,12 @@ export default function AssistantBar({ onSubmit, clr, value, onChange, placehold
             inset: '-100%',
             background:
               'conic-gradient(from 0deg, ' +
-              '#5B5FEF 0deg, ' +
-              '#7B6FFF 90deg, ' +
-              '#EC4899 180deg, ' +
-              '#F59E0B 270deg, ' +
-              '#5B5FEF 360deg)',
+              '#4340A8 0deg, ' +
+              '#5B4CBF 72deg, ' +
+              '#8E4A8C 144deg, ' +
+              '#A8556A 216deg, ' +
+              '#A87A3C 288deg, ' +
+              '#4340A8 360deg)',
             zIndex: 0,
             pointerEvents: 'none',
           }}
@@ -78,13 +79,13 @@ export default function AssistantBar({ onSubmit, clr, value, onChange, placehold
             background:
               'conic-gradient(from 0deg, ' +
               'transparent 0deg, ' +
-              'transparent 70deg, ' +
-              'rgba(255,255,255,0.55) 88deg, ' +
-              'rgba(255,255,255,0.95) 98deg, ' +
-              'rgba(255,255,255,0.55) 108deg, ' +
-              'transparent 126deg, ' +
+              'transparent 74deg, ' +
+              'rgba(255,255,255,0.34) 90deg, ' +
+              'rgba(255,255,255,0.72) 100deg, ' +
+              'rgba(255,255,255,0.34) 110deg, ' +
+              'transparent 128deg, ' +
               'transparent 360deg)',
-            animation: 'shimmerSpin 3.6s linear infinite',
+            animation: 'shimmerSpin 5s linear infinite',
             mixBlendMode: 'screen',
             zIndex: 1,
             pointerEvents: 'none',
@@ -169,7 +170,7 @@ export default function AssistantBar({ onSubmit, clr, value, onChange, placehold
                 fontFamily: 'inherit',
                 lineHeight: '18px',
                 animation: 'exampleFade 0.4s ease',
-                opacity: 0.85,
+                opacity: 0.7,
                 width: '100%',
                 display: 'block',
                 whiteSpace: 'nowrap',
@@ -179,7 +180,7 @@ export default function AssistantBar({ onSubmit, clr, value, onChange, placehold
                 WebkitAppearance: 'none',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.85')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
               aria-label={`Try: ${EXAMPLES[exampleIdx]}`}
             >
               Try:{' '}

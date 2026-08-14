@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { CREATE_ACTION_DEFS } from '../lib/createActions.js';
 
 // Generates an SVG path for an annular (donut) slice with parallel constant-width gaps.
 function getSlicePath(logicalStart, logicalEnd, gapWidth, innerR, outerR, cx, cy) {
@@ -31,40 +32,6 @@ function getSlicePath(logicalStart, logicalEnd, gapWidth, innerR, outerR, cx, cy
   return `M ${osx} ${osy} A ${outerR} ${outerR} 0 0 1 ${oex} ${oey} L ${iex} ${iey} A ${innerR} ${innerR} 0 0 0 ${isx} ${isy} Z`;
 }
 
-const SLICES = [
-  {
-    id: 'circle',
-    title: 'New Circle',
-    desc: 'Start a community',
-    emoji: '🔵',
-    gradient: ['#FB7185', '#E11D48'], // Rose
-    angle: 0
-  },
-  {
-    id: 'event',
-    title: 'New Event',
-    desc: 'Host a meetup',
-    emoji: '📅',
-    gradient: ['#34D399', '#059669'], // Emerald
-    angle: 90
-  },
-  {
-    id: 'lfg',
-    title: 'LFG',
-    desc: "I'm free now",
-    emoji: '⚡',
-    gradient: ['#FBBF24', '#D97706'], // Amber
-    angle: 180
-  },
-  {
-    id: 'coffee',
-    title: 'Coffee Chat',
-    desc: '1:1 meetup',
-    emoji: '☕',
-    gradient: ['#818CF8', '#4F46E5'], // Indigo
-    angle: 270
-  }
-];
 
 export default function CreateWheel({ onAction }) {
   const [hovered, setHovered] = useState(null);
@@ -228,10 +195,10 @@ export default function CreateWheel({ onAction }) {
         onPointerCancel={handlePointerCancel}
       >
         <defs>
-          {SLICES.map(s => (
+          {CREATE_ACTION_DEFS.map(s => (
             <linearGradient key={s.id} id={`grad-${s.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={s.gradient[0]} />
-              <stop offset="100%" stopColor={s.gradient[1]} />
+              <stop offset="0%" stopColor={s.surface[0]} />
+              <stop offset="100%" stopColor={s.surface[1]} />
             </linearGradient>
           ))}
           <filter id="wheel-shadow" x="-10%" y="-10%" width="120%" height="120%">
@@ -249,7 +216,7 @@ export default function CreateWheel({ onAction }) {
             transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
           }}
         >
-          {SLICES.map((s) => {
+          {CREATE_ACTION_DEFS.map((s) => {
             const isHovered = hovered === s.id;
             const isDimmed = (hovered || isDragging) && !isHovered;
 
@@ -272,16 +239,25 @@ export default function CreateWheel({ onAction }) {
                   transform: `rotate(${s.angle}deg)`,
                   transformOrigin: `${cx}px ${cy}px`,
                 }}>
-                  <path d={slicePath} fill={`url(#grad-${s.id})`} />
+                  <path d={slicePath} fill={`url(#grad-${s.id})`} stroke={s.edge} strokeWidth="1" />
                 </g>
                 
                 {/* Un-rotated Text securely rooted at computed geometry coordinate */}
                 <g style={{ transform: `translate(${tx}px, ${ty}px)` }}>
-                  <text y="-14" fill="#FFFFFF" fontSize="18" textAnchor="middle">{s.emoji}</text>
+                  <g
+                    transform="translate(-11, -34) scale(0.92)"
+                    fill="none"
+                    stroke={s.accent}
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    {s.paths.map((d, pi) => <path key={pi} d={d} />)}
+                  </g>
                   <text y="5" fill="#FFFFFF" fontSize="14" fontWeight="bold" textAnchor="middle" letterSpacing="0.02em">
                     {s.title}
                   </text>
-                  <text y="22" fill="rgba(255,255,255,0.85)" fontSize="10.5" textAnchor="middle" letterSpacing="0.01em">
+                  <text y="22" fill="rgba(255,255,255,0.72)" fontSize="10.5" textAnchor="middle" letterSpacing="0.01em">
                     {s.desc}
                   </text>
                 </g>
