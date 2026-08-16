@@ -11,6 +11,28 @@ const HOSTS = {
   production: 'https://api.push.apple.com',
 }
 
+type SendResult = { ok: boolean; reason: string; status: number }
+
+async function sendOne(host: string, token: string, jwt: string, payload: string): Promise<SendResult> {
+  const res = await fetch(`${host}/3/device/${token}`, {
+    method: 'POST',
+    headers: {
+      'authorization': `bearer ${jwt}`,
+      'apns-topic': APNS_BUNDLE_ID,
+      'apns-push-type': 'alert',
+      'apns-priority': '10',
+      'content-type': 'application/json',
+    },
+    body: payload,
+  })
+  if (res.status === 200) return { ok: true, reason: '', status: 200 }
+  const text = await res.text()
+  let reason = ''
+  try { reason = JSON.parse(text)?.reason || '' } catch { /* ignore */ }
+  console.error('[send-push] APNs rejected', res.status, reason, text)
+  return { ok: false, reason, status: res.status }
+}
+
 // ---- JWT signing, cached ------------------------------------------------
 
 let cachedJwt: string | null = null
@@ -116,40 +138,45 @@ Deno.serve(async (req) => {
 
   let sent = 0
   const dead: string[] = []
+  const corrected: { id: string; environment: string }[] = []
 
   await Promise.all(tokens.map(async (t) => {
-    const host = HOSTS[t.environment as keyof typeof HOSTS] || HOSTS.sandbox
+    const primary = (t.environment === 'production' ? 'production' : 'sandbox') as 'production' | 'sandbox'
+    const other   = primary === 'production' ? 'sandbox' : 'production'
+
     try {
-      const res = await fetch(`${host}/3/device/${t.token}`, {
-        method: 'POST',
-        headers: {
-          'authorization': `bearer ${jwt}`,
-          'apns-topic': APNS_BUNDLE_ID,
-          'apns-push-type': 'alert',
-          'apns-priority': '10',
-          'content-type': 'application/json',
-        },
-        body: payload,
-      })
-      if (res.status === 200) { sent++; return }
+      let r = await sendOne(HOSTS[primary], t.token, jwt, payload)
 
-      const text = await res.text()
-      let reason = ''
-      try { reason = JSON.parse(text)?.reason || '' } catch { /* ignore */ }
+      // A token minted in the other environment reports BadDeviceToken. Retry
+      // the opposite host ONCE before concluding the token is dead.
+      if (!r.ok && r.reason === 'BadDeviceToken') {
+        r = await sendOne(HOSTS[other], t.token, jwt, payload)
+        if (r.ok) {
+          corrected.push({ id: t.id, environment: other })
+        }
+      }
 
-      if (res.status === 410 || reason === 'BadDeviceToken' || reason === 'Unregistered') {
+      if (r.ok) { sent++; return }
+
+      // Genuinely dead: app deleted, or restored to a different device.
+      if (r.status === 410 || r.reason === 'Unregistered' || r.reason === 'BadDeviceToken') {
         dead.push(t.id)
       }
-      console.error('[send-push] APNs rejected', res.status, reason, text)
     } catch (err) {
       console.error('[send-push] APNs request failed', err)
     }
   }))
 
+  for (const c of corrected) {
+    await supabase.from('device_tokens')
+      .update({ environment: c.environment })
+      .eq('id', c.id)
+  }
+
   if (dead.length) {
     await supabase.from('device_tokens').delete().in('id', dead)
   }
 
-  return new Response(JSON.stringify({ sent, pruned: dead.length, total: tokens.length }),
+  return new Response(JSON.stringify({ sent, pruned: dead.length, corrected: corrected.length, total: tokens.length }),
     { headers: { 'content-type': 'application/json' } })
 })

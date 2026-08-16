@@ -1,6 +1,10 @@
 import { supabase } from './supabase'
 
-/** APNs sandbox for dev/TestFlight builds, production for App Store builds. */
+/**
+ * Initial guess only — the send-push function auto-corrects a wrong value on
+ * the first BadDeviceToken. Xcode debug builds are sandbox; TestFlight AND
+ * App Store builds are BOTH production.
+ */
 const APNS_ENVIRONMENT = import.meta.env.VITE_APNS_ENVIRONMENT || 'sandbox'
 
 let lastToken = null
