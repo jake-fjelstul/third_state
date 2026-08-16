@@ -287,7 +287,7 @@ function AuthGuard() {
 
 /* ── Root app ── */
 function App() {
-  const { authLoading } = useAppContext()
+  const { authLoading, session } = useAppContext()
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
@@ -307,6 +307,18 @@ function App() {
 
     return () => clearTimeout(failsafe)
   }, [authLoading])
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    if (!session?.user) return
+    let cleanup = () => {}
+    let cancelled = false
+    import('./lib/push')
+      .then(({ initPush }) => initPush())
+      .then(fn => { if (cancelled) fn?.(); else cleanup = fn || (() => {}) })
+      .catch(err => console.error('[push] initPush failed', err))
+    return () => { cancelled = true; cleanup() }
+  }, [session?.user?.id])
 
   return (
     <Routes>

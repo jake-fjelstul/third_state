@@ -549,6 +549,12 @@ export function AppProvider({ children }) {
   }, [theme])
 
   const signOut = async () => {
+    try {
+      const { unregisterPush } = await import('../lib/push')
+      await unregisterPush()
+    } catch (err) {
+      console.error('[AppContext] unregisterPush failed', err)
+    }
     await authSignOut()
     resetLocalAuthState()
   }

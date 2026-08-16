@@ -25,6 +25,29 @@ export default function Settings() {
   const [radiusDraft, setRadiusDraft] = useState(searchRadius)
   const [reconnectDraft, setReconnectDraft] = useState(reconnectThresholdDays)
   const [dailyQuestionsEnabled, setDailyQuestionsEnabled] = useState(true)
+  const [pushPermissionStatus, setPushPermissionStatus] = useState('unsupported')
+
+  useEffect(() => {
+    let cancelled = false
+    import('../lib/push')
+      .then(({ getPushPermission }) => getPushPermission())
+      .then(status => {
+        if (!cancelled && status) setPushPermissionStatus(status)
+      })
+      .catch(err => console.error('[Settings] getPushPermission failed', err))
+    return () => { cancelled = true }
+  }, [])
+
+  const handleEnablePush = async () => {
+    try {
+      const { requestPushPermission, getPushPermission } = await import('../lib/push')
+      await requestPushPermission()
+      const nextStatus = await getPushPermission()
+      setPushPermissionStatus(nextStatus)
+    } catch (err) {
+      console.error('[Settings] requestPushPermission failed', err)
+    }
+  }
 
   const [blockedUsers, setBlockedUsers] = useState([])
   const [loadingBlocks, setLoadingBlocks] = useState(false)
@@ -208,6 +231,50 @@ export default function Settings() {
               boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
               overflow: 'hidden',
             }}>
+              {pushPermissionStatus !== 'unsupported' && (
+                <div style={{
+                  padding: '20px',
+                  borderBottom: `1px solid ${clr.border}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  <div>
+                    <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Push Notifications</p>
+                    <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                      {pushPermissionStatus === 'denied'
+                        ? 'Turn on in iOS Settings › Third Space › Notifications'
+                        : 'Get notified about messages and events'}
+                    </p>
+                  </div>
+
+                  {(pushPermissionStatus === 'prompt' || pushPermissionStatus === 'prompt-with-rationale') && (
+                    <button
+                      type="button"
+                      onClick={handleEnablePush}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 999,
+                        border: 'none',
+                        backgroundColor: clr.indigo,
+                        color: '#FFFFFF',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Enable
+                    </button>
+                  )}
+
+                  {pushPermissionStatus === 'granted' && (
+                    <span style={{ fontSize: 14, fontWeight: 700, color: clr.indigo, flexShrink: 0 }}>
+                      Enabled ✓
+                    </span>
+                  )}
+                </div>
+              )}
               
               <div style={{
                 padding: '20px',
