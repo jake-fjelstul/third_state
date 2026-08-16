@@ -16,7 +16,9 @@ export function defaultNotificationPrefs() {
   return {
     connections: true,
     events: true,
-    reconnect_nudges: true
+    reconnect_nudges: true,
+    chat_activity: true,
+    messages: true,
   }
 }
 

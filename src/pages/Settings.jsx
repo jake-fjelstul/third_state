@@ -283,6 +283,82 @@ export default function Settings() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 cursor: 'pointer',
+              }} onClick={() => updateMyNotificationPrefs({ messages: !(currentUser?.notificationPrefs?.messages ?? true) })}>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Messages</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    Get notified when someone sends you a message
+                  </p>
+                </div>
+
+                {/* Toggle Switch */}
+                <div style={{
+                  width: 50,
+                  height: 28,
+                  borderRadius: 999,
+                  backgroundColor: (currentUser?.notificationPrefs?.messages ?? true) ? clr.indigo : clr.border,
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: (currentUser?.notificationPrefs?.messages ?? true) ? 24 : 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
+              </div>
+
+              <div style={{
+                padding: '20px',
+                borderBottom: `1px solid ${clr.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }} onClick={() => updateMyNotificationPrefs({ chat_activity: !(currentUser?.notificationPrefs?.chat_activity ?? true) })}>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Polls and questions</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    Activity in your chats other than messages
+                  </p>
+                </div>
+
+                {/* Toggle Switch */}
+                <div style={{
+                  width: 50,
+                  height: 28,
+                  borderRadius: 999,
+                  backgroundColor: (currentUser?.notificationPrefs?.chat_activity ?? true) ? clr.indigo : clr.border,
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: (currentUser?.notificationPrefs?.chat_activity ?? true) ? 24 : 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
+              </div>
+
+              <div style={{
+                padding: '20px',
+                borderBottom: `1px solid ${clr.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
               }} onClick={() => updateMyNotificationPrefs({ connections: !(currentUser?.notificationPrefs?.connections ?? true) })}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Connection Requests</p>
