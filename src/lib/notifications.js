@@ -38,6 +38,8 @@ export function mapNotificationRow(row) {
     requestId: payload.requestId || null,
     suggestions: payload.suggestions || null,
     chatId: payload.chatId || null,
+    name: payload.name || payload.user?.name || '',
+    postId: payload.postId || null,
   }
 }
 

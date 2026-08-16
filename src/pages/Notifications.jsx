@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listChannels } from '../lib/chat'
 import { avatarFor } from '../lib/avatar'
-import { relativeTime } from '../lib/battery'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 
 const clr = {
@@ -17,6 +16,15 @@ const clr = {
   border: 'var(--border)',
 }
 
+const HANDLED_TYPES = [
+  'connection_request', 'connection_accepted',
+  'event_approaching',
+  'reconnect_nudge',
+  'circle_activity', 'application_approved', 'application_declined',
+  'question_revealed', 'spontaneous_question', 'spontaneous_question_answered',
+  'lfg_post', 'lfg_join',
+]
+
 export default function Notifications() {
   const navigate = useNavigate()
   const {
@@ -28,7 +36,6 @@ export default function Notifications() {
     declineConnection,
     startDM,
     sendMessage,
-    currentUser,
     blockedUserIds,
   } = useAppContext()
   
@@ -45,9 +52,16 @@ export default function Notifications() {
   })
 
   const connectionRequests = visibleNotifications.filter(n => n.type === 'connection_request' || n.type === 'connection_accepted')
+  const questionActivity = visibleNotifications.filter(n =>
+    n.type === 'question_revealed' ||
+    n.type === 'spontaneous_question' ||
+    n.type === 'spontaneous_question_answered')
+  const lfgActivity = visibleNotifications.filter(n =>
+    n.type === 'lfg_post' || n.type === 'lfg_join')
   const eventReminders = visibleNotifications.filter(n => n.type === 'event_approaching')
   const reconnectNudges = visibleNotifications.filter(n => n.type === 'reconnect_nudge')
   const circleActivity = visibleNotifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
+  const otherActivity = visibleNotifications.filter(n => !HANDLED_TYPES.includes(n.type))
 
   const setActionState = (id, state) => {
     setActionStates(prev => ({ ...prev, [id]: state }))
@@ -113,6 +127,24 @@ export default function Notifications() {
               <span style={{ fontSize: 10 }}>💬</span>
             </div>
           </div>
+        ) : (notif.type === 'question_revealed' || notif.type === 'spontaneous_question' || notif.type === 'spontaneous_question_answered') ? (
+          <div style={{
+            width: 48, height: 48, borderRadius: '12px',
+            backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <svg width="24" height="24" fill="none" stroke={clr.indigo} strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        ) : (notif.type === 'lfg_post' || notif.type === 'lfg_join') ? (
+          <div style={{
+            width: 48, height: 48, borderRadius: '12px',
+            backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <svg width="24" height="24" fill="none" stroke="#D97706" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
         ) : notif.user ? (
           <img
             src={avatarFor(notif.user)}
@@ -149,6 +181,10 @@ export default function Notifications() {
               <><span style={{ fontWeight: 700 }}>{notif.circle?.name}</span> {notif.message}</>
             ) : notif.type === 'event_approaching' ? (
               <><span style={{ fontWeight: 700 }}>{notif.event?.title}</span> {notif.message}</>
+            ) : (notif.type === 'question_revealed' || notif.type === 'spontaneous_question' || notif.type === 'spontaneous_question_answered') ? (
+              <><span style={{ fontWeight: 700 }}>{notif.name || 'Someone'}</span> {notif.message}</>
+            ) : (notif.type === 'lfg_post' || notif.type === 'lfg_join') ? (
+              <>{notif.message}</>
             ) : (
               <>{notif.message}</>
             )}
@@ -389,6 +425,41 @@ export default function Notifications() {
               </button>
             </div>
           )}
+
+          {(notif.type === 'question_revealed' || notif.type === 'spontaneous_question' || notif.type === 'spontaneous_question_answered') && notif.chatId && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  markNotificationRead(notif.id)
+                  navigate(`/chat/${notif.chatId}`)
+                }}
+                style={{
+                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}
+              >
+                Open chat
+              </button>
+            </div>
+          )}
+
+          {(notif.type === 'lfg_post' || notif.type === 'lfg_join') && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {/* notif.postId is mapped and available for future deep link */}
+              <button
+                onClick={() => {
+                  markNotificationRead(notif.id)
+                  navigate('/feed')
+                }}
+                style={{
+                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}
+              >
+                View
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -453,6 +524,24 @@ export default function Notifications() {
               </section>
             )}
 
+            {questionActivity.length > 0 && (
+              <section>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Questions</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {questionActivity.map(renderNotifCard)}
+                </div>
+              </section>
+            )}
+
+            {lfgActivity.length > 0 && (
+              <section>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Free right now</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {lfgActivity.map(renderNotifCard)}
+                </div>
+              </section>
+            )}
+
             {eventReminders.length > 0 && (
               <section>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Event reminders</h2>
@@ -476,6 +565,15 @@ export default function Notifications() {
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Circle activity</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {circleActivity.map(renderNotifCard)}
+                </div>
+              </section>
+            )}
+
+            {otherActivity.length > 0 && (
+              <section>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Other</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {otherActivity.map(renderNotifCard)}
                 </div>
               </section>
             )}
