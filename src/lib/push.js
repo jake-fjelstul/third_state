@@ -45,7 +45,7 @@ export async function getPushPermission() {
  * Attach listeners. Call ONCE per app session, after the user is signed in.
  * Returns a cleanup function.
  */
-export async function initPush({ onTokenRegistered } = {}) {
+export async function initPush({ onTokenRegistered, onTapped, onForeground } = {}) {
   if (!(await isNative())) return () => {}
   const { PushNotifications } = await import('@capacitor/push-notifications')
 
@@ -67,9 +67,21 @@ export async function initPush({ onTokenRegistered } = {}) {
     console.error('[push] APNs registration failed', err)
   })
 
+  // Fired when the app is in the FOREGROUND.
+  const received = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    onForeground?.(notification)
+  })
+
+  // Fired when the user TAPS a banner (including launching from a killed state).
+  const actioned = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    onTapped?.(action.notification)
+  })
+
   return () => {
     registration.remove().catch(() => {})
     registrationError.remove().catch(() => {})
+    received.remove().catch(() => {})
+    actioned.remove().catch(() => {})
   }
 }
 
@@ -83,4 +95,20 @@ export async function unregisterPush() {
     console.error('[push] unregister_device_token failed', err)
   }
   lastToken = null
+}
+
+export async function setBadgeCount(count) {
+  if (!(await isNative())) return
+  const { PushNotifications } = await import('@capacitor/push-notifications')
+  try {
+    if (count > 0) await PushNotifications.removeAllDeliveredNotifications()
+  } catch { /* non-fatal */ }
+}
+
+/** Clear the badge and any banners still sitting in Notification Center. */
+export async function clearDeliveredNotifications() {
+  if (!(await isNative())) return
+  const { PushNotifications } = await import('@capacitor/push-notifications')
+  try { await PushNotifications.removeAllDeliveredNotifications() }
+  catch (err) { console.error('[push] clear delivered failed', err) }
 }

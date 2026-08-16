@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import './App.css'
@@ -287,7 +287,13 @@ function AuthGuard() {
 
 /* ── Root app ── */
 function App() {
-  const { authLoading, session } = useAppContext()
+  const { authLoading, session, currentlyOpenChatId } = useAppContext()
+  const navigate = useNavigate()
+  const currentlyOpenChatIdRef = useRef(currentlyOpenChatId)
+
+  useEffect(() => {
+    currentlyOpenChatIdRef.current = currentlyOpenChatId
+  }, [currentlyOpenChatId])
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
@@ -313,12 +319,49 @@ function App() {
     if (!session?.user) return
     let cleanup = () => {}
     let cancelled = false
+
+    const routeTap = (notification) => {
+      setTimeout(() => {
+        const data = notification?.data || {}
+        const type = data.type
+        if (type === 'message') {
+          if (data.chatId) navigate(`/chat/${data.chatId}`)
+          return
+        }
+        if (type === 'lfg_post' || type === 'lfg_join') { navigate('/feed'); return }
+        if (data.chatId) { navigate(`/chat/${data.chatId}`); return }
+        navigate('/notifications')
+      }, 0)
+    }
+
+    const onForeground = (notification) => {
+      const data = notification?.data || {}
+      if (data.type === 'message' && data.chatId === currentlyOpenChatIdRef.current) return
+    }
+
     import('./lib/push')
-      .then(({ initPush }) => initPush())
+      .then(({ initPush }) => initPush({
+        onTapped: routeTap,
+        onForeground,
+      }))
       .then(fn => { if (cancelled) fn?.(); else cleanup = fn || (() => {}) })
       .catch(err => console.error('[push] initPush failed', err))
+
     return () => { cancelled = true; cleanup() }
-  }, [session?.user?.id])
+  }, [session?.user?.id, navigate])
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    let remove = () => {}
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) return
+        import('./lib/push').then(({ clearDeliveredNotifications }) =>
+          clearDeliveredNotifications())
+      }).then(h => { remove = () => h.remove() })
+    }).catch(() => {})
+    return () => remove()
+  }, [])
 
   return (
     <Routes>
