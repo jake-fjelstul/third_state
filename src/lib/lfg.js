@@ -55,7 +55,7 @@ export function suggestionsForNow(now = new Date()) {
 
 export async function createLfgPost({
   activity, startsAt, expiresAt, visibility = 'everyone',
-  notifyConnections = false, place = null,
+  notifyConnections = false, place = null, inviteeIds = null,
 }) {
   const { data, error } = await supabase.rpc('create_lfg_post', {
     p_activity: activity,
@@ -67,6 +67,7 @@ export async function createLfgPost({
     p_latitude: place?.lat ?? null,
     p_longitude: place?.lng ?? null,
     p_starts_at: startsAt,
+    p_invitee_ids: inviteeIds && inviteeIds.length ? inviteeIds : null,
   })
   if (error) throw error
   return data

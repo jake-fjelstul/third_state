@@ -28,6 +28,7 @@ import {
   listMyLfgPosts, listJoinedLfgPosts, getLfgJoiners,
   leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews,
 } from '../lib/lfg'
+import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -424,6 +425,8 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [lfgCustomStart, setLfgCustomStart] = useState('')
   const [lfgVisibility, setLfgVisibility] = useState('everyone')
   const [lfgNotify, setLfgNotify] = useState(true)
+  const [lfgAudience, setLfgAudience] = useState('all')
+  const [lfgInviteeIds, setLfgInviteeIds] = useState([])
   const [lfgVenues, setLfgVenues] = useState([])
   const [lfgVenuesLoading, setLfgVenuesLoading] = useState(false)
   const [lfgSubmitting, setLfgSubmitting] = useState(false)
@@ -445,6 +448,13 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
     e.preventDefault()
     setLfgError('')
     if (!lfgActivity.trim()) { setLfgError('What do you want to do?'); return }
+
+    const targeting = lfgVisibility === 'friends' && lfgAudience === 'choose'
+    if (targeting && lfgInviteeIds.length === 0) {
+      setLfgError('Pick at least one person to notify, or choose All connections.')
+      return
+    }
+
     setLfgSubmitting(true)
     try {
       const { startsAt, expiresAt } = resolveWindow(lfgWindow, lfgCustomStart || null)
@@ -452,11 +462,13 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         activity: lfgActivity.trim(),
         startsAt, expiresAt,
         visibility: lfgVisibility,
-        notifyConnections: lfgNotify,
+        notifyConnections: targeting ? true : lfgNotify,
+        inviteeIds: targeting ? lfgInviteeIds : null,
         place: lfgLocation,
       })
       setLfgActivity(''); setLfgWindow('now'); setLfgCustomStart('')
       setLfgVisibility('everyone'); setLfgNotify(true)
+      setLfgAudience('all'); setLfgInviteeIds([])
       setLfgVenues([]); setLfgLocation(null)
       onClose()
       onShowToast('LFG posted!')
@@ -1048,7 +1060,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               background: lfgVisibility === 'everyone' ? clr.indigoLt : 'transparent',
               cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
             }}>
-              <input type="radio" name="lfgVis" checked={lfgVisibility === 'everyone'} onChange={() => setLfgVisibility('everyone')} style={{ accentColor: clr.indigo }} /> Everyone
+              <input type="radio" name="lfgVis" checked={lfgVisibility === 'everyone'} onChange={() => { setLfgVisibility('everyone'); setLfgAudience('all') }} style={{ accentColor: clr.indigo }} /> Everyone
             </label>
             <label style={{
               flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
@@ -1062,18 +1074,54 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           </div>
         </div>
 
-        {/* 8. Notify connections checkbox */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark }}>
-            <input
-              type="checkbox"
-              checked={lfgNotify}
-              onChange={e => setLfgNotify(e.target.checked)}
-              style={{ width: 18, height: 18, accentColor: clr.indigo }}
-            />
-            Notify my connections
-          </label>
-        </div>
+        {/* 8. Notification settings */}
+        {lfgVisibility === 'everyone' ? (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark }}>
+              <input
+                type="checkbox"
+                checked={lfgNotify}
+                onChange={e => setLfgNotify(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: clr.indigo }}
+              />
+              Notify my connections
+            </label>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              Who gets notified
+            </label>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+              <label style={{
+                flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
+                padding: 14, borderRadius: 16,
+                border: lfgAudience === 'all' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
+                background: lfgAudience === 'all' ? clr.indigoLt : 'transparent',
+                cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
+              }}>
+                <input type="radio" name="lfgAud" checked={lfgAudience === 'all'} onChange={() => setLfgAudience('all')} style={{ accentColor: clr.indigo }} /> All connections
+              </label>
+              <label style={{
+                flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
+                padding: 14, borderRadius: 16,
+                border: lfgAudience === 'choose' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
+                background: lfgAudience === 'choose' ? clr.indigoLt : 'transparent',
+                cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
+              }}>
+                <input type="radio" name="lfgAud" checked={lfgAudience === 'choose'} onChange={() => setLfgAudience('choose')} style={{ accentColor: clr.indigo }} /> Choose people
+              </label>
+            </div>
+            {lfgAudience === 'choose' && (
+              <LfgRecipientPicker
+                connections={connections}
+                selectedIds={lfgInviteeIds}
+                onChange={setLfgInviteeIds}
+                clr={clr}
+              />
+            )}
+          </div>
+        )}
 
         {/* 9. Error display */}
         {lfgError && (
