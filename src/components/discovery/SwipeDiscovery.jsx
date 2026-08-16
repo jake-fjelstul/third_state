@@ -86,7 +86,7 @@ function DiscoveryCard({ card }) {
             {p.online && <div style={{ width:12, height:12, borderRadius:'50%', backgroundColor: 'var(--green, #22C55E)' }} />}
           </div>
           <p style={{ margin:'0 0 12px 0', fontSize:14, color: clr.textMid }}>
-            {p.city} • <span style={{ fontWeight: 700 }}>📍 {card.distance} miles away</span>
+            {p.city}{typeof card.distance === 'number' ? <> • <span style={{ fontWeight: 700 }}>📍 {card.distance} miles away</span></> : null}
           </p>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
             {p.interests?.slice(0,4).map(i => (
@@ -130,7 +130,7 @@ function DiscoveryCard({ card }) {
           </div>
           <h2 style={{ margin:'0 0 8px 0', fontSize:26, fontWeight:800, color: clr.textDark }}>{c.name}</h2>
           <p style={{ margin:'0 0 16px', fontSize:15, color: clr.textMid }}>
-            {c.memberCount ?? c.members?.length ?? 0} members • <span style={{ fontWeight: 700 }}>📍 {card.distance} miles away</span>
+            {c.memberCount ?? c.members?.length ?? 0} members{c.city ? ` • ${c.city}` : ''}
           </p>
           <p style={{ margin:0, fontSize:15, color:clr.textDark, lineHeight:1.5 }}>{c.description}</p>
         </div>
@@ -167,7 +167,7 @@ function DiscoveryCard({ card }) {
             <span style={{ fontSize:18 }}>📅</span> {e.date} • {e.time}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <span style={{ fontSize:18 }}>📍</span> {e.location} • <span style={{ fontWeight: 700 }}>{card.distance} miles away</span>
+            <span style={{ fontSize:18 }}>📍</span> {e.location}{card.distance != null ? <> • <span style={{ fontWeight: 700 }}>{card.distance} miles away</span></> : null}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
             <span style={{ fontSize:18 }}>🎟️</span> Hosted by {e.circleName ?? 'Community'}
@@ -257,7 +257,7 @@ function DiscoveryCard({ card }) {
 export default function SwipeDiscovery({ onClose }) {
   const { joinCircle, rsvpEvent, startDM, sendMessage, connectWithPerson, discoverySwipes, recordSwipe, searchRadius, resetDiscoverySwipes, currentUser, connections, joinedCircles, isRsvpd, blockedUserIds } = useAppContext()
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events', 'lfg'])
-  const [cardIndex, setCardIndex] = useState(0)
+  const [consumedIds, setConsumedIds] = useState([])
   
   const [dragX, setDragX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -270,6 +270,7 @@ export default function SwipeDiscovery({ onClose }) {
   const [currentMatchCard, setCurrentMatchCard] = useState(null)
   
   const cardRef = useRef(null)
+  const currentCardRef = useRef(null)
   const dragStartX = useRef(0)
   const wheelAccumulator = useRef(0)
   const isSwiping = useRef(false)
@@ -342,7 +343,6 @@ export default function SwipeDiscovery({ onClose }) {
       }
       return [...prev, f]
     })
-    setCardIndex(0)
   }
 
   const allCards = useMemo(() => {
@@ -350,10 +350,10 @@ export default function SwipeDiscovery({ onClose }) {
     const today = new Date().toDateString()
     const swipes = discoverySwipes.date === today ? discoverySwipes : { person:0, circle:0, event:0 }
 
-    const getMockDist = (id) => ((String(id).charCodeAt(0) * 13 + String(id).length * 7) % 50) + 1
     const myLat = currentUser?.latitude
     const myLng = currentUser?.longitude
     const personDistanceTo = (person) => haversineMiles(myLat, myLng, person.latitude, person.longitude)
+    const eventDistanceTo = (e) => haversineMiles(myLat, myLng, e.locationLat, e.locationLng)
 
     if (activeFilters.includes('people')) {
       const allowed = Math.max(0, 5 - (swipes.person || 0))
@@ -364,12 +364,12 @@ export default function SwipeDiscovery({ onClose }) {
             if (connections.some(c => c.id === p.id)) return false
             if (blockedUserIds?.includes(p.id)) return false
             if (passedCards.person?.includes(p.id)) return false
+            if (consumedIds.includes(p.id)) return false
             const dist = personDistanceTo(p)
             return dist == null || dist <= searchRadius
           })
-          .map(p => scoreCard({ type: 'person', data: p, distance: personDistanceTo(p) == null ? '?' : Math.round(personDistanceTo(p)) }, currentUser))
+          .map(p => scoreCard({ type: 'person', data: p, distance: personDistanceTo(p) == null ? null : Math.round(personDistanceTo(p)) }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
-          .slice(0, allowed)
         scoredCards.push(...candidates)
       }
     }
@@ -381,18 +381,17 @@ export default function SwipeDiscovery({ onClose }) {
           .filter(c => {
             if (joinedCircles.includes(c.id)) return false
             if (passedCards.circle?.includes(c.id)) return false
+            if (consumedIds.includes(c.id)) return false
             if (appliedCircleIds.includes(c.id)) return false
-            if (getMockDist(c.id) > searchRadius) return false
             return isDiscoverable(c)
           })
           .map(c => scoreCard({
             type: 'circle',
             data: { ...c, hoops: hoopsByCircle[c.id] || [] },
-            distance: getMockDist(c.id),
+            distance: null,
             requiresApplication: requiresApp(c),
           }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
-          .slice(0, allowed)
         scoredCards.push(...candidates)
       }
     }
@@ -401,10 +400,15 @@ export default function SwipeDiscovery({ onClose }) {
       const allowed = Math.max(0, 5 - (swipes.event || 0))
       if (allowed > 0) {
         const candidates = events
-          .filter(e => !isRsvpd(e.id) && !passedCards.event?.includes(e.id) && getMockDist(e.id) <= searchRadius)
-          .map(e => scoreCard({ type: 'event', data: e, distance: getMockDist(e.id) }, currentUser))
+          .filter(e => {
+            if (isRsvpd(e.id)) return false
+            if (passedCards.event?.includes(e.id)) return false
+            if (consumedIds.includes(e.id)) return false
+            const dist = eventDistanceTo(e)
+            return dist == null || dist <= searchRadius
+          })
+          .map(e => scoreCard({ type: 'event', data: e, distance: eventDistanceTo(e) == null ? null : Math.round(eventDistanceTo(e)) }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
-          .slice(0, allowed)
         scoredCards.push(...candidates)
       }
     }
@@ -413,20 +417,23 @@ export default function SwipeDiscovery({ onClose }) {
       const candidates = lfgPosts
         .filter(p => p.userId !== currentUser?.id)
         .filter(p => !passedCards.lfg?.includes(p.id))
+        .filter(p => !consumedIds.includes(p.id))
         .filter(p => !blockedUserIds?.includes(p.userId))
         .map(p => ({ type: 'lfg', data: p, score: 1000 - Math.round((new Date(p.expiresAt) - Date.now()) / 60000) }))
       scoredCards.push(...candidates)
     }
 
     return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards, hoopsByCircle, appliedCircleIds])
+  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards, hoopsByCircle, appliedCircleIds, discoverySwipes, consumedIds, connections, joinedCircles, isRsvpd])
 
-  const currentCard = allCards[cardIndex]
-  const nextCard = allCards[cardIndex + 1]
+  const currentCard = allCards[0]
+  const nextCard = allCards[1]
+  currentCardRef.current = currentCard
 
   const advanceCard = () => {
-    setCardIndex(i => i + 1)
+    const c = currentCardRef.current
+    if (!c) return
+    setConsumedIds(prev => prev.includes(c.data.id) ? prev : [...prev, c.data.id])
   }
 
   const handleSwipeRight = async () => {
@@ -707,11 +714,11 @@ export default function SwipeDiscovery({ onClose }) {
               You've seen all the matches in your area based on your current filters. Check back later or try adjusting your settings.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 240 }}>
-              {(Object.keys(discoverySwipes).some(k => discoverySwipes[k] > 0 && k !== 'date') || Object.values(passedCards).some(arr => arr.length > 0)) && (
+              {(Object.keys(discoverySwipes).some(k => discoverySwipes[k] > 0 && k !== 'date') || Object.values(passedCards).some(arr => arr.length > 0) || consumedIds.length > 0) && (
                 <button onClick={() => {
                   resetDiscoverySwipes()
                   setPassedCards({ person: [], circle: [], event: [], lfg: [] })
-                  setCardIndex(0)
+                  setConsumedIds([])
                 }} style={{
                   padding: '16px', borderRadius: 999, border: 'none', cursor: 'pointer',
                   background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
@@ -722,7 +729,7 @@ export default function SwipeDiscovery({ onClose }) {
                 </button>
               )}
               {activeFilters.length < 4 && (
-                <button onClick={() => { setActiveFilters(['people', 'circles', 'events', 'lfg']); setCardIndex(0) }} style={{
+                <button onClick={() => { setActiveFilters(['people', 'circles', 'events', 'lfg']) }} style={{
                   padding: '16px', borderRadius: 999, border: `1.5px solid ${clr.border}`, cursor: 'pointer',
                   background: clr.white, color: clr.textDark, fontSize: 15, fontWeight: 700,
                 }}>
@@ -764,9 +771,6 @@ export default function SwipeDiscovery({ onClose }) {
           </button>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: clr.textDark }}>
-              {cardIndex + 1} / {allCards.length}
-            </span>
             <span style={{ fontSize: 11, fontWeight: 700, color: clr.textLight, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {currentCard.type === 'lfg' ? 'Unlimited' : `${Math.max(0, 5 - (discoverySwipes.date === new Date().toDateString() ? (discoverySwipes[currentCard.type] || 0) : 0))} left`}
             </span>

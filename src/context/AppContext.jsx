@@ -37,7 +37,7 @@ import {
   startDM as startDmDb,
   hideChat as hideChatDb,
 } from '../lib/chat'
-import { listNotifications, markRead as markNotifReadDb, markAllRead as markAllNotifsReadDb, deleteNotification as deleteNotifDb, mapNotificationRow } from '../lib/notifications'
+import { listNotifications, markRead as markNotifReadDb, markAllRead as markAllNotifsReadDb, deleteNotification as deleteNotifDb, mapNotificationRow, deleteNotificationsForChat, deleteNotifications } from '../lib/notifications'
 import { redeemInvite } from '../lib/invites'
 import { createChatGame, commitGameMove, resignGame } from '../lib/games'
 import { createPoll as createPollDb } from '../lib/polls'
@@ -236,7 +236,21 @@ export function AppProvider({ children }) {
           .finally(() => { if (!cancelled) setChatStateLoading(false) })
 
         listNotifications(profile.id)
-          .then(list => { if (!cancelled) setNotifications(list) })
+          .then(list => {
+            if (cancelled) return
+            const now = Date.now()
+            const stale = list.filter(n =>
+              n.type === 'event_approaching' &&
+              n.event?.startsAt &&
+              new Date(n.event.startsAt).getTime() < now
+            ).map(n => n.id)
+
+            setNotifications(list.filter(n => !stale.includes(n.id)))
+            if (stale.length) {
+              deleteNotifications(stale).catch(err =>
+                console.error('[AppContext] prune stale event notifications failed', err))
+            }
+          })
           .catch(err => console.error('[AppContext] failed to load notifications', err))
       })
       .catch(async err => {
@@ -797,10 +811,17 @@ export function AppProvider({ children }) {
     setChatState(prev => prev[chatId]
       ? { ...prev, [chatId]: { ...prev[chatId], unread: 0 } }
       : prev)
+    // Optimistically drop any notification for this chat.
+    setNotifications(prev => prev.filter(n => n.chatId !== chatId))
     try {
       await markReadDb({ userId: session.user.id, chatId })
     } catch (err) {
       console.error('[AppContext] markChatRead failed', err)
+    }
+    try {
+      await deleteNotificationsForChat(session.user.id, chatId)
+    } catch (err) {
+      console.error('[AppContext] deleteNotificationsForChat failed', err)
     }
   }, [session])
 

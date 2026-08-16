@@ -83,3 +83,22 @@ export async function deleteNotification(notificationId) {
     .eq('id', notificationId)
   if (error) throw error
 }
+
+/** Delete this user's notifications tied to a chat. */
+export async function deleteNotificationsForChat(userId, chatId) {
+  if (!userId || !chatId) return
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('user_id', userId)
+    .eq('payload->>chatId', chatId)
+  if (error) throw error
+}
+
+/** Delete this user's notifications by id, in one round trip. */
+export async function deleteNotifications(ids) {
+  if (!ids || ids.length === 0) return
+  const { error } = await supabase.from('notifications').delete().in('id', ids)
+  if (error) throw error
+}
+
