@@ -36,6 +36,16 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Third Space needs access to your camera so you can take a profile picture.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Third Space uses your location to show you meetups and people near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Third Space needs access to your photos so you can set a profile picture and circle cover image.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -59,11 +69,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-    <key>NSPhotoLibraryUsageDescription</key>
-        <string>Third Space needs access to your photos so you can set a profile picture and circle cover image.</string>
-        <key>NSCameraUsageDescription</key>
-        <string>Third Space needs access to your camera so you can take a profile picture.</string>
-        <key>NSLocationWhenInUseUsageDescription</key>
-        <string>Third Space uses your location to show you meetups and people near you.</string>
 </dict>
 </plist>

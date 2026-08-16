@@ -28,6 +28,7 @@
     "KeyboardPlugin",
     "CAPNetworkPlugin",
     "PreferencesPlugin",
+    "PushNotificationsPlugin",
     "SharePlugin",
     "SplashScreenPlugin",
     "StatusBarPlugin"

@@ -410,3 +410,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.google-calendar]
 verify_jwt = false
 
+[functions.send-push]
+verify_jwt = false
+
+
