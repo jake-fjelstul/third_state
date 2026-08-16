@@ -113,7 +113,7 @@ export default function Settings() {
 
   const triggerToast = (msg) => {
     setToastMessage(msg)
-    setTimeout(() => setToastMessage(''), 3000)
+    setTimeout(() => setToastMessage(''), 2500)
   }
 
   return (
@@ -122,6 +122,9 @@ export default function Settings() {
       backgroundColor: clr.bg,
       fontFamily: "'DM Sans', 'Inter', sans-serif",
     }}>
+      <style>{`
+        @keyframes fadeToast { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(20px); } }
+      `}</style>
       {/* ── Main Container ── */}
       <div style={{
         maxWidth: '500px',
@@ -775,7 +778,7 @@ export default function Settings() {
 
       {/* Success Toast */}
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+        <div style={{ position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', animation: 'fadeToast 2.5s ease forwards' }}>
           <span style={{ fontSize: 18 }}>✅</span> {toastMessage}
         </div>
       )}

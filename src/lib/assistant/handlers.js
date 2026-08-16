@@ -1,5 +1,5 @@
 import { listProfiles } from '../profiles'
-import { listCircles }  from '../circles'
+import { listVisibleCircles } from '../circles'
 import { listUpcomingEvents } from '../events'
 import {
   assistantText, assistantPeople, assistantCircles, assistantEvents,
@@ -37,7 +37,7 @@ export async function handleFindPeople({ topic, ctx }) {
 }
 
 export async function handleFindCircles({ topic, ctx }) {
-  const all = await listCircles()
+  const all = await listVisibleCircles(ctx.currentUser?.id)
   const filtered = all.filter(c => matchesTopic(c, topic, ['name', 'description', 'category', 'interestTag', 'vibe']))
   if (filtered.length === 0) {
     return [

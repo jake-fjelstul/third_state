@@ -1,11 +1,12 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getCircle, updateCircle } from '../lib/circles'
+import { getCircle, updateCircle, saveHoopsForCircle } from '../lib/circles'
 import { listEventsForCircle } from '../lib/events'
 import { useAppContext } from '../context/AppContext.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import HoopApplication from '../components/hoops/HoopApplication.jsx'
 import OrganizerReview from '../components/hoops/OrganizerReview.jsx'
+import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import { buildMapsUrl } from '../lib/geocoding'
 import { useChatMessages } from '../hooks/useChatMessages.js'
 import { listChannels, createChannel as createChannelApi } from '../lib/chat.js'
@@ -136,18 +137,34 @@ export default function CircleDetail() {
 
   const isJoined = circle ? joinedCircles.includes(circle.id) : false
   const isPrivate = circle ? circle.type === 'private' : false
+  const acceptsApplications = circle ? !!circle.applicationsEnabled : false
   const isOrganizer = circle ? circle.organizerId === currentUser?.id : false
+  const contentHidden = isPrivate && !isJoined && !isOrganizer
   const hasHoops = circle ? !!circle.hoops?.length : false
   const pendingApp = circle ? pendingApplications?.find(a => a.circleId === circle.id && a.applicantId === currentUser?.id && a.status === 'pending') : null
   const cover = resolveCircleCover(circle)
 
+  const [editHoops, setEditHoops] = useState([])
+  const [editAppsEnabled, setEditAppsEnabled] = useState(false)
+  const [hoopsSaving, setHoopsSaving] = useState(false)
+  const [hoopsError, setHoopsError] = useState('')
+  const [hoopsDirty, setHoopsDirty] = useState(false)
+
+  useEffect(() => {
+    if (circle) {
+      setEditHoops(circle.hoops || [])
+      setEditAppsEnabled(!!circle.applicationsEnabled)
+      setHoopsDirty(false)
+    }
+  }, [circle])
+
   const dynamicTabs = useMemo(() => {
     const base = [...TABS]
-    if (isOrganizer && (hasHoops || isPrivate)) {
+    if (isOrganizer) {
       base.push({ id: 'applications', label: 'Applications' })
     }
     return base
-  }, [isOrganizer, hasHoops, isPrivate])
+  }, [isOrganizer])
 
   useEffect(() => {
     if (!dynamicTabs.some(t => t.id === activeTab)) setActiveTab('about')
@@ -168,18 +185,7 @@ export default function CircleDetail() {
   }
 
   const handleRequestJoin = async () => {
-    if (hasHoops) { setShowHoopApp(true); return }
-    if (joinBusy) return
-    setJoinBusy(true)
-    setJoinError('')
-    try {
-      await submitApplication({ circle, responses: {} })
-    } catch (err) {
-      console.error('[CircleDetail] request to join failed', err)
-      setJoinError('Could not send your request. Please try again.')
-    } finally {
-      setJoinBusy(false)
-    }
+    setShowHoopApp(true)
   }
 
   const handleOpenAddMembers = async () => {
@@ -402,7 +408,7 @@ export default function CircleDetail() {
             >
               ⏳ Pending Review
             </button>
-          ) : (hasHoops || isPrivate) ? (
+          ) : acceptsApplications ? (
             <button
               type="button"
               onClick={handleRequestJoin}
@@ -416,8 +422,23 @@ export default function CircleDetail() {
                 boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
               }}
             >
-              {joinBusy ? 'Sending…' : hasHoops ? 'Apply to Join 🏀' : 'Request to Join'}
+              {joinBusy ? 'Sending…' : 'Apply to Join 🏀'}
             </button>
+          ) : isPrivate ? (
+            <div
+              style={{
+                padding: '10px 24px', borderRadius: 999, border: 'none',
+                backgroundColor: clr.white, textAlign: 'center',
+                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>
+                Invite only
+              </div>
+              <div style={{ fontSize: 11, color: clr.textMid, marginTop: 2 }}>
+                You'll need an invite link or QR code from a member.
+              </div>
+            </div>
           ) : (
             <button
               type="button"
@@ -626,14 +647,14 @@ export default function CircleDetail() {
 
         {/* MEMBERS */}
         {activeTab === 'members' && (
-          !isJoined ? (
+          contentHidden ? (
             <div style={{ backgroundColor: clr.white, borderRadius: 20, padding: 32, textAlign: 'center', border: `1.5px dashed ${clr.border}` }}>
               <svg width="32" height="32" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24" style={{ marginBottom: 12 }}>
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Members are private</h3>
-              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>Join this circle to see who's part of it.</p>
+              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Members are hidden</h3>
+              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>You'll see who's here once your application is approved.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -687,14 +708,14 @@ export default function CircleDetail() {
 
         {/* EVENTS */}
         {activeTab === 'events' && (
-          !isJoined ? (
+          contentHidden ? (
             <div style={{ backgroundColor: clr.white, borderRadius: 20, padding: 32, textAlign: 'center', border: `1.5px dashed ${clr.border}` }}>
               <svg width="32" height="32" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24" style={{ marginBottom: 12 }}>
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Events are members-only</h3>
-              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>Join {circle.name} to see upcoming meetups.</p>
+              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Events are hidden</h3>
+              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>Join this circle to see what's coming up.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -782,7 +803,117 @@ export default function CircleDetail() {
 
         {/* APPLICATIONS */}
         {activeTab === 'applications' && isOrganizer && (
-          <OrganizerReview circle={circle} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Application Settings Panel */}
+            <div style={{
+              backgroundColor: clr.white, borderRadius: 20,
+              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 16px 0' }}>
+                Application Settings
+              </h3>
+
+              {/* Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
+                <div>
+                  <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark }}>
+                    🏀 Require an application
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>
+                    People apply and you approve them
+                  </p>
+                </div>
+                <div
+                  onClick={() => {
+                    setEditAppsEnabled(!editAppsEnabled)
+                    setHoopsDirty(true)
+                  }}
+                  style={{
+                    width: 50, height: 28, borderRadius: 999,
+                    backgroundColor: editAppsEnabled ? clr.indigo : clr.border,
+                    position: 'relative', cursor: 'pointer', transition: 'background-color 0.3s ease',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 2, left: editAppsEnabled ? 24 : 2,
+                    width: 24, height: 24, borderRadius: '50%',
+                    backgroundColor: '#FFFFFF', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
+              </div>
+
+              {/* HoopBuilder or helper copy */}
+              {editAppsEnabled ? (
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ margin: '0 0 10px', fontSize: 12, color: clr.textMid }}>
+                    Optional — leave empty and applicants just confirm and send.
+                  </p>
+                  <HoopBuilder
+                    hoops={editHoops}
+                    onChange={(next) => { setEditHoops(next); setHoopsDirty(true) }}
+                  />
+                </div>
+              ) : isPrivate ? (
+                <p style={{ margin: '0 0 16px', fontSize: 12, color: clr.textMid }}>
+                  Invite-only. People can only join with an invite link or QR code, and this circle won't appear in search or Discover.
+                </p>
+              ) : (
+                <p style={{ margin: '0 0 16px', fontSize: 12, color: clr.textMid }}>
+                  Anyone can join instantly.
+                </p>
+              )}
+
+              {/* Warning when hoops were removed */}
+              {(circle.hoops || []).some(orig => !editHoops.some(h => h.id === orig.id)) && (
+                <p style={{ color: '#DC2626', backgroundColor: '#FEE2E2', padding: '10px 14px', borderRadius: 12, fontSize: 12, fontWeight: 600, margin: '12px 0 0' }}>
+                  ⚠️ Removing a question also deletes the answers applicants already gave to it.
+                </p>
+              )}
+
+              {hoopsError && (
+                <p style={{ color: '#DC2626', fontSize: 13, marginTop: 10, fontWeight: 600 }}>
+                  {hoopsError}
+                </p>
+              )}
+
+              {/* Save Button */}
+              <button
+                type="button"
+                disabled={hoopsSaving || (!hoopsDirty && editAppsEnabled === !!circle.applicationsEnabled)}
+                onClick={async () => {
+                  setHoopsSaving(true)
+                  setHoopsError('')
+                  try {
+                    if (editAppsEnabled !== !!circle.applicationsEnabled) {
+                      await updateCircle(circle.id, { applicationsEnabled: editAppsEnabled })
+                    }
+                    await saveHoopsForCircle(circle.id, editHoops)
+                    await reloadCircle()
+                    setHoopsDirty(false)
+                  } catch (err) {
+                    console.error('[CircleDetail] saveHoops failed', err)
+                    setHoopsError('Could not save. Please try again.')
+                  } finally {
+                    setHoopsSaving(false)
+                  }
+                }}
+                style={{
+                  marginTop: 16, width: '100%', padding: '12px', borderRadius: 999, border: 'none',
+                  backgroundColor: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) ? clr.indigo : clr.border,
+                  color: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) ? '#FFFFFF' : clr.textMid,
+                  fontSize: 15, fontWeight: 700,
+                  cursor: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) && !hoopsSaving ? 'pointer' : 'not-allowed',
+                  opacity: hoopsSaving ? 0.7 : 1,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {hoopsSaving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+
+            <OrganizerReview circle={circle} />
+          </div>
         )}
       </div>
 
@@ -1021,6 +1152,7 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [chatInput, setChatInput] = useState('')
+  const [showPollComposer, setShowPollComposer] = useState(false)
   const msgsEndRef = useRef(null)
 
   // Fetch channels for this chat
@@ -1117,8 +1249,6 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     activeCh: '#5B5FEF',
     inactiveCh: 'transparent',
   }
-
-  const [showPollComposer, setShowPollComposer] = useState(false)
 
   const pollClr = {
     bg: dk.inputBg,

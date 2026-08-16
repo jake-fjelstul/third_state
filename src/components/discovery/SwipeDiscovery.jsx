@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { listCircles, listHoopsByCircle, listMyApplications } from '../../lib/circles'
+import { listVisibleCircles, listHoopsByCircle, listMyApplications, isDiscoverable, requiresApplication as requiresApp } from '../../lib/circles'
 import { listProfiles } from '../../lib/profiles'
 import { listUpcomingEvents } from '../../lib/events'
 import { listActiveLfgPosts, joinLfgPost, timeLeftLabel } from '../../lib/lfg'
@@ -125,7 +125,7 @@ function DiscoveryCard({ card }) {
                </span>
              )}
              <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-               {c.type === 'private' ? 'Application Required' : 'Open Circle'}
+               {card.requiresApplication ? 'Application Required' : 'Open Circle'}
              </span>
           </div>
           <h2 style={{ margin:'0 0 8px 0', fontSize:26, fontWeight:800, color: clr.textDark }}>{c.name}</h2>
@@ -307,7 +307,7 @@ export default function SwipeDiscovery({ onClose }) {
     let cancelled = false
     Promise.all([
       listProfiles(),
-      listCircles(),
+      listVisibleCircles(currentUser?.id),
       listUpcomingEvents({ limit: 50 }),
       listActiveLfgPosts(),
       listHoopsByCircle(),
@@ -383,16 +383,13 @@ export default function SwipeDiscovery({ onClose }) {
             if (passedCards.circle?.includes(c.id)) return false
             if (appliedCircleIds.includes(c.id)) return false
             if (getMockDist(c.id) > searchRadius) return false
-            // Open circles are always joinable.
-            if (c.type === 'open') return true
-            // Private circles are only reachable if they have hoops to apply through.
-            return (hoopsByCircle[c.id]?.length || 0) > 0
+            return isDiscoverable(c)
           })
           .map(c => scoreCard({
             type: 'circle',
             data: { ...c, hoops: hoopsByCircle[c.id] || [] },
             distance: getMockDist(c.id),
-            requiresApplication: c.type === 'private',
+            requiresApplication: requiresApp(c),
           }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
           .slice(0, allowed)

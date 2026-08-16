@@ -5,7 +5,7 @@ import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 import { profileCompleteness } from '../lib/profileCompleteness.jsx'
 import { listUpcomingEvents, expandRecurrence, updateEvent } from '../lib/events'
 import { uploadEventCover, uploadCircleCover } from '../lib/storage'
-import { listCircles, updateCircle } from '../lib/circles'
+import { listVisibleCircles, updateCircle, requiresApplication } from '../lib/circles'
 import { listProfiles } from '../lib/profiles'
 import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
@@ -178,7 +178,12 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
       </div>
       <button
         type="button"
-        onClick={e => { e.stopPropagation(); onJoin() }}
+        onClick={e => {
+          e.stopPropagation()
+          if (isJoined) return
+          if (requiresApplication(circle)) { onClick?.(); return }
+          onJoin()
+        }}
         style={{
           flexShrink: 0, padding: '8px 14px', borderRadius: 999,
           border: isJoined ? 'none' : `1.5px solid ${clr.indigo}`,
@@ -187,7 +192,7 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
           cursor: isJoined ? 'default' : 'pointer',
         }}
       >
-        {isJoined ? '✓' : isPrivate ? 'Request' : 'Join'}
+        {isJoined ? '✓' : requiresApplication(circle) ? 'Apply' : 'Join'}
       </button>
     </div>
   )
@@ -399,7 +404,7 @@ function CreateCard({ action, onClick }) {
 
 function CreateModals({ show, onClose, onShowToast, people, connections, refreshCircles, refreshLfg }) {
   const navigate = useNavigate()
-  const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle, blockedUserIds } = useAppContext()
+  const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle, blockedUserIds, circleMembershipVersion } = useAppContext()
   const [coffeeSearch, setCoffeeSearch] = useState('')
   const [coffeeTarget, setCoffeeTarget] = useState(null)
   const [circlePrivacy, setCirclePrivacy] = useState('open')
@@ -407,7 +412,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [coffeeTime, setCoffeeTime] = useState('10:00')
   const [coffeeDate, setCoffeeDate] = useState('')
   const [coffeeNote, setCoffeeNote] = useState('')
-  const [hoopsEnabled, setHoopsEnabled] = useState(false)
+  const [applicationsEnabled, setApplicationsEnabled] = useState(false)
   const [circleHoops, setCircleHoops] = useState([])
   const [circles, setCircles] = useState([])
 
@@ -488,11 +493,11 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
   useEffect(() => {
     let cancelled = false
-    listCircles()
+    listVisibleCircles(currentUser?.id)
       .then(list => { if (!cancelled) setCircles(list) })
       .catch(err => console.error('[Feed] listCircles failed', err))
     return () => { cancelled = true }
-  }, [])
+  }, [circleMembershipVersion, currentUser?.id])
 
   if (!show) return null
 
@@ -540,7 +545,10 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         const check3 = checkContent(desc);
         if (!check3.ok) return onShowToast(check3.reason);
 
-        if (hoopsEnabled && circleHoops) {
+        const wantsApplications = !!applicationsEnabled
+        const validHoops = circleHoops.filter(h => h.type === 'written' || h.type === 'multiplechoice')
+
+        if (wantsApplications && circleHoops) {
           for (const hoop of circleHoops) {
             if (hoop.prompt) {
               const c = checkContent(hoop.prompt);
@@ -566,7 +574,8 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             description: desc,
             vibe: 'Looking for group!',
             rules: [],
-            hoops: hoopsEnabled ? circleHoops.filter(h => h.type === 'written' || h.type === 'multiplechoice') : [],
+            applicationsEnabled: wantsApplications,
+            hoops: wantsApplications ? validHoops : [],
           })
           await refreshCircles?.()
 
@@ -679,29 +688,40 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         </div>
         <textarea name="cDesc" placeholder="Short description..." rows={3} style={{ ...inputStyle, resize: 'none' }} />
 
-        {/* Hoops toggle */}
+        {/* Applications / Hoops toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 12 }}>
           <div>
-            <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark }}>🏀 Require Entry Hoops</p>
-            <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>Set questions applicants must answer</p>
+            <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark }}>🏀 Require an application</p>
+            <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>People apply and you approve them</p>
           </div>
-          <div onClick={() => { setHoopsEnabled(!hoopsEnabled); if (!hoopsEnabled && circleHoops.length === 0) setCircleHoops([]) }} style={{
+          <div onClick={() => { setApplicationsEnabled(!applicationsEnabled); if (!applicationsEnabled && circleHoops.length === 0) setCircleHoops([]) }} style={{
             width: 50, height: 28, borderRadius: 999,
-            backgroundColor: hoopsEnabled ? clr.indigo : clr.border,
+            backgroundColor: applicationsEnabled ? clr.indigo : clr.border,
             position: 'relative', cursor: 'pointer', transition: 'background-color 0.3s ease',
           }}>
             <div style={{
-              position: 'absolute', top: 2, left: hoopsEnabled ? 24 : 2,
+              position: 'absolute', top: 2, left: applicationsEnabled ? 24 : 2,
               width: 24, height: 24, borderRadius: '50%',
               backgroundColor: '#FFFFFF', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               transition: 'left 0.3s ease',
             }} />
           </div>
         </div>
-        {hoopsEnabled && (
+        {applicationsEnabled ? (
           <div style={{ marginBottom: 16 }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: clr.textMid }}>
+              Optional — leave empty and applicants just confirm and send.
+            </p>
             <HoopBuilder hoops={circleHoops} onChange={setCircleHoops} />
           </div>
+        ) : circlePrivacy === 'private' ? (
+          <p style={{ margin: '0 0 16px', fontSize: 12, color: clr.textMid }}>
+            Invite-only. People can only join with an invite link or QR code, and this circle won't appear in search or Discover.
+          </p>
+        ) : (
+          <p style={{ margin: '0 0 16px', fontSize: 12, color: clr.textMid }}>
+            Anyone can join instantly.
+          </p>
         )}
 
         <button type="submit" style={submitStyle}>Create Circle →</button>
@@ -1513,7 +1533,7 @@ export default function Feed() {
     listProfiles({ excludeUserId: currentUser?.id })
       .then(list => { if (!cancelled) setPeople(list) })
       .catch(err => console.error('[Feed] listProfiles failed', err))
-    listCircles()
+    listVisibleCircles(currentUser?.id)
       .then(list => { if (!cancelled) setCircles(list) })
       .catch(err => console.error('[Feed] listCircles failed', err))
     listUpcomingEvents({ limit: 30 })
@@ -1691,7 +1711,6 @@ export default function Feed() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                {askAssistantRow}
                 {searchResults.people.length > 0 && (
                   <section><SectionHeader title="People" /><HScrollRow>{searchResults.people.map(p => <PersonCard key={p.id} person={p} />)}</HScrollRow></section>
                 )}
@@ -1872,7 +1891,7 @@ export default function Feed() {
 
       <CreateModals show={showCreateModal} onClose={() => setShowCreateModal(null)} onShowToast={showToast} refreshLfg={refreshLfg} people={people} connections={connections} refreshCircles={async () => {
         try {
-          const list = await listCircles()
+          const list = await listVisibleCircles(currentUser?.id)
           setCircles(list)
         } catch (err) {
           console.error('[Feed] listCircles failed', err)

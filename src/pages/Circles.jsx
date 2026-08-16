@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { listProfiles } from '../lib/profiles'
-import { listCircles, listJoinedCircleMembers } from '../lib/circles'
+import { listVisibleCircles, listJoinedCircleMembers, isDiscoverable, requiresApplication } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import Memories from './Memories.jsx'
@@ -135,7 +135,12 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
       </div>
       <button
         type="button"
-        onClick={e => { e.stopPropagation(); onJoin() }}
+        onClick={e => {
+          e.stopPropagation()
+          if (isJoined) return
+          if (requiresApplication(circle)) { onClick?.(); return }
+          onJoin()
+        }}
         style={{
           flexShrink: 0, padding: '8px 14px', borderRadius: 999,
           border: isJoined ? 'none' : `1.5px solid ${clr.indigo}`,
@@ -144,7 +149,7 @@ function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
           cursor: isJoined ? 'default' : 'pointer',
         }}
       >
-        {isJoined ? '✓' : isPrivate ? 'Request' : 'Join'}
+        {isJoined ? '✓' : requiresApplication(circle) ? 'Apply' : 'Join'}
       </button>
     </div>
   )
@@ -460,7 +465,7 @@ export default function Circles() {
   useEffect(() => {
     let cancelled = false
     setCirclesLoading(true)
-    listCircles()
+    listVisibleCircles(currentUser?.id)
       .then(async (list) => {
         if (cancelled) return
         try {
@@ -539,8 +544,15 @@ export default function Circles() {
   const orderedCircleObjects = circleOrder.map(id => circles.find(c => c.id === id)).filter(Boolean)
 
   const unjoinedCircleObjects = useMemo(() => {
-    const term = discoverSearch.toLowerCase()
-    return circles.filter(c => !joinedCircles.includes(c.id) && (c.name.toLowerCase().includes(term) || c.interestTag?.toLowerCase().includes(term)))
+    const query = discoverSearch.trim().toLowerCase()
+    const unjoined = circles.filter(c => !joinedCircles.includes(c.id))
+    const browsable = query
+      ? unjoined
+      : unjoined.filter(isDiscoverable)
+    return browsable.filter(c =>
+      c.name.toLowerCase().includes(query) ||
+      c.interestTag?.toLowerCase().includes(query)
+    )
   }, [discoverSearch, joinedCircles, circles])
 
   if (circlesLoading && circles.length === 0) {

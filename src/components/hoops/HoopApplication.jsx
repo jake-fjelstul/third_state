@@ -82,28 +82,32 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
           <CircleIcon circle={circle} size={36} color="#FFFFFF" />
         </div>
         <h2 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: '0 0 8px' }}>Join {circle.name}</h2>
-        <p style={{ fontSize: 16, color: clr.textMid, margin: '0 0 32px' }}>Complete these steps to apply.</p>
+        <p style={{ fontSize: 16, color: clr.textMid, margin: '0 0 32px' }}>
+          {hoops.length === 0 ? 'No questions to answer — just confirm and send.' : 'Complete these steps to apply.'}
+        </p>
         
-        <div style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 24, boxShadow: '0 4px 16px rgba(0,0,0,0.05)', textAlign: 'left' }}>
-          {hoops.map((h, i) => (
-            <div key={h.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: i === hoops.length -1 ? 0 : 20 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: clr.indigoLt, color: clr.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
-                {i + 1}
+        {hoops.length > 0 && (
+          <div style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 24, boxShadow: '0 4px 16px rgba(0,0,0,0.05)', textAlign: 'left' }}>
+            {hoops.map((h, i) => (
+              <div key={h.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: i === hoops.length -1 ? 0 : 20 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: clr.indigoLt, color: clr.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <div>
+                  <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 800, color: clr.indigo, textTransform: 'uppercase' }}>
+                    {h.type === 'written' ? 'Short Answer' : 'Multiple Choice'}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: clr.textDark }}>{h.prompt}</p>
+                </div>
               </div>
-              <div>
-                <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 800, color: clr.indigo, textTransform: 'uppercase' }}>
-                  {h.type === 'written' ? 'Short Answer' : 'Multiple Choice'}
-                </p>
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: clr.textDark }}>{h.prompt}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
       
       <div style={{ padding: 24, borderTop: `1px solid ${clr.border}`, backgroundColor: clr.panel }}>
         <button onClick={handleNext} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)`, color: clr.white, fontSize: 16, fontWeight: 800, cursor: 'pointer', marginBottom: 12 }}>
-          Start Application
+          {hoops.length === 0 ? 'Continue' : 'Start Application'}
         </button>
         <button onClick={onClose} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: 'transparent', color: clr.textMid, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
           Cancel
@@ -205,20 +209,26 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
       </div>
       
       <div style={{ flex: 1, padding: '32px 24px', overflowY: 'auto' }}>
-        {hoops.map((h, i) => (
-          <div key={h.id} style={{ marginBottom: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: clr.indigo, textTransform: 'uppercase' }}>Step {i+1}</p>
-              <button onClick={() => setStep(i + 1)} style={{ background: 'none', border: 'none', color: clr.textMid, fontSize: 14, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Edit</button>
+        {hoops.length === 0 ? (
+          <p style={{ fontSize: 15, color: clr.textMid, textAlign: 'center', margin: '20px 0 0' }}>
+            Your profile will be sent to the organizer for review.
+          </p>
+        ) : (
+          hoops.map((h, i) => (
+            <div key={h.id} style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: clr.indigo, textTransform: 'uppercase' }}>Step {i+1}</p>
+                <button onClick={() => setStep(i + 1)} style={{ background: 'none', border: 'none', color: clr.textMid, fontSize: 14, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Edit</button>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: clr.textDark }}>{h.prompt}</p>
+              <div style={{ padding: 16, backgroundColor: clr.panel, borderRadius: 16, border: `1.5px solid ${clr.border}` }}>
+                <p style={{ margin: 0, fontSize: 15, color: clr.textMid, lineHeight: 1.5 }}>
+                  {responses[h.id]}
+                </p>
+              </div>
             </div>
-            <p style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: clr.textDark }}>{h.prompt}</p>
-            <div style={{ padding: 16, backgroundColor: clr.panel, borderRadius: 16, border: `1px solid ${clr.border}` }}>
-              <p style={{ margin: 0, fontSize: 15, color: clr.textMid, lineHeight: 1.5 }}>
-                {responses[h.id]}
-              </p>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
 
         <p style={{ fontSize: 13, color: clr.textLight, textAlign: 'center', marginTop: 16 }}>
           By submitting, you agree to share your profile and responses with the circle organizer.

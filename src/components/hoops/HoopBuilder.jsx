@@ -68,6 +68,7 @@ export default function HoopBuilder({ hoops, onChange }) {
       {hoops.map((h, i) => (
         <div key={h.id} style={{ backgroundColor: clr.white, borderRadius: 20, padding: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.04)', border: `1px solid ${clr.border}`, position: 'relative' }}>
           <button 
+            type="button"
             onClick={() => handleRemove(h.id)}
             style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: '50%', backgroundColor: clr.redLt, color: clr.red, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16 }}
           >
@@ -80,6 +81,7 @@ export default function HoopBuilder({ hoops, onChange }) {
             {['written', 'multiplechoice'].map(t => (
               <button
                 key={t}
+                type="button"
                 onClick={() => handleUpdate(h.id, 'type', t)}
                 style={{
                   padding: '6px 12px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap',
@@ -120,7 +122,7 @@ export default function HoopBuilder({ hoops, onChange }) {
                     style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 8, border: `1px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 16, color: clr.textDark, outline: 'none' }}
                   />
                 ))}
-                <button onClick={() => addOption(h.id)} style={{ padding: '8px', borderRadius: 8, border: `1px dashed ${clr.indigo}`, background: 'transparent', color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
+                <button type="button" onClick={() => addOption(h.id)} style={{ padding: '8px', borderRadius: 8, border: `1px dashed ${clr.indigo}`, background: 'transparent', color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
                   + Add Option
                 </button>
               </div>
@@ -130,7 +132,7 @@ export default function HoopBuilder({ hoops, onChange }) {
       ))}
 
       {hoops.length < 3 && (
-        <button onClick={handleAdd} style={{ width: '100%', padding: '16px', borderRadius: 16, border: `2px dashed ${clr.border}`, backgroundColor: 'transparent', color: clr.textDark, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <button type="button" onClick={handleAdd} style={{ width: '100%', padding: '16px', borderRadius: 16, border: `2px dashed ${clr.border}`, backgroundColor: 'transparent', color: clr.textDark, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <span style={{ fontSize: 20 }}>+</span> Add a Hoop
         </button>
       )}

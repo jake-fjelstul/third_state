@@ -2,7 +2,141 @@
   "hash": "9a0883ec",
   "configHash": "18b7497e",
   "lockfileHash": "f06bc876",
-  "browserHash": "f5e3704b",
-  "optimized": {},
-  "chunks": {}
+  "browserHash": "b5a1a617",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "981af0d8",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "53d9d477",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "f9b6268d",
+      "needsInterop": false
+    },
+    "@capacitor/core": {
+      "src": "../../node_modules/@capacitor/core/dist/index.js",
+      "file": "@capacitor_core.js",
+      "fileHash": "a81d0806",
+      "needsInterop": false
+    },
+    "@capacitor/status-bar": {
+      "src": "../../node_modules/@capacitor/status-bar/dist/esm/index.js",
+      "file": "@capacitor_status-bar.js",
+      "fileHash": "bea7b7df",
+      "needsInterop": false
+    },
+    "@capacitor/app": {
+      "src": "../../node_modules/@capacitor/app/dist/esm/index.js",
+      "file": "@capacitor_app.js",
+      "fileHash": "6a9ddd2d",
+      "needsInterop": false
+    },
+    "@capacitor/browser": {
+      "src": "../../node_modules/@capacitor/browser/dist/esm/index.js",
+      "file": "@capacitor_browser.js",
+      "fileHash": "d8ed0f6c",
+      "needsInterop": false
+    },
+    "@capacitor/splash-screen": {
+      "src": "../../node_modules/@capacitor/splash-screen/dist/esm/index.js",
+      "file": "@capacitor_splash-screen.js",
+      "fileHash": "8dc08e76",
+      "needsInterop": false
+    },
+    "@capacitor/preferences": {
+      "src": "../../node_modules/@capacitor/preferences/dist/esm/index.js",
+      "file": "@capacitor_preferences.js",
+      "fileHash": "e22467b3",
+      "needsInterop": false
+    },
+    "@capacitor-community/apple-sign-in": {
+      "src": "../../node_modules/@capacitor-community/apple-sign-in/dist/esm/index.js",
+      "file": "@capacitor-community_apple-sign-in.js",
+      "fileHash": "dd868354",
+      "needsInterop": false
+    },
+    "@supabase/supabase-js": {
+      "src": "../../node_modules/@supabase/supabase-js/dist/index.mjs",
+      "file": "@supabase_supabase-js.js",
+      "fileHash": "f84cca3a",
+      "needsInterop": false
+    },
+    "@capacitor/haptics": {
+      "src": "../../node_modules/@capacitor/haptics/dist/esm/index.js",
+      "file": "@capacitor_haptics.js",
+      "fileHash": "aa776802",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "4db9998d",
+      "needsInterop": false
+    },
+    "qrcode": {
+      "src": "../../node_modules/qrcode/lib/browser.js",
+      "file": "qrcode.js",
+      "fileHash": "c6919468",
+      "needsInterop": true
+    },
+    "@capacitor/share": {
+      "src": "../../node_modules/@capacitor/share/dist/esm/index.js",
+      "file": "@capacitor_share.js",
+      "fileHash": "19fc9b83",
+      "needsInterop": false
+    },
+    "chess.js": {
+      "src": "../../node_modules/chess.js/dist/esm/chess.js",
+      "file": "chess__js.js",
+      "fileHash": "fcdb264a",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "web-VV2KCLQV": {
+      "file": "web-VV2KCLQV.js"
+    },
+    "web-7OHQ3EH7": {
+      "file": "web-7OHQ3EH7.js"
+    },
+    "web-AXQIPED2": {
+      "file": "web-AXQIPED2.js"
+    },
+    "web-6646VSV3": {
+      "file": "web-6646VSV3.js"
+    },
+    "web-YCUQVT5P": {
+      "file": "web-YCUQVT5P.js"
+    },
+    "web-JN7KYIRN": {
+      "file": "web-JN7KYIRN.js"
+    },
+    "web-NFQXWUIR": {
+      "file": "web-NFQXWUIR.js"
+    },
+    "chunk-SKQKNR3R": {
+      "file": "chunk-SKQKNR3R.js"
+    },
+    "chunk-AU2MKR2E": {
+      "file": "chunk-AU2MKR2E.js"
+    },
+    "chunk-VX2H6PUQ": {
+      "file": "chunk-VX2H6PUQ.js"
+    },
+    "chunk-TKPYXWRW": {
+      "file": "chunk-TKPYXWRW.js"
+    },
+    "chunk-G3PMV62Z": {
+      "file": "chunk-G3PMV62Z.js"
+    }
+  }
 }

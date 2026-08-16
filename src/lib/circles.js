@@ -20,6 +20,7 @@ function mapCircleRow(row) {
     vibe: row.vibe,
     rules: row.rules || [],
     organizerId: row.organizer_id,
+    applicationsEnabled: !!row.applications_enabled,
     createdAt: row.created_at,
     // populated by getCircle when joined queries succeed
     members: [],
@@ -58,6 +59,37 @@ export async function listCircles() {
     .order('member_count', { ascending: false })
   if (error) throw error
   return (data || []).map(mapCircleRow)
+}
+
+export async function listVisibleCircles(userId) {
+  // Circles you may browse: open, or private-and-accepting-applications,
+  // or any circle you are already a member of (so invite-only circles you
+  // belong to still appear in your own lists).
+  let myIds = []
+  if (userId) {
+    try { myIds = await listMyCircleIds(userId) }
+    catch (err) { console.error('[listVisibleCircles] membership lookup failed', err) }
+  }
+  const clauses = ['type.eq.open', 'applications_enabled.eq.true']
+  if (myIds.length) clauses.push(`id.in.(${myIds.join(',')})`)
+
+  const { data, error } = await supabase
+    .from('circles')
+    .select('*')
+    .or(clauses.join(','))
+    .order('member_count', { ascending: false })
+  if (error) throw error
+  return (data || []).map(mapCircleRow)
+}
+
+/** Discover shows open circles only. Private circles are search-only. */
+export function isDiscoverable(circle) {
+  return circle?.type === 'open'
+}
+
+/** True when joining requires an application rather than an instant join. */
+export function requiresApplication(circle) {
+  return !!circle?.applicationsEnabled
 }
 
 export async function listHoopsByCircle() {
@@ -150,7 +182,7 @@ export async function getCircle(circleId) {
 
 // ---------- writes ----------
 
-export async function createCircle({ userId, name, emoji, icon, city, type, category, interestTag, coverGradient, coverImageUrl, description, vibe, rules }) {
+export async function createCircle({ userId, name, emoji, icon, city, type, category, interestTag, coverGradient, coverImageUrl, description, vibe, rules, applicationsEnabled }) {
   const { data, error } = await supabase
     .from('circles')
     .insert({
@@ -160,6 +192,7 @@ export async function createCircle({ userId, name, emoji, icon, city, type, cate
       cover_image_url: coverImageUrl || null,
       description, vibe, rules: rules || [],
       organizer_id: userId,
+      applications_enabled: !!applicationsEnabled,
       member_count: 0,
     })
     .select()
@@ -193,6 +226,63 @@ export async function createHoopsForCircle(circleId, hoops) {
   return (data || []).map(mapHoopRow)
 }
 
+/** Hoops for a single circle, ordered. */
+export async function listHoopsForCircle(circleId) {
+  if (!circleId) return []
+  const { data, error } = await supabase
+    .from('hoops').select('*').eq('circle_id', circleId).order('order_index')
+  if (error) throw error
+  return (data || []).map(mapHoopRow)
+}
+
+/**
+ * Diffing save. Rows whose id is a real UUID are UPDATED; rows with a
+ * client-generated id (HoopBuilder emits `hoop-<timestamp>`) are INSERTED;
+ * rows absent from `hoops` but present in the database are DELETED.
+ *
+ * Deleting cascades to application_answers, so removals must be deliberate.
+ */
+export async function saveHoopsForCircle(circleId, hoops) {
+  if (!circleId) throw new Error('circleId is required')
+
+  const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v))
+  const valid = (hoops || []).filter(h => h && (h.type === 'written' || h.type === 'multiplechoice'))
+
+  const existing = await listHoopsForCircle(circleId)
+  const keptIds = valid.filter(h => isUuid(h.id)).map(h => h.id)
+  const removedIds = existing.filter(e => !keptIds.includes(e.id)).map(e => e.id)
+
+  const toRow = (h, index) => ({
+    circle_id: circleId,
+    type: h.type,
+    prompt: h.prompt || '',
+    options: h.type === 'multiplechoice' ? (h.options || []).filter(Boolean) : null,
+    order_index: index,
+  })
+
+  // Updates first, then inserts, then deletes — so a failure part-way through
+  // never leaves the circle with zero questions.
+  for (let i = 0; i < valid.length; i++) {
+    const h = valid[i]
+    if (!isUuid(h.id)) continue
+    const { error } = await supabase.from('hoops').update(toRow(h, i)).eq('id', h.id)
+    if (error) throw error
+  }
+
+  const newRows = valid.map((h, i) => ({ h, i })).filter(({ h }) => !isUuid(h.id))
+  if (newRows.length) {
+    const { error } = await supabase.from('hoops').insert(newRows.map(({ h, i }) => toRow(h, i)))
+    if (error) throw error
+  }
+
+  if (removedIds.length) {
+    const { error } = await supabase.from('hoops').delete().in('id', removedIds)
+    if (error) throw error
+  }
+
+  return listHoopsForCircle(circleId)
+}
+
 export async function updateCircle(circleId, patch) {
   const dbPatch = {}
   if (patch.name !== undefined) dbPatch.name = patch.name
@@ -207,6 +297,7 @@ export async function updateCircle(circleId, patch) {
   if (patch.description !== undefined) dbPatch.description = patch.description
   if (patch.vibe !== undefined) dbPatch.vibe = patch.vibe
   if (patch.rules !== undefined) dbPatch.rules = patch.rules
+  if (patch.applicationsEnabled !== undefined) dbPatch.applications_enabled = patch.applicationsEnabled
   const { data, error } = await supabase.from('circles').update(dbPatch).eq('id', circleId).select().single()
   if (error) throw error
   return mapCircleRow(data)

@@ -2,27 +2,23 @@ import { useState } from 'react'
 import ConfirmCard from './ConfirmCard.jsx'
 import { assistantText } from '../../../lib/assistant/conversation.js'
 import CircleIcon from '../../ui/CircleIcon.jsx'
+import { requiresApplication } from '../../../lib/circles.js'
 
 export default function CircleList({ message, ctx, clr, onClose, onAppendMessages }) {
   const [pendingJoin, setPendingJoin] = useState(null) // circle | null
 
   if (pendingJoin) {
-    const isHoops = pendingJoin.type === 'private'
     return (
       <ConfirmCard
         clr={clr}
-        title={isHoops ? `Apply to "${pendingJoin.name}"?` : `Join "${pendingJoin.name}"?`}
-        subtitle={isHoops
-          ? 'This is a private circle — your application will be reviewed by the organizer.'
-          : "You'll be added as a member right away."}
-        primaryLabel={isHoops ? 'Send application' : 'Join circle'}
+        title={`Join "${pendingJoin.name}"?`}
+        subtitle="You'll be added as a member right away."
+        primaryLabel="Join circle"
         onConfirm={async () => {
           try {
             await ctx.joinCircle(pendingJoin.id)
             onAppendMessages([
-              assistantText(isHoops
-                ? `Application sent to "${pendingJoin.name}"! The organizer will review it.`
-                : `You've joined "${pendingJoin.name}"! ✓`)
+              assistantText(`You've joined "${pendingJoin.name}"! ✓`)
             ])
           } catch (err) {
             console.error('[CircleList] joinCircle failed', err)
@@ -96,7 +92,7 @@ export default function CircleList({ message, ctx, clr, onClose, onAppendMessage
               {isJoined ? (
                 <button
                   type="button"
-                  onClick={() => { onClose(); window.location.assign(`/circles/${c.id}`) }}
+                  onClick={() => { onClose?.(); window.location.assign(`/circles/${c.id}`) }}
                   style={{
                     flexShrink: 0, padding: '8px 14px', borderRadius: 999,
                     border: 'none', backgroundColor: clr.indigoLt,
@@ -108,7 +104,10 @@ export default function CircleList({ message, ctx, clr, onClose, onAppendMessage
               ) : (
                 <button
                   type="button"
-                  onClick={() => setPendingJoin(c)}
+                  onClick={() => {
+                    if (requiresApplication(c)) { onClose?.(); window.location.assign(`/circles/${c.id}`); return }
+                    setPendingJoin(c)
+                  }}
                   style={{
                     flexShrink: 0, padding: '8px 14px', borderRadius: 999,
                     border: `1.5px solid ${clr.indigo}`,
@@ -116,7 +115,7 @@ export default function CircleList({ message, ctx, clr, onClose, onAppendMessage
                     color: clr.indigo, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   }}
                 >
-                  {isPrivate ? 'Apply' : 'Join'}
+                  {requiresApplication(c) ? 'Apply' : 'Join'}
                 </button>
               )}
             </div>
