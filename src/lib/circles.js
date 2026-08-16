@@ -60,6 +60,20 @@ export async function listCircles() {
   return (data || []).map(mapCircleRow)
 }
 
+export async function listHoopsByCircle() {
+  const { data, error } = await supabase
+    .from('hoops')
+    .select('*')
+    .order('order_index')
+  if (error) throw error
+  const byCircle = {}
+  for (const row of data || []) {
+    if (!byCircle[row.circle_id]) byCircle[row.circle_id] = []
+    byCircle[row.circle_id].push(mapHoopRow(row))
+  }
+  return byCircle
+}
+
 export async function listMyCircleIds(userId) {
   if (!userId) return []
   const { data, error } = await supabase

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { listCircles } from '../../lib/circles'
+import { listCircles, listHoopsByCircle, listMyApplications } from '../../lib/circles'
 import { listProfiles } from '../../lib/profiles'
 import { listUpcomingEvents } from '../../lib/events'
 import { listActiveLfgPosts, joinLfgPost, timeLeftLabel } from '../../lib/lfg'
@@ -8,6 +8,7 @@ import { avatarFor } from '../../lib/avatar'
 import { resolveCircleCover } from '../../lib/circleCover'
 import CircleIcon from '../ui/CircleIcon.jsx'
 import { haversineMiles } from '../../lib/geo'
+import HoopApplication from '../hoops/HoopApplication.jsx'
 
 /* ── Colors (from app theme) ── */
 const clr = {
@@ -124,7 +125,7 @@ function DiscoveryCard({ card }) {
                </span>
              )}
              <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-               {c.type === 'private' ? 'Private Circle' : 'Open Circle'}
+               {c.type === 'private' ? 'Application Required' : 'Open Circle'}
              </span>
           </div>
           <h2 style={{ margin:'0 0 8px 0', fontSize:26, fontWeight:800, color: clr.textDark }}>{c.name}</h2>
@@ -278,6 +279,9 @@ export default function SwipeDiscovery({ onClose }) {
   const [people, setPeople] = useState([])
   const [events, setEvents] = useState([])
   const [lfgPosts, setLfgPosts] = useState([])
+  const [hoopsByCircle, setHoopsByCircle] = useState({})
+  const [appliedCircleIds, setAppliedCircleIds] = useState([])
+  const [hoopCircle, setHoopCircle] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -301,22 +305,31 @@ export default function SwipeDiscovery({ onClose }) {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([listProfiles(), listCircles(), listUpcomingEvents({ limit: 50 }), listActiveLfgPosts()])
-      .then(([ppl, crc, evts, lfg]) => {
+    Promise.all([
+      listProfiles(),
+      listCircles(),
+      listUpcomingEvents({ limit: 50 }),
+      listActiveLfgPosts(),
+      listHoopsByCircle(),
+      currentUser?.id ? listMyApplications(currentUser.id) : Promise.resolve([]),
+    ])
+      .then(([ppl, crc, evts, lfg, hoops, apps]) => {
         if (!cancelled) {
           setPeople(ppl)
           setCircles(crc)
           setEvents(evts)
           setLfgPosts(lfg)
+          setHoopsByCircle(hoops)
+          setAppliedCircleIds((apps || []).map(a => a.circle_id).filter(Boolean))
         }
       })
       .catch(err => console.error('[SwipeDiscovery] load failed', err))
     return () => { cancelled = true }
-  }, [])
+  }, [currentUser?.id])
 
   const triggerToast = (msg) => {
     setToastMessage(msg)
-    setTimeout(() => setToastMessage(''), 3000)
+    setTimeout(() => setToastMessage(''), 2500)
   }
 
   const toggleFilter = (f) => {
@@ -365,8 +378,22 @@ export default function SwipeDiscovery({ onClose }) {
       const allowed = Math.max(0, 5 - (swipes.circle || 0))
       if (allowed > 0) {
         const candidates = circles
-          .filter(c => !joinedCircles.includes(c.id) && !passedCards.circle?.includes(c.id) && getMockDist(c.id) <= searchRadius)
-          .map(c => scoreCard({ type: 'circle', data: c, distance: getMockDist(c.id) }, currentUser))
+          .filter(c => {
+            if (joinedCircles.includes(c.id)) return false
+            if (passedCards.circle?.includes(c.id)) return false
+            if (appliedCircleIds.includes(c.id)) return false
+            if (getMockDist(c.id) > searchRadius) return false
+            // Open circles are always joinable.
+            if (c.type === 'open') return true
+            // Private circles are only reachable if they have hoops to apply through.
+            return (hoopsByCircle[c.id]?.length || 0) > 0
+          })
+          .map(c => scoreCard({
+            type: 'circle',
+            data: { ...c, hoops: hoopsByCircle[c.id] || [] },
+            distance: getMockDist(c.id),
+            requiresApplication: c.type === 'private',
+          }, currentUser))
           .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
           .slice(0, allowed)
         scoredCards.push(...candidates)
@@ -396,7 +423,7 @@ export default function SwipeDiscovery({ onClose }) {
 
     return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards])
+  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards, hoopsByCircle, appliedCircleIds])
 
   const currentCard = allCards[cardIndex]
   const nextCard = allCards[cardIndex + 1]
@@ -411,10 +438,15 @@ export default function SwipeDiscovery({ onClose }) {
 
     try {
       if (currentCard.type === 'circle') {
-        await joinCircle(currentCard.data.id)
-        recordSwipe(currentCard.type)
-        triggerToast(`Joined ${currentCard.data.name}`)
-        advanceCard()
+        if (currentCard.requiresApplication) {
+          setHoopCircle(currentCard.data)
+          // Do NOT advance or record — that happens on successful submission.
+        } else {
+          await joinCircle(currentCard.data.id)
+          recordSwipe(currentCard.type)
+          triggerToast(`Joined ${currentCard.data.name}`)
+          advanceCard()
+        }
       } else if (currentCard.type === 'event') {
         await rsvpEvent(currentCard.data)
         recordSwipe(currentCard.type)
@@ -551,6 +583,10 @@ export default function SwipeDiscovery({ onClose }) {
       backgroundColor: clr.bg, fontFamily: "'DM Sans', 'Inter', sans-serif",
       display: 'flex', flexDirection: 'column',
     }}>
+      <style>{`
+        @keyframes fadeToast { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(20px); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      `}</style>
       {/* Centered Top Content */}
       <div style={{ width: '100%', maxWidth: 500, margin: '0 auto' }}>
         {/* Header */}
@@ -647,7 +683,7 @@ export default function SwipeDiscovery({ onClose }) {
                 opacity: Math.min(dragX / 80, 1), border: '4px solid #FFF',
                 transform: 'rotate(-12deg)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
               }}>
-                {currentCard.type === 'person' ? '👋 CONNECT' : currentCard.type === 'circle' ? '✓ JOIN' : currentCard.type === 'lfg' ? '⚡ JOIN' : '✓ RSVP'}
+                {currentCard.type === 'person' ? '👋 CONNECT' : currentCard.type === 'circle' ? (currentCard.requiresApplication ? '✓ APPLY' : '✓ JOIN') : currentCard.type === 'lfg' ? '⚡ JOIN' : '✓ RSVP'}
               </div>
             )}
             {dragX < -40 && (
@@ -773,7 +809,7 @@ export default function SwipeDiscovery({ onClose }) {
           borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999,
           display: 'flex', alignItems: 'center', gap: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-          animation: 'slideUp 0.3s ease',
+          animation: 'fadeToast 2.5s ease forwards',
         }}>
           {toastMessage}
         </div>
@@ -791,7 +827,6 @@ export default function SwipeDiscovery({ onClose }) {
             borderRadius: '24px 24px 0 0', padding: '24px 20px 40px',
             animation: 'slideUp 0.3s ease-out forwards',
           }}>
-            <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <img src={avatarFor(currentMatchCard.data)} alt="" style={{
                 width: 72, height: 72, borderRadius: '50%',
@@ -889,6 +924,23 @@ export default function SwipeDiscovery({ onClose }) {
             </button>
           </div>
         </div>
+      )}
+      {hoopCircle && (
+        <HoopApplication
+          circle={hoopCircle}
+          onSubmitted={(circleId) => {
+            setAppliedCircleIds(prev => prev.includes(circleId) ? prev : [...prev, circleId])
+            recordSwipe('circle')
+          }}
+          onClose={() => {
+            const wasSubmitted = appliedCircleIds.includes(hoopCircle.id)
+            setHoopCircle(null)
+            if (wasSubmitted) {
+              triggerToast(`Application sent to ${hoopCircle.name}`)
+              advanceCard()
+            }
+          }}
+        />
       )}
     </div>
   )

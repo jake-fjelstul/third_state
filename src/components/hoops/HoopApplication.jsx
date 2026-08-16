@@ -22,7 +22,7 @@ const clr = {
   redLt:     'rgba(248, 113, 113, 0.18)',
 }
 
-export default function HoopApplication({ circle, onClose }) {
+export default function HoopApplication({ circle, onClose, onSubmitted }) {
   const { currentUser, submitApplication } = useAppContext()
   const [step, setStep] = useState(0) // 0=Overview, 1..N=Hoops, N+1=Review, N+2=Success
   const [responses, setResponses] = useState({})
@@ -67,6 +67,7 @@ export default function HoopApplication({ circle, onClose }) {
     setErrorMsg('')
     try {
       await submitApplication({ circle, responses })
+      onSubmitted?.(circle.id)
       setStep(totalSteps + 2) // Jump to Success
     } catch (err) {
       console.error('[HoopApplication] submit failed', err)
