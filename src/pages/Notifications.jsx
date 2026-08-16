@@ -4,6 +4,16 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { listChannels } from '../lib/chat'
 import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
+import { joinLfgPost } from '../lib/lfg'
+
+function friendlyJoinError(err) {
+  const m = String(err?.message || '')
+  if (m.includes('expired'))        return 'This one has already wrapped up.'
+  if (m.includes('not available'))  return 'This is no longer available.'
+  if (m.includes('not found'))      return 'This post was cancelled.'
+  if (m.includes('your own post'))  return "That's your own post."
+  return 'Could not join. Please try again.'
+}
 
 const clr = {
   bg: 'var(--bg)',
@@ -44,6 +54,7 @@ export default function Notifications() {
   const [sentStates, setSentStates] = useState({})
   const [activityReplyId, setActivityReplyId] = useState(null)
   const [actionStates, setActionStates] = useState({})
+  const [actionErrors, setActionErrors] = useState({})
 
   const activeBlockedIds = blockedUserIds || []
   const visibleNotifications = notifications.filter(n => {
@@ -456,9 +467,8 @@ export default function Notifications() {
             </div>
           )}
 
-          {(notif.type === 'lfg_post' || notif.type === 'lfg_join') && (
+          {notif.type === 'lfg_join' && (
             <div style={{ display: 'flex', gap: 8 }}>
-              {/* notif.postId is mapped and available for future deep link */}
               <button
                 onClick={() => {
                   markNotificationRead(notif.id)
@@ -467,6 +477,90 @@ export default function Notifications() {
                 style={{
                   backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}
+              >
+                View
+              </button>
+            </div>
+          )}
+
+          {notif.type === 'lfg_post' && !notif.postId && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  markNotificationRead(notif.id)
+                  navigate('/feed')
+                }}
+                style={{
+                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}
+              >
+                View
+              </button>
+            </div>
+          )}
+
+          {notif.type === 'lfg_post' && notif.postId && actionState === 'joined' && (
+            <div style={{ backgroundColor: clr.indigoLt, color: clr.indigo, borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              You're in ✓
+            </div>
+          )}
+
+          {notif.type === 'lfg_post' && notif.postId && actionState === 'failed' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ margin: 0, fontSize: 13, color: clr.textMid, fontWeight: 600 }}>
+                {actionErrors[notif.id] || 'Could not join. Please try again.'}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    markNotificationRead(notif.id)
+                    navigate('/feed')
+                  }}
+                  style={{
+                    backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 16px',
+                    borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                  }}
+                >
+                  View
+                </button>
+              </div>
+            </div>
+          )}
+
+          {notif.type === 'lfg_post' && notif.postId && actionState !== 'joined' && actionState !== 'failed' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={async () => {
+                  setActionState(notif.id, 'pending')
+                  try {
+                    await joinLfgPost(notif.postId)
+                    markNotificationRead(notif.id)
+                    setActionState(notif.id, 'joined')
+                    setTimeout(() => dismissNotification(notif.id), 1200)
+                  } catch (err) {
+                    console.error('[Notifications] joinLfgPost failed', err)
+                    setActionErrors(prev => ({ ...prev, [notif.id]: friendlyJoinError(err) }))
+                    setActionState(notif.id, 'failed')
+                  }
+                }}
+                disabled={actionState === 'pending'}
+                style={{
+                  flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: actionState === 'pending' ? 'not-allowed' : 'pointer', opacity: actionState === 'pending' ? 0.7 : 1,
+                }}
+              >
+                {actionState === 'pending' ? 'Joining…' : 'Join'}
+              </button>
+              <button
+                onClick={() => {
+                  markNotificationRead(notif.id)
+                  navigate('/feed')
+                }}
+                style={{
+                  flex: 1, backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 0',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer'
                 }}
               >
                 View
