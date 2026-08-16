@@ -40,6 +40,7 @@ export function mapNotificationRow(row) {
     chatId: payload.chatId || null,
     name: payload.name || payload.user?.name || '',
     postId: payload.postId || null,
+    pollId: payload.pollId || null,
   }
 }
 

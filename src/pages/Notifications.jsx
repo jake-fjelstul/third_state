@@ -23,6 +23,7 @@ const HANDLED_TYPES = [
   'circle_activity', 'application_approved', 'application_declined',
   'question_revealed', 'spontaneous_question', 'spontaneous_question_answered',
   'lfg_post', 'lfg_join',
+  'poll_created',
 ]
 
 export default function Notifications() {
@@ -52,10 +53,11 @@ export default function Notifications() {
   })
 
   const connectionRequests = visibleNotifications.filter(n => n.type === 'connection_request' || n.type === 'connection_accepted')
-  const questionActivity = visibleNotifications.filter(n =>
+  const chatActivity = visibleNotifications.filter(n =>
     n.type === 'question_revealed' ||
     n.type === 'spontaneous_question' ||
-    n.type === 'spontaneous_question_answered')
+    n.type === 'spontaneous_question_answered' ||
+    n.type === 'poll_created')
   const lfgActivity = visibleNotifications.filter(n =>
     n.type === 'lfg_post' || n.type === 'lfg_join')
   const eventReminders = visibleNotifications.filter(n => n.type === 'event_approaching')
@@ -145,6 +147,17 @@ export default function Notifications() {
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
+        ) : notif.type === 'poll_created' ? (
+          <div style={{
+            width: 48, height: 48, borderRadius: '12px',
+            backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <svg width="24" height="24" fill="none" stroke={clr.indigo} strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="12" y1="20" x2="12" y2="10" strokeLinecap="round" />
+              <line x1="18" y1="20" x2="18" y2="4" strokeLinecap="round" />
+              <line x1="6" y1="20" x2="6" y2="16" strokeLinecap="round" />
+            </svg>
+          </div>
         ) : notif.user ? (
           <img
             src={avatarFor(notif.user)}
@@ -183,7 +196,7 @@ export default function Notifications() {
               <><span style={{ fontWeight: 700 }}>{notif.event?.title}</span> {notif.message}</>
             ) : (notif.type === 'question_revealed' || notif.type === 'spontaneous_question' || notif.type === 'spontaneous_question_answered') ? (
               <><span style={{ fontWeight: 700 }}>{notif.name || 'Someone'}</span> {notif.message}</>
-            ) : (notif.type === 'lfg_post' || notif.type === 'lfg_join') ? (
+            ) : (notif.type === 'poll_created' || notif.type === 'lfg_post' || notif.type === 'lfg_join') ? (
               <>{notif.message}</>
             ) : (
               <>{notif.message}</>
@@ -460,6 +473,24 @@ export default function Notifications() {
               </button>
             </div>
           )}
+
+          {notif.type === 'poll_created' && notif.chatId && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {/* notif.pollId is mapped and available for future deep link */}
+              <button
+                onClick={() => {
+                  markNotificationRead(notif.id)
+                  navigate(`/chat/${notif.chatId}`)
+                }}
+                style={{
+                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
+                }}
+              >
+                Open poll
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -524,11 +555,11 @@ export default function Notifications() {
               </section>
             )}
 
-            {questionActivity.length > 0 && (
+            {chatActivity.length > 0 && (
               <section>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Questions</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Chat activity</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {questionActivity.map(renderNotifCard)}
+                  {chatActivity.map(renderNotifCard)}
                 </div>
               </section>
             )}
