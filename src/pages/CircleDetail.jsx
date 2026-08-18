@@ -1,4 +1,6 @@
-import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { Keyboard } from '@capacitor/keyboard'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getCircle, updateCircle, saveHoopsForCircle } from '../lib/circles'
 import { listEventsForCircle } from '../lib/events'
@@ -1188,9 +1190,154 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     if (chatId) markChatRead(chatId)
   }, [chatId, activeChannel, markChatRead])
 
-  // Auto-scroll
+  const [kbHeight, setKbHeight] = useState(0)
+  const textareaRef = useRef(null)
+  const messagesContainerRef = useRef(null)
+  const hasInitiallyScrolled = useRef(false)
+  const stickToBottom = useRef(true)
+
   useEffect(() => {
-    msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!Capacitor.isNativePlatform()) return
+
+    let isMounted = true
+    let showHandle = null
+    let hideHandle = null
+
+    const setupListeners = async () => {
+      const showH = await Keyboard.addListener('keyboardWillShow', (info) => {
+        if (isMounted) {
+          setKbHeight(info.keyboardHeight)
+        }
+      })
+      if (!isMounted) {
+        showH.remove()
+        return
+      }
+      showHandle = showH
+
+      const hideH = await Keyboard.addListener('keyboardWillHide', () => {
+        if (isMounted) {
+          setKbHeight(0)
+        }
+      })
+      if (!isMounted) {
+        showH.remove()
+        hideH.remove()
+        return
+      }
+      hideHandle = hideH
+    }
+
+    setupListeners()
+
+    return () => {
+      isMounted = false
+      if (showHandle) showHandle.remove()
+      if (hideHandle) hideHandle.remove()
+    }
+  }, [])
+
+  const handleScroll = () => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottom.current = distanceFromBottom <= 80
+  }
+
+  const adjustTextareaHeight = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const scHeight = el.scrollHeight
+    const newHeight = Math.min(scHeight, 120)
+    el.style.height = `${newHeight}px`
+    el.style.overflowY = scHeight >= 120 ? 'auto' : 'hidden'
+  }, [])
+
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [chatInput, adjustTextareaHeight])
+
+  // Reset initial scroll & stickiness flags when channel changes
+  useEffect(() => {
+    hasInitiallyScrolled.current = false
+    stickToBottom.current = true
+  }, [activeChannel])
+
+  // Instant jump before paint on initial load of messages
+  useLayoutEffect(() => {
+    if (!messages || messages.length === 0) return
+    if (hasInitiallyScrolled.current) return
+
+    const el = messagesContainerRef.current
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
+    hasInitiallyScrolled.current = true
+    stickToBottom.current = true
+  }, [messages, activeChannel])
+
+  // Re-pin to bottom as late content loads (reactions, images, composer height), if user intends to stay at bottom
+  useEffect(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
+
+    const handleRePin = () => {
+      if (stickToBottom.current) {
+        el.scrollTop = el.scrollHeight
+      }
+    }
+
+    const observer = new ResizeObserver(handleRePin)
+
+    const observeContent = () => {
+      observer.observe(el)
+      Array.from(el.children).forEach(child => observer.observe(child))
+    }
+
+    observeContent()
+
+    const handleImageLoad = () => handleRePin()
+
+    const attachImgListeners = (node) => {
+      if (node.tagName === 'IMG') {
+        if (!node.complete) {
+          node.addEventListener('load', handleImageLoad, { once: true })
+        }
+      }
+      if (node.querySelectorAll) {
+        node.querySelectorAll('img').forEach(img => {
+          if (!img.complete) {
+            img.addEventListener('load', handleImageLoad, { once: true })
+          }
+        })
+      }
+    }
+
+    attachImgListeners(el)
+
+    const mutationObserver = new MutationObserver((mutations) => {
+      observeContent()
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType === 1) attachImgListeners(node)
+        })
+      })
+    })
+
+    mutationObserver.observe(el, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+      mutationObserver.disconnect()
+    }
+  }, [activeChannel, messages.length])
+
+  // Smooth scroll to new incoming or sent messages, only if user intends to stick to bottom
+  useEffect(() => {
+    if (hasInitiallyScrolled.current && stickToBottom.current) {
+      msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   // Send handler
@@ -1200,6 +1347,16 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     sendMessage(chatId, chatInput, resolvedChannelId)
     setChatInput('')
   }, [chatInput, chatId, resolvedChannelId, sendMessage])
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const isNative = Capacitor.isNativePlatform()
+      if (!isNative && !e.shiftKey) {
+        e.preventDefault()
+        handleSend(e)
+      }
+    }
+  }
 
   // Create channel handler
   const handleCreateChannel = useCallback(async (e) => {
@@ -1262,12 +1419,21 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
   }
 
   return (
-    <div style={{
-      backgroundColor: dk.panel, borderRadius: 20,
-      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-      display: 'flex', flexDirection: 'column', height: 520,
-      overflow: 'hidden',
-    }}>
+    <div
+      onTransitionEnd={(e) => {
+        if (e.target === e.currentTarget && e.propertyName === 'height' && kbHeight > 0) {
+          msgsEndRef.current?.scrollIntoView({ behavior: 'auto' })
+        }
+      }}
+      style={{
+        backgroundColor: dk.panel, borderRadius: 20,
+        boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+        display: 'flex', flexDirection: 'column',
+        height: kbHeight > 0 ? `calc(100vh - ${kbHeight}px)` : 520,
+        transition: 'height 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
+        overflow: 'hidden',
+      }}
+    >
       {/* ── Channel bar ── */}
       <div style={{
         display: 'flex', gap: 6, padding: '12px 16px',
@@ -1339,11 +1505,15 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
       </div>
 
       {/* ── Messages area ── */}
-      <div style={{
-        flex: 1, overflowY: 'auto', padding: '16px 20px',
-        display: 'flex', flexDirection: 'column', gap: 10,
-        backgroundColor: dk.msgArea,
-      }}>
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        style={{
+          flex: 1, overflowY: 'auto', padding: '16px 20px',
+          display: 'flex', flexDirection: 'column', gap: 10,
+          backgroundColor: dk.msgArea,
+        }}
+      >
         {msgsLoading ? (
           <div style={{ margin: 'auto', color: dk.textMuted, fontSize: 14 }}>Loading messages…</div>
         ) : messages.length === 0 ? (
@@ -1465,16 +1635,21 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
         >
           +
         </button>
-        <input
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={chatInput}
           onChange={e => setChatInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={`Message #${activeChannel}…`}
           style={{
-            flex: 1, padding: '11px 16px', borderRadius: 999,
+            flex: 1, padding: '11px 16px', borderRadius: 20,
             border: `1.5px solid ${dk.inputBorder}`,
             backgroundColor: dk.inputBg,
             fontSize: 14, color: dk.text,
             outline: 'none', fontFamily: 'inherit',
+            resize: 'none', lineHeight: '20px',
+            boxSizing: 'border-box', overflowY: 'hidden',
           }}
         />
         <button type="submit" style={{
