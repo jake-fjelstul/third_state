@@ -126,35 +126,38 @@ export async function listCirclesForUser(userId) {
   return (data || []).map(r => r.circles).filter(Boolean).map(mapCircleRow)
 }
 
-export async function listJoinedCircleMembers(userId) {
-  if (!userId) return {}
-  const { data: mine, error: mineErr } = await supabase
-    .from('circle_members')
-    .select('circle_id')
-    .eq('user_id', userId)
-  if (mineErr) throw mineErr
-  const circleIds = (mine || []).map((r) => r.circle_id).filter(Boolean)
-  if (circleIds.length === 0) return {}
-
-  const { data, error } = await supabase
-    .from('circle_members')
-    .select('circle_id, user_id, profiles(id, name, avatar_url)')
-    .in('circle_id', circleIds)
+export async function getCirclesPage() {
+  const { data, error } = await supabase.rpc('get_circles_page')
   if (error) throw error
 
-  const byCircle = {}
-  for (const row of data || []) {
-    const p = row.profiles || {}
-    if (!p.id) continue
-    if (!byCircle[row.circle_id]) byCircle[row.circle_id] = []
-    byCircle[row.circle_id].push({
-      id: p.id,
-      name: p.name,
-      avatar: p.avatar_url || '',
+  const myCircleIds = data?.my_circle_ids || []
+
+  const joinedCircleMembers = {}
+  for (const row of data?.joined_circle_members || []) {
+    if (!row.user_id) continue
+    if (!joinedCircleMembers[row.circle_id]) joinedCircleMembers[row.circle_id] = []
+    joinedCircleMembers[row.circle_id].push({
+      id: row.user_id,
+      name: row.name,
+      avatar: row.avatar_url || '',
     })
   }
-  return byCircle
+
+  const circles = (data?.circles || []).map((row) => {
+    const circle = mapCircleRow(row)
+    if (joinedCircleMembers[circle.id]) {
+      circle.members = joinedCircleMembers[circle.id]
+    }
+    return circle
+  })
+
+  return {
+    myCircleIds,
+    circles,
+    joinedCircleMembers,
+  }
 }
+
 
 export async function getCircle(circleId) {
   if (!circleId) return null

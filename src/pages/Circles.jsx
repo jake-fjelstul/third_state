@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { listProfiles } from '../lib/profiles'
-import { listVisibleCircles, listJoinedCircleMembers, isDiscoverable, requiresApplication } from '../lib/circles'
+import { getCirclesPage, isDiscoverable, requiresApplication } from '../lib/circles'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import Memories from './Memories.jsx'
@@ -465,20 +465,11 @@ export default function Circles() {
   useEffect(() => {
     let cancelled = false
     setCirclesLoading(true)
-    listVisibleCircles(currentUser?.id)
-      .then(async (list) => {
+    getCirclesPage()
+      .then(({ circles }) => {
         if (cancelled) return
-        try {
-          const membersByCircle = await listJoinedCircleMembers(currentUser?.id)
-          if (cancelled) return
-          const withMembers = list.map((c) => membersByCircle[c.id] ? { ...c, members: membersByCircle[c.id] } : c)
-          setCircles(withMembers)
-          setCirclesError(null)
-        } catch (err) {
-          setCircles(list)
-          setCirclesError(null)
-          console.error('[Circles] listJoinedCircleMembers failed', err)
-        }
+        setCircles(circles)
+        setCirclesError(null)
       })
       .catch(err => { if (!cancelled) setCirclesError(err) })
       .finally(() => { if (!cancelled) setCirclesLoading(false) })
