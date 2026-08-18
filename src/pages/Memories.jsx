@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { listPastEventsForUser } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
 import EventRecapModal from '../components/EventRecapModal.jsx'
+import { Camera, Calendar, MapPin } from 'lucide-react'
 
 const clr = {
   bg: 'var(--bg)',
@@ -95,8 +96,9 @@ export default function Memories() {
         <div style={{
           textAlign: 'center', padding: '48px 24px', backgroundColor: clr.white,
           borderRadius: 24, border: `1.5px solid ${clr.border}`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📸</div>
+          <Camera size={48} color={clr.indigo} style={{ marginBottom: 12 }} />
           <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 800, color: clr.textDark }}>No past memories yet</h3>
           <p style={{ margin: '0 0 20px 0', fontSize: 14, color: clr.textMid, lineHeight: 1.5 }}>
             Events you attend will appear here so you can view photos, see who came, and send thanks.
@@ -132,9 +134,9 @@ export default function Memories() {
                   <div style={{
                     width: '100%', height: '100%',
                     background: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    📅
+                    <Calendar size={48} color="#FFFFFF" />
                   </div>
                 )}
                 {e.circleName && (
@@ -154,8 +156,8 @@ export default function Memories() {
                 <h3 style={{ margin: '0 0 6px 0', fontSize: 18, fontWeight: 800, color: clr.textDark }}>
                   {e.title}
                 </h3>
-                <p style={{ margin: '0 0 14px 0', fontSize: 13, color: clr.textMid }}>
-                  📅 {e.date} {e.time ? `• ${e.time}` : ''} {e.location ? `• 📍 ${e.location}` : ''}
+                <p style={{ margin: '0 0 14px 0', fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                  <Calendar size={13} color="currentColor" /> {e.date} {e.time ? `• ${e.time}` : ''} {e.location ? <>• <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPin size={13} color="currentColor" /> {e.location}</span></> : ''}
                 </p>
 
                 {/* Overlapping attendee avatars */}

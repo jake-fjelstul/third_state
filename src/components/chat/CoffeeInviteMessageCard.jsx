@@ -4,6 +4,7 @@ import { rsvp } from '../../lib/events.js'
 import { updateMessagePayload } from '../../lib/chat.js'
 import { buildMapsUrl } from '../../lib/geocoding.js'
 import { supabase } from '../../lib/supabase.js'
+import { Coffee, Calendar, MapPin, StickyNote, Hourglass, CalendarCheck } from 'lucide-react'
 
 export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
   const payload = message.payload || {}
@@ -119,7 +120,7 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 20 }}>☕</span>
+          <Coffee size={20} color="#FFFFFF" />
           <span style={{ fontSize: 14, fontWeight: 800 }}>Coffee Chat Invite</span>
         </div>
         <span style={{
@@ -136,7 +137,7 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
       <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {whenStr && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <span style={{ fontSize: 15 }}>🗓️</span>
+            <Calendar size={15} color={clr.textMid} style={{ marginTop: 2 }} />
             <div>
               <span style={{ fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>When</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: clr.textDark }}>{whenStr}</span>
@@ -146,7 +147,7 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
 
         {locationName && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <span style={{ fontSize: 15 }}>📍</span>
+            <MapPin size={15} color={clr.textMid} style={{ marginTop: 2 }} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>Where</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: clr.textDark, display: 'block' }}>{locationName}</span>
@@ -168,7 +169,7 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
 
         {payload.note && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, backgroundColor: clr.bg, padding: 10, borderRadius: 12 }}>
-            <span style={{ fontSize: 14 }}>💬</span>
+            <StickyNote size={14} color={clr.textMid} style={{ flexShrink: 0, marginTop: 2 }} />
             <span style={{ fontSize: 12, color: clr.textDark, fontStyle: 'italic', lineHeight: 1.4 }}>
               "{payload.note}"
             </span>
@@ -217,9 +218,9 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
             <div style={{
               textAlign: 'center', padding: '8px 12px', borderRadius: 12,
               backgroundColor: '#FEF3C7', color: '#D97706',
-              fontSize: 12, fontWeight: 700,
+              fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              ⏳ Pending response
+              <Hourglass size={14} color="#D97706" /> Pending response
             </div>
           )}
 
@@ -231,7 +232,9 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
             }}>
               <span>✓ Accepted</span>
               <span>·</span>
-              <span>Added to Calendar 📅</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Added to Calendar <CalendarCheck size={14} color="#15803D" />
+              </span>
             </div>
           )}
 
