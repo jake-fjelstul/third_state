@@ -14,7 +14,7 @@ import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
-import { Calendar, Camera, Dribbble, Zap, Lightbulb, Sparkles, MapPin, Clock, Timer } from 'lucide-react'
+import { Calendar, Camera, Dribbble, Zap, Lightbulb, Sparkles, MapPin, Clock, Timer, Flame, Hand } from 'lucide-react'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -397,8 +397,8 @@ function CreateCard({ action, onClick }) {
     >
       <div style={{ marginBottom: 10 }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-             stroke={action.accent} strokeWidth="2"
-             strokeLinecap="round" strokeLinejoin="round">
+          stroke={action.accent} strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round">
           {action.paths.map((d, pi) => <path key={pi} d={d} />)}
         </svg>
       </div>
@@ -615,7 +615,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         }
       }}>
         <Handle /><Header title="Create a Circle" />
-        
+
         {/* Lucide Icon Picker */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
@@ -651,7 +651,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
         <input required name="cName" placeholder="Circle Name" style={inputStyle} />
         <input required name="cTopic" placeholder="Interest / Topic (e.g. Photography)" style={inputStyle} />
-        
+
         {/* Cover Image Picker */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
@@ -798,7 +798,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         }
       }}>
         <Handle /><Header title="Host an Event" />
-        
+
         {/* Cover Photo Picker */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Cover Photo</label>
@@ -879,7 +879,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               type="date"
               value={recurrenceEndDate}
               onChange={e => setRecurrenceEndDate(e.target.value)}
-              onClick={(e) => { try { e.target.showPicker() } catch {} }}
+              onClick={(e) => { try { e.target.showPicker() } catch { } }}
               style={inputStyle}
             />
             <p style={{ fontSize: 12, color: clr.textMid, margin: '4px 0 0 0', fontWeight: 600 }}>
@@ -1037,7 +1037,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               type="datetime-local"
               value={lfgCustomStart}
               onChange={e => setLfgCustomStart(e.target.value)}
-              onClick={(e) => { try { e.target.showPicker() } catch {} }}
+              onClick={(e) => { try { e.target.showPicker() } catch { } }}
               style={inputStyle}
             />
           </div>
@@ -1163,9 +1163,9 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             const firstName = coffeeTarget.name.split(' ')[0]
             const when = coffeeDate
               ? new Date(`${coffeeDate}T${coffeeTime}:00`).toLocaleString([], {
-                  weekday: 'short', month: 'short', day: 'numeric',
-                  hour: 'numeric', minute: '2-digit'
-                })
+                weekday: 'short', month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit'
+              })
               : ''
             const locTxt = coffeeLocation?.name
               ? `\n\n📍 ${coffeeLocation.name}${coffeeLocation.address ? '\n' + coffeeLocation.address.split(',').slice(0, 2).join(',') : ''}\n${buildMapsUrl(coffeeLocation)}`
@@ -1278,7 +1278,8 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 function getBatteryConfig(points) {
   if (points >= 80) return {
     label: 'Fully Charged',
-    sublabel: 'You\'re on fire socially 🔥',
+    sublabel: "You're on fire socially",
+    SubIcon: Flame,
     color: '#10B981',  // green
     glow: 'rgba(16,185,129,0.4)',
     segments: 4,
@@ -1286,6 +1287,7 @@ function getBatteryConfig(points) {
   if (points >= 60) return {
     label: 'Charged Up',
     sublabel: 'Keep the momentum going',
+    SubIcon: null,
     color: '#5B5FEF',  // indigo
     glow: 'rgba(91,95,239,0.4)',
     segments: 3,
@@ -1293,12 +1295,15 @@ function getBatteryConfig(points) {
   if (points >= 35) return {
     label: 'Getting There',
     sublabel: 'A meetup would charge you up',
+    SubIcon: null,
     color: '#F59E0B',  // amber
     glow: 'rgba(245,158,11,0.4)',
     segments: 2,
   }
   return {
     label: 'Running Low',
+    sublabel: 'Time to get out there',
+    SubIcon: Hand,
     color: '#EF4444',  // red
     glow: 'rgba(239,68,68,0.4)',
     segments: 1,
@@ -1404,8 +1409,9 @@ function SocialBattery() {
               Social Battery
             </p>
             {config.sublabel && (
-              <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>
-                {config.sublabel}
+              <p style={{ fontSize: 12, color: clr.textMid, margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span>{config.sublabel}</span>
+                {config.SubIcon && <config.SubIcon size={13} color="currentColor" />}
               </p>
             )}
           </div>
@@ -1845,7 +1851,7 @@ export default function Feed() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                               stroke="var(--lfg-accent)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            stroke="var(--lfg-accent)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
                           </svg>
                         </div>
