@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listCircles } from '../lib/circles'
 import { useChatMessages } from '../hooks/useChatMessages.js'
@@ -120,6 +121,41 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll, syncQuestionReveals, askSpontaneousQuestion, getPendingQuestion, cancelSpontaneousQuestion } = useAppContext()
   const [pendingSq, setPendingSq] = useState(null)
   const bottomRef = useRef(null)
+  const textareaRef = useRef(null)
+  const messagesContainerRef = useRef(null)
+
+  const adjustTextareaHeight = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const scHeight = el.scrollHeight
+    const newHeight = Math.min(scHeight, 120)
+    el.style.height = `${newHeight}px`
+    el.style.overflowY = scHeight >= 120 ? 'auto' : 'hidden'
+  }, [])
+
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    const wasAtBottom = container
+      ? container.scrollHeight - container.scrollTop - container.clientHeight <= 50
+      : true
+
+    adjustTextareaHeight()
+
+    if (wasAtBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [input, adjustTextareaHeight])
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const isNative = Capacitor.isNativePlatform()
+      if (!isNative && !e.shiftKey) {
+        e.preventDefault()
+        handleSend(e)
+      }
+    }
+  }
 
   const isDm = chat.type === 'dm'
 
@@ -399,7 +435,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       {isDm && <QuestionPrompt clr={clr} chat={chat} messages={messages} />}
 
       {/* Messages */}
-      <div style={{ flex:1, overflowY:'auto', padding:'12px 16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
+      <div ref={messagesContainerRef} style={{ flex:1, overflowY:'auto', padding:'12px 16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
         {messages.length === 0 && !msgsLoading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center' }}>
             <p style={{ fontSize: 15, color: clr.textMid, margin: 0 }}>Start the conversation</p>
@@ -564,7 +600,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
         padding: '12px 16px',
         backgroundColor: clr.bg,
         borderTop: `1px solid ${clr.border}`,
-        display: 'flex', alignItems: 'center', gap: 10,
+        display: 'flex', alignItems: 'flex-end', gap: 10,
         flexShrink: 0,
       }}>
         {chat.type !== 'dm' && (
@@ -687,16 +723,21 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
             )}
           </div>
         )}
-        <input
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={input}
           onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={isDm ? 'Type a message...' : `Message #${activeChannelName}…`}
           style={{
-            flex:1, padding:'12px 16px', borderRadius:999,
+            flex:1, padding:'12px 16px', borderRadius:20,
             border:`1.5px solid ${clr.border}`,
             backgroundColor: clr.bg,
             fontSize:14, color: clr.textDark,
             outline:'none', fontFamily:'inherit',
+            resize:'none', lineHeight:'20px',
+            boxSizing:'border-box', overflowY:'hidden',
           }}
         />
         <button type="submit" style={{
