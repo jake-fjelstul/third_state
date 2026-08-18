@@ -25,11 +25,8 @@ const CIRCLE_COLORS = [
   { bg: '#FFE4E6', accent: '#E11D48' },
 ]
 
-function getActivityScore(circle) {
-  const eventScore = Math.min(((circle.events || []).length ?? 0) * 15, 45)
-  const memberScore = Math.min((circle.memberCount ?? 10) / 10, 20)
-  const chatScore = Math.min(((circle.chatPreview || []).length ?? 0) * 8, 35)
-  return Math.round(eventScore + memberScore + chatScore)
+function getMemberCount(circle) {
+  return circle?.memberCount ?? (circle?.members || []).length ?? 0
 }
 
 function getInteractionScore(person, chatState, circles, joinedCircles) {
@@ -179,7 +176,7 @@ function useDarkMode() {
   return isDark
 }
 
-function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onSelectNode, selectedNode }) {
+function NetworkGraph({ filter, connections = [], circles, joinedCircles, currentUser, onSelectNode, selectedNode }) {
   const isDark = useDarkMode()
   const [hoveredNode, setHoveredNode] = useState(null)
   const { blockedUserIds } = useAppContext()
@@ -207,8 +204,6 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
       avatar: currentUser?.avatar, x: cx, y: cy, radius: 32, matchFilter: true
     })
 
-    if (joinedCircles.length === 0) return { nodes, edges, hiddenCount: 0 }
-
     const matchesFilter = (c) => {
       if (filter === 'all') return true
       if (filter === 'professional') return c.category === 'professional' || c.interestTag?.toLowerCase().includes('startup') || c.interestTag?.toLowerCase().includes('tech')
@@ -218,14 +213,14 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
     }
 
     const joinedCircleObjs = joinedCircles.map(id => circles.find(c => c.id === id)).filter(Boolean)
-    joinedCircleObjs.sort((a, b) => getActivityScore(b) - getActivityScore(a))
+    joinedCircleObjs.sort((a, b) => getMemberCount(b) - getMemberCount(a))
 
     const coreCircles = joinedCircleObjs.slice(0, 4)
     const activeCircles = joinedCircleObjs.slice(4)
     const offsetAngle = 15 * (Math.PI / 180)
 
     coreCircles.forEach((c, i) => {
-      const angle = (i / coreCircles.length) * Math.PI * 2 - Math.PI / 2 + offsetAngle
+      const angle = (i / Math.max(coreCircles.length, 1)) * Math.PI * 2 - Math.PI / 2 + offsetAngle
       const match = matchesFilter(c)
       const r = 22
       const x = cx + R1 * Math.cos(angle)
@@ -236,7 +231,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
         x: clampX(x, r), y: clampY(y, r),
         radius: r, matchFilter: match, strength: 'strong'
       })
-      edges.push({ from: 'you', to: `circle-${c.id}`, strength: 'strong' })
+      edges.push({ from: 'you', to: `circle-${c.id}`, strength: 'strong', type: 'shares a circle' })
     })
 
     const middleRingRaw = []
@@ -246,26 +241,47 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
 
     const personMap = new Map()
     const activeBlockedIds = blockedUserIds || []
+
+    // (a) Direct connections
+    (connections || []).forEach(conn => {
+      if (!conn.id || conn.id === currentUser?.id || activeBlockedIds.includes(conn.id)) return
+      personMap.set(conn.id, {
+        data: conn,
+        isConnection: true,
+        sharedCircles: [],
+        matchFilter: filter === 'all'
+      })
+    })
+
+    // (b) Members of circles the user has joined (no truncation cap!)
     joinedCircleObjs.forEach(c => {
-      const members = (c.members || []).filter(m => !activeBlockedIds.includes(m.id)).slice(0, 4)
+      const isCircleMatch = matchesFilter(c)
+      const members = (c.members || []).filter(m => m.id && m.id !== currentUser?.id && !activeBlockedIds.includes(m.id))
       members.forEach(m => {
-        if (!personMap.has(m.id)) personMap.set(m.id, { data: m, connections: [], matchFilter: false })
-        personMap.get(m.id).connections.push(c)
-        if (matchesFilter(c)) personMap.get(m.id).matchFilter = true
+        if (!personMap.has(m.id)) {
+          personMap.set(m.id, {
+            data: m,
+            isConnection: false,
+            sharedCircles: [],
+            matchFilter: isCircleMatch
+          })
+        }
+        const entry = personMap.get(m.id)
+        entry.sharedCircles.push(c)
+        if (isCircleMatch) entry.matchFilter = true
       })
     })
 
     Array.from(personMap.values()).forEach(p => {
-      if (p.connections.length > 1 && middleRingRaw.length < 7) {
+      if (p.isConnection || p.sharedCircles.length > 1) {
         middleRingRaw.push({ type: 'person_node', ...p })
       } else {
         outerRingRaw.push({ type: 'person_node', ...p })
       }
     })
 
-    const middleRingNodes = middleRingRaw.slice(0, 7)
-    const outerRingNodes = outerRingRaw.slice(0, 10)
-    hiddenCount = Math.max(0, middleRingRaw.length - 7) + Math.max(0, outerRingRaw.length - 10)
+    const middleRingNodes = middleRingRaw
+    const outerRingNodes = outerRingRaw
 
     middleRingNodes.forEach((item, i) => {
       const angle = (i / Math.max(middleRingNodes.length, 1)) * Math.PI * 2 - Math.PI / 2 + offsetAngle
@@ -281,19 +297,23 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
           x: clampX(x, r), y: clampY(y, r),
           radius: r, matchFilter: match, strength: 'medium'
         })
-        edges.push({ from: 'you', to: `circle-${c.id}`, strength: 'medium' })
+        edges.push({ from: 'you', to: `circle-${c.id}`, strength: 'medium', type: 'shares a circle' })
       } else {
         const p = item.data
         const r = 15
         const x = cx + R2 * Math.cos(angle)
         const y = cy + R2 * Math.sin(angle)
         nodes.push({
-          id: `person-${p.id}`, type: 'person', label: p.name.split(' ')[0],
+          id: `person-${p.id}`, type: 'person', label: (p.name || 'User').split(' ')[0],
           avatar: p.avatar, personId: p.id,
           x: clampX(x, r), y: clampY(y, r),
           radius: r, matchFilter: item.matchFilter, strength: 'medium'
         })
-        item.connections.forEach(c => edges.push({ from: `circle-${c.id}`, to: `person-${p.id}`, strength: 'medium' }))
+        if (item.isConnection) {
+          edges.push({ from: 'you', to: `person-${p.id}`, strength: 'strong', type: 'connected' })
+        } else {
+          item.sharedCircles.forEach(c => edges.push({ from: `circle-${c.id}`, to: `person-${p.id}`, strength: 'medium', type: 'shares a circle' }))
+        }
       }
     })
 
@@ -304,16 +324,20 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
       const x = cx + R3 * Math.cos(angle)
       const y = cy + R3 * Math.sin(angle)
       nodes.push({
-        id: `person-${p.id}`, type: 'person', label: p.name.split(' ')[0],
+        id: `person-${p.id}`, type: 'person', label: (p.name || 'User').split(' ')[0],
         avatar: p.avatar, personId: p.id,
         x: clampX(x, r), y: clampY(y, r),
         radius: r, matchFilter: item.matchFilter, strength: 'weak'
       })
-      item.connections.forEach(c => edges.push({ from: `circle-${c.id}`, to: `person-${p.id}`, strength: 'weak' }))
+      if (item.isConnection) {
+        edges.push({ from: 'you', to: `person-${p.id}`, strength: 'strong', type: 'connected' })
+      } else {
+        item.sharedCircles.forEach(c => edges.push({ from: `circle-${c.id}`, to: `person-${p.id}`, strength: 'weak', type: 'shares a circle' }))
+      }
     })
 
     return { nodes, edges, hiddenCount }
-  }, [joinedCircles, filter, currentUser, circles, blockedUserIds])
+  }, [joinedCircles, connections, filter, currentUser, circles, blockedUserIds])
 
   const getEdgeOpacity = (edge) => {
     const fromNode = graphData.nodes.find(n => n.id === edge.from)
@@ -328,7 +352,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
       return 0.05
     }
 
-    return 0
+    return edge.type === 'connected' ? 0.35 : 0.2
   }
 
   const getEdgeStrokeWidth = (strength) => strength === 'strong' ? 2.5 : strength === 'medium' ? 1.5 : 1
@@ -350,9 +374,9 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
           <circle cx={cx} cy={cy} r={R2} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1} />
           <circle cx={cx} cy={cy} r={R3} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1} />
 
-          {joinedCircles.length === 0 && (
+          {joinedCircles.length === 0 && connections.length === 0 && (
             <text x={cx} y={cy + R2 - 20} textAnchor="middle" fill={colors.labelOther} fontSize={13} fontStyle="italic">
-              Join circles to grow your network
+              Join circles or add connections to grow your network
             </text>
           )}
 
@@ -366,7 +390,7 @@ function NetworkGraph({ filter, people, circles, joinedCircles, currentUser, onS
             const from = graphData.nodes.find(n => n.id === e.from)
             const to = graphData.nodes.find(n => n.id === e.to)
             if (!from || !to) return null
-            return <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={colors.edge} strokeWidth={getEdgeStrokeWidth(e.strength)} strokeOpacity={getEdgeOpacity(e)} style={{ transition: 'stroke-opacity 0.3s ease' }} />
+            return <line key={`${e.from}-${e.to}-${i}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={e.type === 'connected' ? colors.youBorder : colors.edge} strokeWidth={getEdgeStrokeWidth(e.strength)} strokeOpacity={getEdgeOpacity(e)} strokeDasharray={e.type === 'shares a circle' ? '3 3' : undefined} style={{ transition: 'stroke-opacity 0.3s ease' }} />
           })}
 
           {graphData.nodes.map(node => {
@@ -504,7 +528,7 @@ export default function Circles() {
     })
 
     return result.sort((a, b) => b.score - a.score)
-  }, [connections, joinedCircles, chatState, circles, currentUser?.id, people, blockedUserIds])
+  }, [connections, joinedCircles, chatState, circles, currentUser?.id, blockedUserIds])
 
   const filteredConnections = useMemo(() => {
     return rankedConnections.filter(person => {
@@ -651,11 +675,11 @@ export default function Circles() {
                         <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {circle.name}
                         </span>
-                        <ActivityBadge score={getActivityScore(circle)} />
+                        <ActivityBadge score={Math.min(getMemberCount(circle) * 5, 100)} />
                       </div>
                       <div style={{ marginBottom: 6 }}>
                         <div style={{ height: 4, borderRadius: 999, backgroundColor: clr.border, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${getActivityScore(circle)}%`, borderRadius: 999, background: `linear-gradient(90deg, ${clr.indigo}, #A78BFA)`, transition: 'width 0.6s ease' }} />
+                          <div style={{ height: '100%', width: `${Math.min(getMemberCount(circle) * 5, 100)}%`, borderRadius: 999, background: `linear-gradient(90deg, ${clr.indigo}, #A78BFA)`, transition: 'width 0.6s ease' }} />
                         </div>
                       </div>
                       <p style={{ fontSize: 12, color: clr.textLight, margin: 0 }}>
@@ -783,9 +807,9 @@ export default function Circles() {
 
         {activeTab === 'network' && (
           <div style={{ animation: 'slideUp 0.15s ease' }}>
-            {joinedCircles.length === 0 ? (
+            {joinedCircles.length === 0 && connections.length === 0 ? (
               <p style={{ fontSize: 15, color: clr.textMid, textAlign: 'center', padding: '60px 20px', backgroundColor: clr.white, borderRadius: 24 }}>
-                Join some circles to see your network graph 🕸️
+                Join some circles or make connections to see your network graph 🕸️
               </p>
             ) : (
               <>
@@ -803,7 +827,7 @@ export default function Circles() {
                   ))}
                 </div>
 
-                <NetworkGraph filter={networkFilter} people={people} circles={circles} joinedCircles={joinedCircles} currentUser={currentUser} onSelectNode={setSelectedNode} selectedNode={selectedNode} />
+                <NetworkGraph filter={networkFilter} connections={connections} circles={circles} joinedCircles={joinedCircles} currentUser={currentUser} onSelectNode={setSelectedNode} selectedNode={selectedNode} />
 
                 {selectedNode && (
                   <div style={{
@@ -823,7 +847,7 @@ export default function Circles() {
                           </div>
                           <div style={{ flex: 1 }}>
                             <p style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{selectedNode.label}</p>
-                            <ActivityBadge score={getActivityScore(circles.find(c => c.id === selectedNode.circleId))} />
+                            <ActivityBadge score={Math.min(getMemberCount(circles.find(c => c.id === selectedNode.circleId)) * 5, 100)} />
                           </div>
                           <button onClick={() => navigate(`/circles/${selectedNode.circleId}`)} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg,${clr.indigo},#7B6FFF)`, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>View →</button>
                         </div>
@@ -834,7 +858,7 @@ export default function Circles() {
                             <p style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{selectedNode.label}</p>
                             <p style={{ fontSize: 12, color: clr.textLight, margin: 0 }}>In your network</p>
                           </div>
-                          <button onClick={async (e) => { e.stopPropagation(); const person = people.find(p => p.id === selectedNode.personId); if (person) { try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) } catch (err) { console.error('[Circles] startDM failed', err) } } }} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg,${clr.indigo},#7B6FFF)`, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Message →</button>
+                          <button onClick={async (e) => { e.stopPropagation(); const person = connections.find(p => p.id === selectedNode.personId) || people.find(p => p.id === selectedNode.personId); if (person) { try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) } catch (err) { console.error('[Circles] startDM failed', err) } } }} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg,${clr.indigo},#7B6FFF)`, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Message →</button>
                         </div>
                       ) : null}
 
