@@ -193,10 +193,32 @@ function NetworkGraph({ filter, connections = [], circles = [], joinedCircles = 
 
   const activeBlockedIds = blockedUserIds || []
 
+  const matchesFilter = (c) => {
+    if (!c) return false
+    if (filter === 'all') return true
+    if (filter === 'professional') return c.category === 'professional' || c.interestTag?.toLowerCase().includes('startup') || c.interestTag?.toLowerCase().includes('tech')
+    if (filter === 'social') return c.category === 'social'
+    if (filter === 'activity') return c.category === 'outdoors' || c.category === 'activity'
+    return true
+  }
+
+  const getSharedCirclesForConn = (conn) => {
+    if (conn.sharedCircles && conn.sharedCircles.length > 0) return conn.sharedCircles
+    return joinedCircles
+      .map(id => circles.find(c => c.id === id))
+      .filter(c => c && (c.members || []).some(m => m.id === conn.id))
+  }
+
+  const connMatchesFilter = (conn) => {
+    if (filter === 'all') return true
+    const shared = getSharedCirclesForConn(conn)
+    return shared.some(c => matchesFilter(c))
+  }
+
   // Ring 1: Direct Connections (Filtered & Capped to 12)
-  const validConnections = (connections || []).filter(
-    conn => conn.id && conn.id !== currentUser?.id && !activeBlockedIds.includes(conn.id)
-  )
+  const validConnections = (connections || [])
+    .filter(conn => conn.id && conn.id !== currentUser?.id && !activeBlockedIds.includes(conn.id))
+    .filter(connMatchesFilter)
 
   const maxRing1Slots = 12
   const hasConnectionOverflow = validConnections.length > maxRing1Slots
@@ -220,14 +242,6 @@ function NetworkGraph({ filter, connections = [], circles = [], joinedCircles = 
   }
 
   // Ring 2: Circles (Filtered & Capped to 8)
-  const matchesFilter = (c) => {
-    if (filter === 'all') return true
-    if (filter === 'professional') return c.category === 'professional' || c.interestTag?.toLowerCase().includes('startup') || c.interestTag?.toLowerCase().includes('tech')
-    if (filter === 'social') return c.category === 'social'
-    if (filter === 'activity') return c.category === 'outdoors' || c.category === 'activity'
-    return true
-  }
-
   const joinedCircleObjs = joinedCircles
     .map(id => circles.find(c => c.id === id))
     .filter(Boolean)
