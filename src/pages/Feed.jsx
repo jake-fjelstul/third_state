@@ -13,7 +13,7 @@ import EventDetailModal from '../components/EventDetailModal.jsx'
 import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
-import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON } from '../lib/circleIcons.js'
+import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -578,6 +578,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           const created = await createCircle({
             name,
             icon: selectedCircleIcon,
+            emoji: KEY_TO_EMOJI[selectedCircleIcon] || '👥',
             city: currentUser?.city || 'Austin, TX',
             type: circlePrivacy === 'private' ? 'private' : 'open',
             category: 'social',

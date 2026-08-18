@@ -35,8 +35,17 @@ export const CIRCLE_ICONS = [
 
 const BY_KEY = Object.fromEntries(CIRCLE_ICONS.map(i => [i.key, i.Comp]))
 
+export const KEY_TO_EMOJI = {
+  Users: '👥', Sparkles: '✨', Flame: '🔥', Palette: '🎨',
+  Camera: '📸', Volleyball: '⚽', Footprints: '🏃', Coffee: '☕',
+  BookOpen: '📚', Music: '🎵', Gamepad2: '🎮', Pizza: '🍕',
+  Mountain: '🧗', Bike: '🚲', Flower2: '🧘', Clapperboard: '🎬',
+  Dog: '🐶', Plane: '✈️', Lightbulb: '💡', Sprout: '🌱',
+  Dribbble: '🏀', Mic: '🎤', Dices: '🎲', Heart: '❤️', Circle: '⭕',
+}
+
 /** Fallback for rows whose icon column did not backfill cleanly. */
-const EMOJI_TO_KEY = {
+export const EMOJI_TO_KEY = {
   '✨': 'Sparkles', '⭕': 'Circle', '🔥': 'Flame', '🎨': 'Palette',
   '📸': 'Camera', '⚽': 'Volleyball', '🏃': 'Footprints', '☕': 'Coffee',
   '📚': 'BookOpen', '🎵': 'Music', '🎮': 'Gamepad2', '🍕': 'Pizza',
@@ -55,3 +64,4 @@ export function circleIconComponent(circle) {
   if (viaEmoji && BY_KEY[viaEmoji]) return BY_KEY[viaEmoji]
   return BY_KEY[DEFAULT_CIRCLE_ICON]
 }
+

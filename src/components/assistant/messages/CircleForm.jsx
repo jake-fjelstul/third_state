@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { assistantText, assistantNavigate } from '../../../lib/assistant/conversation.js'
 import { useAppContext } from '../../../context/AppContext.jsx'
-import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON } from '../../../lib/circleIcons'
+import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../../../lib/circleIcons'
 import CircleIcon from '../../ui/CircleIcon.jsx'
 
 export default function CircleForm({ message, clr, onComplete }) {
@@ -38,6 +38,7 @@ export default function CircleForm({ message, clr, onComplete }) {
       const created = await ctx.createCircle({
         name: name.trim(),
         icon: selectedIcon,
+        emoji: KEY_TO_EMOJI[selectedIcon] || '👥',
         city: ctx.currentUser?.city || '',
         type: 'open',
         category: category.trim() || 'social',
