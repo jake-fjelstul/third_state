@@ -7,6 +7,7 @@ import { useAppContext } from '../../context/AppContext.jsx'
 import { avatarFor } from '../../lib/avatar'
 import { resolveCircleCover } from '../../lib/circleCover'
 import CircleIcon from '../ui/CircleIcon.jsx'
+import { Sparkles, MapPin, Calendar, Ticket, Users, Zap, Clock, Lock, UserRound, UserPlus, Telescope } from 'lucide-react'
 import { haversineMiles } from '../../lib/geo'
 import HoopApplication from '../hoops/HoopApplication.jsx'
 
@@ -75,8 +76,8 @@ function DiscoveryCard({ card }) {
         </div>
         <div style={{ flex:1, padding: '20px', display:'flex', flexDirection:'column' }}>
           {card.matchReason && (
-            <div style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#D97706', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, alignSelf: 'flex-start' }}>
-              ✨ {card.matchReason}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#D97706', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, alignSelf: 'flex-start' }}>
+              <Sparkles size={12} color="currentColor" /> {card.matchReason}
             </div>
           )}
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
@@ -85,8 +86,8 @@ function DiscoveryCard({ card }) {
             </h2>
             {p.online && <div style={{ width:12, height:12, borderRadius:'50%', backgroundColor: 'var(--green, #22C55E)' }} />}
           </div>
-          <p style={{ margin:'0 0 12px 0', fontSize:14, color: clr.textMid }}>
-            {p.city}{typeof card.distance === 'number' ? <> • <span style={{ fontWeight: 700 }}>📍 {card.distance} miles away</span></> : null}
+          <p style={{ margin:'0 0 12px 0', fontSize:14, color: clr.textMid, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+            {p.city}{typeof card.distance === 'number' ? <> • <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPin size={13} color="currentColor" /> {card.distance} miles away</span></> : null}
           </p>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
             {p.interests?.slice(0,4).map(i => (
@@ -120,8 +121,8 @@ function DiscoveryCard({ card }) {
         <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column' }}>
           <div style={{ display:'flex', gap: 8, marginBottom:12, flexWrap: 'wrap' }}>
              {card.matchReason && (
-               <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:'#FEF3C7', color:'#D97706', fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                 ✨ {card.matchReason}
+               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding:'4px 12px', borderRadius:999, backgroundColor:'#FEF3C7', color:'#D97706', fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                 <Sparkles size={12} color="currentColor" /> {card.matchReason}
                </span>
              )}
              <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
@@ -153,27 +154,27 @@ function DiscoveryCard({ card }) {
             height: 160, background: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
             display:'flex', alignItems:'center', justifyContent:'center', fontSize:64
           }}>
-            {e.emoji ?? '📅'}
+            {e.emoji ?? <Calendar size={56} color="#FFFFFF" />}
           </div>
         )}
         <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column', gap:14 }}>
           {card.matchReason && (
-            <div style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#D97706', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', alignSelf: 'flex-start' }}>
-              ✨ {card.matchReason}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 999, backgroundColor: '#FEF3C7', color: '#D97706', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', alignSelf: 'flex-start' }}>
+              <Sparkles size={12} color="currentColor" /> {card.matchReason}
             </div>
           )}
           <h2 style={{ margin:0, fontSize:24, fontWeight:800, color: clr.textDark }}>{e.title}</h2>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <span style={{ fontSize:18 }}>📅</span> {e.date} • {e.time}
+            <Calendar size={18} color="currentColor" /> {e.date} • {e.time}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <span style={{ fontSize:18 }}>📍</span> {e.location}{card.distance != null ? <> • <span style={{ fontWeight: 700 }}>{card.distance} miles away</span></> : null}
+            <MapPin size={18} color="currentColor" /> {e.location}{card.distance != null ? <> • <span style={{ fontWeight: 700 }}>{card.distance} miles away</span></> : null}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <span style={{ fontSize:18 }}>🎟️</span> Hosted by {e.circleName ?? 'Community'}
+            <Ticket size={18} color="currentColor" /> Hosted by {e.circleName ?? 'Community'}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <span style={{ fontSize:18 }}>👥</span> {e.attendees?.length ?? 0} attending
+            <Users size={18} color="currentColor" /> {e.attendees?.length ?? 0} attending
           </div>
         </div>
       </div>
@@ -199,7 +200,9 @@ function DiscoveryCard({ card }) {
           display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
           position: 'relative', overflow: 'hidden', color: '#FCD34D', padding: '16px', textAlign: 'center'
         }}>
-          <div style={{ fontSize: 44, marginBottom: 4 }}>⚡</div>
+          <div style={{ marginBottom: 4 }}>
+            <Zap size={44} color="#FCD34D" fill="#FCD34D" />
+          </div>
           <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FCD34D' }}>
             Looking For Group
           </span>
@@ -207,12 +210,12 @@ function DiscoveryCard({ card }) {
 
         <div style={{ flex:1, padding: '24px', display:'flex', flexDirection:'column', gap: 14 }}>
           <div style={{ display:'flex', alignItems:'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:'#FEF3C7', color:'#D97706', fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-              ⏱️ {timeLeftLabel(p.expiresAt)}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding:'4px 12px', borderRadius:999, backgroundColor:'#FEF3C7', color:'#D97706', fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+              <Clock size={12} color="currentColor" /> {timeLeftLabel(p.expiresAt)}
             </span>
             {p.visibility === 'friends' && (
-              <span style={{ padding:'4px 12px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                🔒 Friends only
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding:'4px 12px', borderRadius:999, backgroundColor:clr.indigoLt, color:clr.indigo, fontSize:12, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                <Lock size={12} color="currentColor" /> Friends only
               </span>
             )}
           </div>
@@ -234,13 +237,13 @@ function DiscoveryCard({ card }) {
 
           {formattedStartTime && (
             <div style={{ display:'flex', alignItems:'center', gap: 10, color: clr.textMid, fontSize: 15 }}>
-              <span style={{ fontSize: 18 }}>🕒</span> Starts at {formattedStartTime}
+              <Clock size={18} color="currentColor" /> Starts at {formattedStartTime}
             </div>
           )}
 
           {(p.placeName || p.placeAddress) && (
             <div style={{ display:'flex', alignItems:'flex-start', gap: 10, color: clr.textMid, fontSize: 15 }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>📍</span>
+              <MapPin size={18} color="currentColor" style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
                 {p.placeName && <div style={{ fontWeight: 700, color: clr.textDark }}>{p.placeName}</div>}
                 {p.placeAddress && <div style={{ fontSize: 13, color: clr.textLight }}>{p.placeAddress}</div>}
@@ -574,11 +577,11 @@ export default function SwipeDiscovery({ onClose }) {
   }
 
   const FILTERS = [
-    { id: 'all', label: 'All' },
-    { id: 'people', label: 'People 👤' },
-    { id: 'circles', label: 'Circles 🔵' },
-    { id: 'events', label: 'Events 📅' },
-    { id: 'lfg', label: 'Free now ⚡' },
+    { id: 'all', label: 'All', Icon: null },
+    { id: 'people', label: 'People', Icon: UserRound },
+    { id: 'circles', label: 'Circles', Icon: Users },
+    { id: 'events', label: 'Events', Icon: Calendar },
+    { id: 'lfg', label: 'Free now', Icon: Zap },
   ]
 
   return (
@@ -629,6 +632,7 @@ export default function SwipeDiscovery({ onClose }) {
             <span style={{ fontSize: 13, fontWeight: 700, color: clr.textMid, marginRight: 4 }}>Filter by:</span>
             {FILTERS.map(f => {
               const isActive = f.id === 'all' ? activeFilters.length === 4 : activeFilters.includes(f.id)
+              const IconComp = f.Icon
               return (
                 <button key={f.id} onClick={() => toggleFilter(f.id)} style={{
                   padding: '10px 18px', borderRadius: 999, cursor: 'pointer',
@@ -637,7 +641,9 @@ export default function SwipeDiscovery({ onClose }) {
                   color: isActive ? '#FFFFFF' : clr.textDark,
                   fontSize: 14, fontWeight: 700,
                   boxShadow: isActive ? '0 4px 12px rgba(91,95,239,0.3)' : 'none',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}>
+                  {IconComp && <IconComp size={14} color="currentColor" />}
                   {f.label}
                 </button>
               )
@@ -687,7 +693,19 @@ export default function SwipeDiscovery({ onClose }) {
                 opacity: Math.min(dragX / 80, 1), border: '4px solid #FFF',
                 transform: 'rotate(-12deg)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
               }}>
-                {currentCard.type === 'person' ? '👋 CONNECT' : currentCard.type === 'circle' ? (currentCard.requiresApplication ? '✓ APPLY' : '✓ JOIN') : currentCard.type === 'lfg' ? '⚡ JOIN' : '✓ RSVP'}
+                {currentCard.type === 'person' ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <UserPlus size={18} color="currentColor" /> CONNECT
+                  </span>
+                ) : currentCard.type === 'circle' ? (
+                  currentCard.requiresApplication ? '✓ APPLY' : '✓ JOIN'
+                ) : currentCard.type === 'lfg' ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Zap size={18} color="currentColor" /> JOIN
+                  </span>
+                ) : (
+                  '✓ RSVP'
+                )}
               </div>
             )}
             {dragX < -40 && (
@@ -706,8 +724,8 @@ export default function SwipeDiscovery({ onClose }) {
         ) : (
           /* Empty State */
           <div style={{ textAlign: 'center', padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <div style={{ width: 100, height: 100, borderRadius: '50%', backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, marginBottom: 24 }}>
-              🔭
+            <div style={{ width: 100, height: 100, borderRadius: '50%', backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+              <Telescope size={48} color={clr.indigo} />
             </div>
             <h2 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, marginBottom: 12 }}>You're all caught up!</h2>
             <p style={{ fontSize: 16, color: clr.textMid, marginBottom: 32, lineHeight: 1.6, maxWidth: 320 }}>
