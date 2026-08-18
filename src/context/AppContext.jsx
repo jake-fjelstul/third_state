@@ -183,7 +183,7 @@ export function AppProvider({ children }) {
     return () => { cancelled = true }
   }, [currentUser?.id])
 
-  // Load profile whenever session changes
+  // Load profile and user data whenever session changes
   useEffect(() => {
     if (!session?.user) {
       setCurrentUser(null)
@@ -197,9 +197,12 @@ export function AppProvider({ children }) {
       return
     }
     let cancelled = false
+    const userId = session.user.id
+
     setProfileLoading(true)
     setProfileError(null)
-    fetchProfileForUser(session.user)
+
+    const profilePromise = fetchProfileForUser(session.user)
       .then(profile => {
         if (cancelled) return
         setCurrentUser(mapProfileToCurrentUser(profile))
@@ -207,51 +210,6 @@ export function AppProvider({ children }) {
         if (typeof profile.reconnect_threshold_days === 'number') setReconnectThresholdDays(profile.reconnect_threshold_days)
         if (typeof profile.search_radius === 'number') setSearchRadius(profile.search_radius)
         if (typeof profile.battery_points === 'number') setBatteryPoints(profile.battery_points)
-
-        listMyCircleIds(profile.id)
-          .then(ids => { if (!cancelled) setJoinedCircles(ids) })
-          .catch(err => console.error('[AppContext] failed to load joined circles', err))
-
-        listMyConnections(profile.id)
-          .then(list => { if (!cancelled) setConnections(list) })
-          .catch(err => console.error('[AppContext] failed to load connections', err))
-
-        listMyMeetups(profile.id)
-          .then(list => {
-            if (cancelled) return
-            setMeetups(list)
-            setRsvpdEventIds(new Set(list.map(e => e.id)))
-          })
-          .catch(err => console.error('[AppContext] failed to load meetups', err))
-
-        setChatStateLoading(true)
-        listChatsDb()
-          .then(list => {
-            if (cancelled) return
-            const map = {}
-            list.forEach(c => { map[c.id] = c })
-            setChatState(map)
-          })
-          .catch(err => console.error('[AppContext] failed to load chats', err))
-          .finally(() => { if (!cancelled) setChatStateLoading(false) })
-
-        listNotifications(profile.id)
-          .then(list => {
-            if (cancelled) return
-            const now = Date.now()
-            const stale = list.filter(n =>
-              n.type === 'event_approaching' &&
-              n.event?.startsAt &&
-              new Date(n.event.startsAt).getTime() < now
-            ).map(n => n.id)
-
-            setNotifications(list.filter(n => !stale.includes(n.id)))
-            if (stale.length) {
-              deleteNotifications(stale).catch(err =>
-                console.error('[AppContext] prune stale event notifications failed', err))
-            }
-          })
-          .catch(err => console.error('[AppContext] failed to load notifications', err))
       })
       .catch(async err => {
         console.error('[AppContext] failed to load profile', err)
@@ -268,9 +226,63 @@ export function AppProvider({ children }) {
         }
         setProfileError(err)
       })
-      .finally(() => {
-        if (!cancelled) setProfileLoading(false)
+
+    const circlesPromise = listMyCircleIds(userId)
+      .then(ids => { if (!cancelled) setJoinedCircles(ids) })
+      .catch(err => console.error('[AppContext] failed to load joined circles', err))
+
+    const connectionsPromise = listMyConnections(userId)
+      .then(list => { if (!cancelled) setConnections(list) })
+      .catch(err => console.error('[AppContext] failed to load connections', err))
+
+    const meetupsPromise = listMyMeetups(userId)
+      .then(list => {
+        if (cancelled) return
+        setMeetups(list)
+        setRsvpdEventIds(new Set(list.map(e => e.id)))
       })
+      .catch(err => console.error('[AppContext] failed to load meetups', err))
+
+    setChatStateLoading(true)
+    const chatsPromise = listChatsDb()
+      .then(list => {
+        if (cancelled) return
+        const map = {}
+        list.forEach(c => { map[c.id] = c })
+        setChatState(map)
+      })
+      .catch(err => console.error('[AppContext] failed to load chats', err))
+      .finally(() => { if (!cancelled) setChatStateLoading(false) })
+
+    const notifsPromise = listNotifications(userId)
+      .then(list => {
+        if (cancelled) return
+        const now = Date.now()
+        const stale = list.filter(n =>
+          n.type === 'event_approaching' &&
+          n.event?.startsAt &&
+          new Date(n.event.startsAt).getTime() < now
+        ).map(n => n.id)
+
+        setNotifications(list.filter(n => !stale.includes(n.id)))
+        if (stale.length) {
+          deleteNotifications(stale).catch(err =>
+            console.error('[AppContext] prune stale event notifications failed', err))
+        }
+      })
+      .catch(err => console.error('[AppContext] failed to load notifications', err))
+
+    Promise.allSettled([
+      profilePromise,
+      circlesPromise,
+      connectionsPromise,
+      meetupsPromise,
+      chatsPromise,
+      notifsPromise,
+    ]).finally(() => {
+      if (!cancelled) setProfileLoading(false)
+    })
+
     return () => { cancelled = true }
   }, [mapProfileToCurrentUser, resetLocalAuthState, session])
 
