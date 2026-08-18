@@ -1190,8 +1190,7 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     if (chatId) markChatRead(chatId)
   }, [chatId, activeChannel, markChatRead])
 
-  const panelRef = useRef(null)
-  const [panelHeight, setPanelHeight] = useState(520)
+  const formRef = useRef(null)
   const [kbHeight, setKbHeight] = useState(0)
   const textareaRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -1209,16 +1208,6 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
       const showH = await Keyboard.addListener('keyboardWillShow', (info) => {
         if (!isMounted) return
         setKbHeight(info.keyboardHeight)
-
-        if (panelRef.current) {
-          panelRef.current.scrollIntoView({ block: 'start', behavior: 'auto' })
-          requestAnimationFrame(() => {
-            if (!isMounted || !panelRef.current) return
-            const top = panelRef.current.getBoundingClientRect().top
-            const computedHeight = Math.max(280, window.innerHeight - top - info.keyboardHeight - 8)
-            setPanelHeight(computedHeight)
-          })
-        }
       })
       if (!isMounted) {
         showH.remove()
@@ -1229,7 +1218,6 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
       const hideH = await Keyboard.addListener('keyboardWillHide', () => {
         if (!isMounted) return
         setKbHeight(0)
-        setPanelHeight(520)
       })
       if (!isMounted) {
         showH.remove()
@@ -1247,6 +1235,16 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
       if (hideHandle) hideHandle.remove()
     }
   }, [])
+
+  useEffect(() => {
+    if (kbHeight > 0) {
+      const el = messagesContainerRef.current
+      if (el) {
+        el.scrollTop = el.scrollHeight
+      }
+      msgsEndRef.current?.scrollIntoView({ behavior: 'auto' })
+    }
+  }, [kbHeight])
 
   const handleScroll = () => {
     const el = messagesContainerRef.current
@@ -1357,6 +1355,9 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     if (!chatInput.trim() || !chatId) return
     sendMessage(chatId, chatInput, resolvedChannelId)
     setChatInput('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
   }, [chatInput, chatId, resolvedChannelId, sendMessage])
 
   const handleKeyDown = (e) => {
@@ -1430,22 +1431,12 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
   }
 
   return (
-    <div
-      ref={panelRef}
-      onTransitionEnd={(e) => {
-        if (e.target === e.currentTarget && e.propertyName === 'height' && kbHeight > 0) {
-          msgsEndRef.current?.scrollIntoView({ behavior: 'auto' })
-        }
-      }}
-      style={{
-        backgroundColor: dk.panel, borderRadius: 20,
-        boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-        display: 'flex', flexDirection: 'column',
-        height: panelHeight,
-        transition: 'height 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
-        overflow: 'hidden',
-      }}
-    >
+    <div style={{
+      backgroundColor: dk.panel, borderRadius: 20,
+      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+      display: 'flex', flexDirection: 'column', height: 520,
+      overflow: 'hidden',
+    }}>
       {/* ── Channel bar ── */}
       <div style={{
         display: 'flex', gap: 6, padding: '12px 16px',
@@ -1626,12 +1617,30 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
         <div ref={msgsEndRef} />
       </div>
 
+      {kbHeight > 0 && (
+        <div style={{ height: formRef.current?.offsetHeight || 64, flexShrink: 0 }} />
+      )}
+
       {/* ── Input bar ── */}
-      <form onSubmit={handleSend} style={{
-        display: 'flex', gap: 10, padding: '12px 16px',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        backgroundColor: dk.inputBar,
-      }}>
+      <form
+        ref={formRef}
+        onSubmit={handleSend}
+        style={kbHeight > 0 ? {
+          position: 'fixed',
+          left: 0, right: 0,
+          bottom: kbHeight,
+          zIndex: 1000,
+          backgroundColor: dk.inputBar,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          padding: '12px 16px',
+          display: 'flex', gap: 10, alignItems: 'flex-end',
+        } : {
+          display: 'flex', gap: 10, padding: '12px 16px',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          backgroundColor: dk.inputBar,
+          alignItems: 'flex-end',
+        }}
+      >
         <button
           type="button"
           onClick={() => setShowPollComposer(true)}
