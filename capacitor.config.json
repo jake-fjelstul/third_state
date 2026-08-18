@@ -16,8 +16,7 @@
       "splashImmersive": true
     },
     "Keyboard": {
-      "resize": "native",
-      "resizeOnFullScreen": true
+      "resize": "none"
     }
   },
   "packageClassList": [

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
+import { Keyboard } from '@capacitor/keyboard'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listCircles } from '../lib/circles'
 import { useChatMessages } from '../hooks/useChatMessages.js'
@@ -120,9 +121,57 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const { name, avatar, online, isGroup } = normChat(chat)
   const { sendMessage, markChatRead, currentUser, setCurrentlyOpenChatId, startChatGame, startChatPoll, syncQuestionReveals, askSpontaneousQuestion, getPendingQuestion, cancelSpontaneousQuestion } = useAppContext()
   const [pendingSq, setPendingSq] = useState(null)
+  const [kbHeight, setKbHeight] = useState(0)
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
   const messagesContainerRef = useRef(null)
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    let isMounted = true
+    let showHandle = null
+    let hideHandle = null
+
+    const setupListeners = async () => {
+      const showH = await Keyboard.addListener('keyboardWillShow', (info) => {
+        if (isMounted) {
+          setKbHeight(info.keyboardHeight)
+        }
+      })
+      if (!isMounted) {
+        showH.remove()
+        return
+      }
+      showHandle = showH
+
+      const hideH = await Keyboard.addListener('keyboardWillHide', () => {
+        if (isMounted) {
+          setKbHeight(0)
+        }
+      })
+      if (!isMounted) {
+        showH.remove()
+        hideH.remove()
+        return
+      }
+      hideHandle = hideH
+    }
+
+    setupListeners()
+
+    return () => {
+      isMounted = false
+      if (showHandle) showHandle.remove()
+      if (hideHandle) hideHandle.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (kbHeight > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+    }
+  }, [kbHeight])
 
   const adjustTextareaHeight = useCallback(() => {
     const el = textareaRef.current
@@ -336,7 +385,8 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      height: 'calc(100vh - 80px - env(safe-area-inset-bottom))', backgroundColor: clr.bg,
+      height: kbHeight > 0 ? `calc(100vh - ${kbHeight}px)` : 'calc(100vh - 80px - env(safe-area-inset-bottom))',
+      backgroundColor: clr.bg,
       fontFamily: "'DM Sans','Inter',sans-serif",
     }}>
       {/* Header */}
