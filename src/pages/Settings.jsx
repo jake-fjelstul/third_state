@@ -17,6 +17,53 @@ const clr = {
   border:   'var(--border)',
 }
 
+function CollapsibleSection({ title, defaultOpen = true, children }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setIsOpen(open => !open)}
+        aria-expanded={isOpen}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'none',
+          border: 'none',
+          padding: '0 4px',
+          marginBottom: 12,
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, margin: 0 }}>
+          {title}
+        </h2>
+        <svg
+          width="18"
+          height="18"
+          fill="none"
+          stroke={clr.textDark}
+          strokeWidth="2.5"
+          viewBox="0 0 24 24"
+          style={{
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+          }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      <div style={{ display: isOpen ? 'block' : 'none' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
   const navigate = useNavigate()
   const { theme, setTheme, currentUser, setCurrentUser, reconnectThresholdDays, setReconnectThresholdDays, searchRadius, setSearchRadius, signOut, updateMyPrivacy, updateMyNotificationPrefs, blockedUserIds, unblockUserById, getDailyQuestion, dismissDailyQuestion } = useAppContext()
@@ -221,10 +268,7 @@ export default function Settings() {
           </div>
 
           {/* Notifications Block */}
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
-              Notifications
-            </h2>
+          <CollapsibleSection title="Notifications" defaultOpen={true}>
             <div style={{
               backgroundColor: clr.white,
               borderRadius: 20,
@@ -507,7 +551,7 @@ export default function Settings() {
               </div>
 
             </div>
-          </div>
+          </CollapsibleSection>
 
           {/* Discovery Block */}
           <div>
@@ -590,10 +634,7 @@ export default function Settings() {
           </div>
 
           {/* Privacy & Visibility Block */}
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
-              Privacy & Visibility
-            </h2>
+          <CollapsibleSection title="Privacy & Visibility" defaultOpen={false}>
             <div style={{
               backgroundColor: clr.white,
               borderRadius: 20,
@@ -674,7 +715,7 @@ export default function Settings() {
               })}
 
             </div>
-          </div>
+          </CollapsibleSection>
 
           {/* Blocked Users Section */}
           <div>
