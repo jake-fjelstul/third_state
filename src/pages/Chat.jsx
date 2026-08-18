@@ -126,6 +126,14 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const textareaRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const hasInitiallyScrolled = useRef(false)
+  const stickToBottom = useRef(true)
+
+  const handleScroll = () => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottom.current = distanceFromBottom <= 80
+  }
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
@@ -181,16 +189,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   }, [])
 
   useEffect(() => {
-    const container = messagesContainerRef.current
-    const wasAtBottom = container
-      ? container.scrollHeight - container.scrollTop - container.clientHeight <= 50
-      : true
-
     adjustTextareaHeight()
-
-    if (wasAtBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
   }, [input, adjustTextareaHeight])
 
   const handleKeyDown = (e) => {
@@ -272,9 +271,10 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     return () => setCurrentlyOpenChatId(null)
   }, [baseId, setCurrentlyOpenChatId])
 
-  // Reset initial scroll flag when thread or channel changes
+  // Reset initial scroll & stickiness flags when thread or channel changes
   useEffect(() => {
     hasInitiallyScrolled.current = false
+    stickToBottom.current = true
   }, [baseId, activeChannelName])
 
   // Instant jump before paint on initial load of messages
@@ -287,31 +287,68 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       el.scrollTop = el.scrollHeight
     }
     hasInitiallyScrolled.current = true
+    stickToBottom.current = true
   }, [messages, baseId, activeChannelName])
 
-  // Re-pin to bottom as late content loads (reactions, images, composer height), unless scrolled up
+  // Re-pin to bottom as late content loads (reactions, images, composer height), if user intends to stay at bottom
   useEffect(() => {
     const el = messagesContainerRef.current
     if (!el) return
 
-    const observer = new ResizeObserver(() => {
-      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-      if (distanceFromBottom <= 80) {
+    const handleRePin = () => {
+      if (stickToBottom.current) {
         el.scrollTop = el.scrollHeight
       }
+    }
+
+    const observer = new ResizeObserver(handleRePin)
+
+    const observeContent = () => {
+      observer.observe(el)
+      Array.from(el.children).forEach(child => observer.observe(child))
+    }
+
+    observeContent()
+
+    const handleImageLoad = () => handleRePin()
+
+    const attachImgListeners = (node) => {
+      if (node.tagName === 'IMG') {
+        if (!node.complete) {
+          node.addEventListener('load', handleImageLoad, { once: true })
+        }
+      }
+      if (node.querySelectorAll) {
+        node.querySelectorAll('img').forEach(img => {
+          if (!img.complete) {
+            img.addEventListener('load', handleImageLoad, { once: true })
+          }
+        })
+      }
+    }
+
+    attachImgListeners(el)
+
+    const mutationObserver = new MutationObserver((mutations) => {
+      observeContent()
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType === 1) attachImgListeners(node)
+        })
+      })
     })
 
-    observer.observe(el)
-    Array.from(el.children).forEach(child => observer.observe(child))
+    mutationObserver.observe(el, { childList: true, subtree: true })
 
     return () => {
       observer.disconnect()
+      mutationObserver.disconnect()
     }
   }, [baseId, activeChannelName, messages.length])
 
-  // Smooth scroll to new incoming or sent messages
+  // Smooth scroll to new incoming or sent messages, only if user intends to stick to bottom
   useEffect(() => {
-    if (hasInitiallyScrolled.current) {
+    if (hasInitiallyScrolled.current && stickToBottom.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
@@ -530,7 +567,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
       {isDm && <QuestionPrompt clr={clr} chat={chat} messages={messages} />}
 
       {/* Messages */}
-      <div ref={messagesContainerRef} style={{ flex:1, overflowY:'auto', padding:'12px 16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
+      <div ref={messagesContainerRef} onScroll={handleScroll} style={{ flex:1, overflowY:'auto', padding:'12px 16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
         {messages.length === 0 && !msgsLoading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center' }}>
             <p style={{ fontSize: 15, color: clr.textMid, margin: 0 }}>Start the conversation</p>
