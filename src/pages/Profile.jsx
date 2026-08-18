@@ -593,7 +593,9 @@ export default function Profile() {
       {/* ── Edit Modal ── */}
       {editing && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 50,
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 1000,
           backgroundColor: 'rgba(0,0,0,0.55)',
           display: 'flex',
           alignItems: 'flex-start',
@@ -601,10 +603,7 @@ export default function Profile() {
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
           overscrollBehavior: 'contain',
-          paddingTop: 'calc(24px + var(--safe-t))',
-          paddingBottom: 'calc(24px + var(--safe-b))',
-          paddingLeft: 'calc(16px + var(--safe-l))',
-          paddingRight: 'calc(16px + var(--safe-r))',
+          padding: 'max(24px, calc(env(safe-area-inset-top) + 12px)) 16px max(24px, calc(env(safe-area-inset-bottom) + 12px)) 16px',
         }}>
           <div
             className="profile-edit-modal"
