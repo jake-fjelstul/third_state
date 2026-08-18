@@ -35,8 +35,9 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
   const [attendanceError, setAttendanceError] = useState('')
   const { isConnected, addEventToGoogle, connect } = useCalendar()
 
-  const isPastEvent = currentEvent?.dateObj && currentEvent.dateObj.getTime() < Date.now()
-  const isHost = currentEvent?.createdBy === currentUser?.id
+  const eventDate = currentEvent?.dateObj || (currentEvent?.startsAt ? new Date(currentEvent.startsAt) : (currentEvent?.starts_at ? new Date(currentEvent.starts_at) : null))
+  const isPastEvent = eventDate ? eventDate.getTime() <= Date.now() : false
+  const isHost = (currentEvent?.createdBy || currentEvent?.created_by) === currentUser?.id
 
   useEffect(() => {
     setCurrentEvent(event)
@@ -92,7 +93,14 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
     } catch (err) {
       console.error('[EventDetailModal] markAttendance failed', err)
       setAttendanceList(prev)
-      setAttendanceError(err.message || 'Could not update attendance')
+      const rawMsg = String(err?.message || '')
+      if (rawMsg.includes('Only the event host')) {
+        setAttendanceError('Only the event host can mark attendance.')
+      } else if (rawMsg.includes('not RSVPd')) {
+        setAttendanceError('That person has not RSVPd to this event.')
+      } else {
+        setAttendanceError(rawMsg || 'Could not update attendance. Please try again.')
+      }
     }
   }
 
