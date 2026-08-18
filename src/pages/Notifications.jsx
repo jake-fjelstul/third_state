@@ -5,6 +5,7 @@ import { listChannels } from '../lib/chat'
 import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { joinLfgPost } from '../lib/lfg'
+import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
 
 function friendlyJoinError(err) {
   const m = String(err?.message || '')
@@ -76,14 +77,24 @@ export default function Notifications() {
   const circleActivity = visibleNotifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
   const otherActivity = visibleNotifications.filter(n => !HANDLED_TYPES.includes(n.type))
 
+  const now = Date.now()
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+  const recentNotifications = visibleNotifications
+    .filter(n => {
+      if (!n.createdAt) return false
+      const time = new Date(n.createdAt).getTime()
+      return !isNaN(time) && (now - time) <= TWENTY_FOUR_HOURS
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
   const setActionState = (id, state) => {
     setActionStates(prev => ({ ...prev, [id]: state }))
   }
 
-  const renderNotifCard = (notif) => {
+  const renderNotifCard = (notif, keyPrefix = 'bucket') => {
     const actionState = actionStates[notif.id] ?? null
     return (
-      <div key={notif.id} style={{
+      <div key={`${keyPrefix}-${notif.id}`} style={{
         backgroundColor: clr.white,
         borderRadius: 16,
         padding: '16px',
@@ -640,6 +651,16 @@ export default function Notifications() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             
+            {recentNotifications.length > 0 && (
+              <section>
+                <CollapsibleSection title={`Recent (${recentNotifications.length})`} defaultOpen={false} titleFontSize={16}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {recentNotifications.map(n => renderNotifCard(n, 'recent'))}
+                  </div>
+                </CollapsibleSection>
+              </section>
+            )}
+
             {connectionRequests.length > 0 && (
               <section>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>Connection requests</h2>
