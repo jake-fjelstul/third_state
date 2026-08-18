@@ -14,6 +14,7 @@ import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
+import { Calendar, Camera, Dribbble, Zap, Lightbulb, Sparkles, MapPin, Clock, Timer } from 'lucide-react'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -216,7 +217,11 @@ function EventCard({ event, idx, isRsvpd, onViewDetails }) {
         background: EVENT_GRADIENTS[idx % EVENT_GRADIENTS.length],
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <span style={{ fontSize: 28 }}>{event.emoji ?? '📅'}</span>
+        {event.emoji ? (
+          <span style={{ fontSize: 28 }}>{event.emoji}</span>
+        ) : (
+          <Calendar size={28} color="#FFFFFF" />
+        )}
       </div>
       <div style={{ padding: '14px' }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: clr.textDark, margin: '0 0 6px 0', lineHeight: 1.3 }}>
@@ -673,7 +678,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               padding: '16px', borderRadius: 16, border: `2px dashed ${clr.border}`,
               backgroundColor: clr.bg, cursor: 'pointer', transition: 'all 0.15s ease',
             }}>
-              <span style={{ fontSize: 22, marginBottom: 2 }}>📷</span>
+              <Camera size={22} color={clr.indigo} style={{ marginBottom: 2 }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: clr.indigo }}>Upload Cover Photo</span>
               <input
                 type="file"
@@ -704,7 +709,9 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         {/* Applications / Hoops toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 12 }}>
           <div>
-            <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark }}>🏀 Require an application</p>
+            <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Dribbble size={16} color={clr.indigo} /> Require an application
+            </p>
             <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>People apply and you approve them</p>
           </div>
           <div onClick={() => { setApplicationsEnabled(!applicationsEnabled); if (!applicationsEnabled && circleHoops.length === 0) setCircleHoops([]) }} style={{
@@ -806,14 +813,14 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
                 <div style={{
                   position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF',
-                  fontSize: 14, fontWeight: 700,
+                  fontSize: 14, fontWeight: 700, gap: 6,
                 }}>
-                  📷 Change Cover Photo
+                  <Camera size={16} color="#FFFFFF" /> Change Cover Photo
                 </div>
               </>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: clr.textMid }}>
-                <span style={{ fontSize: 24, marginBottom: 4 }}>📷</span>
+                <Camera size={24} color={clr.indigo} style={{ marginBottom: 4 }} />
                 <span style={{ fontSize: 14, fontWeight: 600 }}>Add a cover photo</span>
               </div>
             )}
@@ -1340,14 +1347,11 @@ function BatteryIcon({ percentage, color, glow }) {
           />
         ))}
         {percentage >= 60 && (
-          <text
-            x="38" y="26"
-            textAnchor="middle"
-            fontSize="14"
-            style={{ userSelect: 'none' }}
-          >
-            ⚡
-          </text>
+          <path
+            d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"
+            fill={color}
+            transform="translate(31, 15) scale(0.6)"
+          />
         )}
       </svg>
       <p style={{
@@ -1431,12 +1435,14 @@ function SocialBattery() {
                 transition: 'width 1s cubic-bezier(0.34,1.56,0.64,1)',
               }} />
             </div>
-            <p style={{ fontSize: 11, color: clr.textMid, margin: '8px 0 0 0' }}>
-              {batteryPoints < 35
-                ? '💡 Join a circle or attend an event to charge up'
-                : batteryPoints < 60
-                  ? '💡 Send a message or join a circle to boost your battery'
-                  : '✨ Great work — keep socializing!'}
+            <p style={{ fontSize: 11, color: clr.textMid, margin: '8px 0 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+              {batteryPoints < 35 ? (
+                <><Lightbulb size={12} color={clr.indigo} style={{ flexShrink: 0 }} /> Join a circle or attend an event to charge up</>
+              ) : batteryPoints < 60 ? (
+                <><Lightbulb size={12} color={clr.indigo} style={{ flexShrink: 0 }} /> Send a message or join a circle to boost your battery</>
+              ) : (
+                <><Sparkles size={12} color={clr.indigo} style={{ flexShrink: 0 }} /> Great work — keep socializing!</>
+              )}
             </p>
           </div>
         </div>
@@ -2004,12 +2010,12 @@ export default function Feed() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {lfgSheetPost.placeName && (
                     <div style={{ fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>📍</span> {lfgSheetPost.placeName} {lfgSheetPost.placeAddress ? `(${lfgSheetPost.placeAddress})` : ''}
+                      <MapPin size={14} color={clr.textMid} /> {lfgSheetPost.placeName} {lfgSheetPost.placeAddress ? `(${lfgSheetPost.placeAddress})` : ''}
                     </div>
                   )}
                   {lfgSheetPost.startsAt && (
                     <div style={{ fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>🕒</span> Starts at {new Date(lfgSheetPost.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                      <Clock size={14} color={clr.textMid} /> Starts at {new Date(lfgSheetPost.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                     </div>
                   )}
                 </div>
@@ -2018,8 +2024,9 @@ export default function Feed() {
                 fontSize: 12, fontWeight: 800, color: '#B45309',
                 backgroundColor: 'rgba(245,158,11,0.15)',
                 padding: '6px 12px', borderRadius: 999, flexShrink: 0,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
               }}>
-                ⏱️ {timeLeftLabel(lfgSheetPost.expiresAt)}
+                <Timer size={12} color="#B45309" /> {timeLeftLabel(lfgSheetPost.expiresAt)}
               </span>
             </div>
 
