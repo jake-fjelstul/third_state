@@ -176,9 +176,8 @@ function useDarkMode() {
   return isDark
 }
 
-function NetworkGraph({ filter, connections = [], circles, joinedCircles, currentUser, onSelectNode, selectedNode }) {
+function NetworkGraph({ filter, connections = [], circles = [], joinedCircles = [], currentUser, onSelectNode, selectedNode, onOpenTab }) {
   const isDark = useDarkMode()
-  const [hoveredNode, setHoveredNode] = useState(null)
   const { blockedUserIds } = useAppContext()
 
   const colors = isDark ? {
@@ -187,275 +186,370 @@ function NetworkGraph({ filter, connections = [], circles, joinedCircles, curren
     bg: '#F0F0F5', card: '#FFFFFF', ring: '#E8E8EE', edge: '#5B5FEF', youBorder: '#5B5FEF', glow1: 'rgba(91,95,239,0.15)', glow2: 'rgba(91,95,239,0.08)', circleNodeBg: '#EEF0FF', circleNodeBorder: '#5B5FEF', personNodeBg: '#FFFFFF', personNodeBorder: '#E8E8EE', labelYou: '#1A1A2E', labelOther: '#6B7280', tooltipBg: '#FFFFFF',
   }
 
-  const cx = 250, cy = 245
-  const R1 = 75, R2 = 130, R3 = 185
-  const PADDING = 30
+  const cx = 280, cy = 280
+  const minDim = 500
+  const R1 = 0.30 * minDim // 150px
+  const R2 = 0.44 * minDim // 220px
 
-  const clampX = (x, r) => Math.max(PADDING + r, Math.min(500 - PADDING - r, x))
-  const clampY = (y, r) => Math.max(PADDING + r, Math.min(520 - PADDING - r, y))
+  const activeBlockedIds = blockedUserIds || []
 
-  const graphData = useMemo(() => {
-    const nodes = []
-    const edges = []
-    let hiddenCount = 0
+  // Ring 1: Direct Connections (Filtered & Capped to 12)
+  const validConnections = (connections || []).filter(
+    conn => conn.id && conn.id !== currentUser?.id && !activeBlockedIds.includes(conn.id)
+  )
 
-    nodes.push({
-      id: 'you', type: 'user', label: (currentUser?.name || 'You').split(' ')[0],
-      avatar: currentUser?.avatar, x: cx, y: cy, radius: 32, matchFilter: true
+  const maxRing1Slots = 12
+  const hasConnectionOverflow = validConnections.length > maxRing1Slots
+  const displayConnCount = hasConnectionOverflow ? maxRing1Slots - 1 : validConnections.length
+  const overflowConnCount = hasConnectionOverflow ? validConnections.length - displayConnCount : 0
+
+  const ring1Items = validConnections.slice(0, displayConnCount).map(c => ({
+    type: 'connection',
+    data: c,
+    id: `person-${c.id}`,
+    label: (c.name || 'User').split(' ')[0],
+  }))
+
+  if (hasConnectionOverflow) {
+    ring1Items.push({
+      type: 'overflow_connections',
+      id: 'overflow-connections',
+      label: `+${overflowConnCount}`,
+      count: overflowConnCount,
     })
-
-    const matchesFilter = (c) => {
-      if (filter === 'all') return true
-      if (filter === 'professional') return c.category === 'professional' || c.interestTag?.toLowerCase().includes('startup') || c.interestTag?.toLowerCase().includes('tech')
-      if (filter === 'social') return c.category === 'social'
-      if (filter === 'activity') return c.category === 'outdoors' || c.category === 'activity'
-      return true
-    }
-
-    const joinedCircleObjs = joinedCircles.map(id => circles.find(c => c.id === id)).filter(Boolean)
-    joinedCircleObjs.sort((a, b) => getMemberCount(b) - getMemberCount(a))
-
-    const coreCircles = joinedCircleObjs.slice(0, 4)
-    const activeCircles = joinedCircleObjs.slice(4)
-    const offsetAngle = 15 * (Math.PI / 180)
-
-    coreCircles.forEach((c, i) => {
-      const angle = (i / Math.max(coreCircles.length, 1)) * Math.PI * 2 - Math.PI / 2 + offsetAngle
-      const match = matchesFilter(c)
-      const r = 22
-      const x = cx + R1 * Math.cos(angle)
-      const y = cy + R1 * Math.sin(angle)
-      nodes.push({
-        id: `circle-${c.id}`, type: 'circle', label: c.name.slice(0, 10) + (c.name.length > 10 ? '…' : ''),
-        name: c.name, emoji: c.emoji, icon: c.icon, circleId: c.id,
-        x: clampX(x, r), y: clampY(y, r),
-        radius: r, matchFilter: match, strength: 'strong'
-      })
-      edges.push({ from: 'you', to: `circle-${c.id}`, strength: 'strong', type: 'shares a circle' })
-    })
-
-    const middleRingRaw = []
-    const outerRingRaw = []
-
-    activeCircles.forEach(c => middleRingRaw.push({ type: 'circle_node', data: c }))
-
-    const personMap = new Map()
-    const activeBlockedIds = blockedUserIds || []
-
-    // (a) Direct connections
-    (connections || []).forEach(conn => {
-      if (!conn.id || conn.id === currentUser?.id || activeBlockedIds.includes(conn.id)) return
-      personMap.set(conn.id, {
-        data: conn,
-        isConnection: true,
-        sharedCircles: [],
-        matchFilter: filter === 'all'
-      })
-    })
-
-    // (b) Members of circles the user has joined (no truncation cap!)
-    joinedCircleObjs.forEach(c => {
-      const isCircleMatch = matchesFilter(c)
-      const members = (c.members || []).filter(m => m.id && m.id !== currentUser?.id && !activeBlockedIds.includes(m.id))
-      members.forEach(m => {
-        if (!personMap.has(m.id)) {
-          personMap.set(m.id, {
-            data: m,
-            isConnection: false,
-            sharedCircles: [],
-            matchFilter: isCircleMatch
-          })
-        }
-        const entry = personMap.get(m.id)
-        entry.sharedCircles.push(c)
-        if (isCircleMatch) entry.matchFilter = true
-      })
-    })
-
-    Array.from(personMap.values()).forEach(p => {
-      if (p.isConnection || p.sharedCircles.length > 1) {
-        middleRingRaw.push({ type: 'person_node', ...p })
-      } else {
-        outerRingRaw.push({ type: 'person_node', ...p })
-      }
-    })
-
-    const middleRingNodes = middleRingRaw
-    const outerRingNodes = outerRingRaw
-
-    middleRingNodes.forEach((item, i) => {
-      const angle = (i / Math.max(middleRingNodes.length, 1)) * Math.PI * 2 - Math.PI / 2 + offsetAngle
-      if (item.type === 'circle_node') {
-        const c = item.data
-        const match = matchesFilter(c)
-        const r = 22
-        const x = cx + R2 * Math.cos(angle)
-        const y = cy + R2 * Math.sin(angle)
-        nodes.push({
-          id: `circle-${c.id}`, type: 'circle', label: c.name.slice(0, 10) + (c.name.length > 10 ? '…' : ''),
-          name: c.name, emoji: c.emoji, icon: c.icon, circleId: c.id,
-          x: clampX(x, r), y: clampY(y, r),
-          radius: r, matchFilter: match, strength: 'medium'
-        })
-        edges.push({ from: 'you', to: `circle-${c.id}`, strength: 'medium', type: 'shares a circle' })
-      } else {
-        const p = item.data
-        const r = 15
-        const x = cx + R2 * Math.cos(angle)
-        const y = cy + R2 * Math.sin(angle)
-        nodes.push({
-          id: `person-${p.id}`, type: 'person', label: (p.name || 'User').split(' ')[0],
-          avatar: p.avatar, personId: p.id,
-          x: clampX(x, r), y: clampY(y, r),
-          radius: r, matchFilter: item.matchFilter, strength: 'medium'
-        })
-        if (item.isConnection) {
-          edges.push({ from: 'you', to: `person-${p.id}`, strength: 'strong', type: 'connected' })
-        } else {
-          item.sharedCircles.forEach(c => edges.push({ from: `circle-${c.id}`, to: `person-${p.id}`, strength: 'medium', type: 'shares a circle' }))
-        }
-      }
-    })
-
-    outerRingNodes.forEach((item, i) => {
-      const angle = (i / Math.max(outerRingNodes.length, 1)) * Math.PI * 2 - Math.PI / 2 + offsetAngle
-      const p = item.data
-      const r = 15
-      const x = cx + R3 * Math.cos(angle)
-      const y = cy + R3 * Math.sin(angle)
-      nodes.push({
-        id: `person-${p.id}`, type: 'person', label: (p.name || 'User').split(' ')[0],
-        avatar: p.avatar, personId: p.id,
-        x: clampX(x, r), y: clampY(y, r),
-        radius: r, matchFilter: item.matchFilter, strength: 'weak'
-      })
-      if (item.isConnection) {
-        edges.push({ from: 'you', to: `person-${p.id}`, strength: 'strong', type: 'connected' })
-      } else {
-        item.sharedCircles.forEach(c => edges.push({ from: `circle-${c.id}`, to: `person-${p.id}`, strength: 'weak', type: 'shares a circle' }))
-      }
-    })
-
-    return { nodes, edges, hiddenCount }
-  }, [joinedCircles, connections, filter, currentUser, circles, blockedUserIds])
-
-  const getEdgeOpacity = (edge) => {
-    const fromNode = graphData.nodes.find(n => n.id === edge.from)
-    const toNode = graphData.nodes.find(n => n.id === edge.to)
-    if (!fromNode?.matchFilter || !toNode?.matchFilter) return 0
-
-    // Explicitly target active taps or hovers organically
-    const activeTargetId = selectedNode?.id || hoveredNode
-
-    if (activeTargetId) {
-      if (edge.from === activeTargetId || edge.to === activeTargetId) return 0.8
-      return 0.05
-    }
-
-    return edge.type === 'connected' ? 0.35 : 0.2
   }
 
-  const getEdgeStrokeWidth = (strength) => strength === 'strong' ? 2.5 : strength === 'medium' ? 1.5 : 1
+  // Ring 2: Circles (Filtered & Capped to 8)
+  const matchesFilter = (c) => {
+    if (filter === 'all') return true
+    if (filter === 'professional') return c.category === 'professional' || c.interestTag?.toLowerCase().includes('startup') || c.interestTag?.toLowerCase().includes('tech')
+    if (filter === 'social') return c.category === 'social'
+    if (filter === 'activity') return c.category === 'outdoors' || c.category === 'activity'
+    return true
+  }
 
-  const getNodeOpacity = (node) => {
-    if (!node.matchFilter) return 0.2
-    if (hoveredNode && hoveredNode !== node.id) {
-      const isConnected = graphData.edges.some(e => (e.from === hoveredNode && e.to === node.id) || (e.to === hoveredNode && e.from === node.id))
-      if (!isConnected && node.id !== 'you') return 0.3
+  const joinedCircleObjs = joinedCircles
+    .map(id => circles.find(c => c.id === id))
+    .filter(Boolean)
+    .filter(matchesFilter)
+  joinedCircleObjs.sort((a, b) => getMemberCount(b) - getMemberCount(a))
+
+  const maxRing2Slots = 8
+  const hasCircleOverflow = joinedCircleObjs.length > maxRing2Slots
+  const displayCircleCount = hasCircleOverflow ? maxRing2Slots - 1 : joinedCircleObjs.length
+  const overflowCircleCount = hasCircleOverflow ? joinedCircleObjs.length - displayCircleCount : 0
+
+  const ring2Items = joinedCircleObjs.slice(0, displayCircleCount).map(c => ({
+    type: 'circle',
+    data: c,
+    id: `circle-${c.id}`,
+    circleId: c.id,
+    label: c.name,
+  }))
+
+  if (hasCircleOverflow) {
+    ring2Items.push({
+      type: 'overflow_circles',
+      id: 'overflow-circles',
+      label: `+${overflowCircleCount}`,
+      count: overflowCircleCount,
+    })
+  }
+
+  // Compute Positions
+  const N1 = Math.max(ring1Items.length, 1)
+  const step1 = (2 * Math.PI) / N1
+
+  const ring1Nodes = ring1Items.map((item, i) => {
+    const angle = i * step1 - Math.PI / 2
+    const radius = 22 // 44px diameter
+    const x = cx + R1 * Math.cos(angle)
+    const y = cy + R1 * Math.sin(angle)
+    return { ...item, x, y, angle, radius }
+  })
+
+  const N2 = Math.max(ring2Items.length, 1)
+  const step2 = (2 * Math.PI) / N2
+  const offset2 = step2 / 2 // Half angular step rotation relative to ring 1
+
+  const ring2Nodes = ring2Items.map((item, i) => {
+    const angle = i * step2 - Math.PI / 2 + offset2
+    const radius = 16 // 32px diameter
+    const x = cx + R2 * Math.cos(angle)
+    const y = cy + R2 * Math.sin(angle)
+    return { ...item, x, y, angle, radius }
+  })
+
+  const isCircleSelected = selectedNode?.type === 'circle'
+  const selectedCircleId = isCircleSelected ? selectedNode.circleId : null
+
+  // Member Arc calculation for selected circle
+  const selectedCircleObj = selectedCircleId ? circles.find(c => c.id === selectedCircleId) : null
+  const selectedCircleMembers = selectedCircleObj
+    ? (selectedCircleObj.members || []).filter(m => m.id && m.id !== currentUser?.id && !activeBlockedIds.includes(m.id))
+    : []
+
+  const selectedCircleNode = ring2Nodes.find(n => n.type === 'circle' && n.circleId === selectedCircleId)
+
+  let memberArcNodes = []
+  if (selectedCircleNode && selectedCircleMembers.length > 0) {
+    const circleAngle = selectedCircleNode.angle
+    const memberCount = selectedCircleMembers.length
+    const arcSpread = Math.min(Math.PI * 0.7, (memberCount - 1) * 0.35)
+    const arcRadius = 36 // Distance outside the circle node center
+    const memberRadius = 14 // 28px diameter
+
+    memberArcNodes = selectedCircleMembers.map((m, i) => {
+      const angleOffset = memberCount > 1
+        ? -arcSpread / 2 + (i / (memberCount - 1)) * arcSpread
+        : 0
+      const angle = circleAngle + angleOffset
+      const mx = selectedCircleNode.x + arcRadius * Math.cos(angle)
+      const my = selectedCircleNode.y + arcRadius * Math.sin(angle)
+      return {
+        id: `arc-member-${m.id}`,
+        personId: m.id,
+        name: m.name,
+        avatar: m.avatar,
+        x: mx,
+        y: my,
+        radius: memberRadius,
+        circleX: selectedCircleNode.x,
+        circleY: selectedCircleNode.y,
+      }
+    })
+  }
+
+  // Radial label helper for Ring 1
+  const getRing1LabelProps = (angle, count) => {
+    const labelDist = 30 // 22px node radius + 8px gap
+    const lx = Math.cos(angle) * labelDist
+    const ly = Math.sin(angle) * labelDist
+    const cosVal = Math.cos(angle)
+    const sinVal = Math.sin(angle)
+
+    let textAnchor = 'middle'
+    if (cosVal > 0.3) textAnchor = 'start'
+    else if (cosVal < -0.3) textAnchor = 'end'
+
+    let dominantBaseline = 'central'
+    if (sinVal > 0.4) dominantBaseline = 'hanging'
+    else if (sinVal < -0.4) dominantBaseline = 'auto'
+
+    const fontSize = count > 8 ? 10 : 11
+    const maxLen = count > 8 ? 8 : 10
+
+    return { lx, ly, textAnchor, dominantBaseline, fontSize, maxLen }
+  }
+
+  const handleSvgClick = (e) => {
+    if (e.target.getAttribute('data-bg') === 'true' || e.target.tagName === 'svg') {
+      onSelectNode?.(null)
     }
-    return 1
   }
 
   return (
     <div>
       <div style={{ position: 'relative', width: '100%', borderRadius: 24, backgroundColor: colors.card, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-        <svg viewBox="0 0 500 520" style={{ width: '100%', height: 'auto', maxWidth: '100%', display: 'block' }}>
-          <circle cx={cx} cy={cy} r={R1} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1.5} />
-          <circle cx={cx} cy={cy} r={R2} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1} />
-          <circle cx={cx} cy={cy} r={R3} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1} />
+        <svg
+          viewBox="0 0 560 560"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ width: '100%', height: 'auto', maxWidth: '100%', display: 'block', cursor: 'pointer' }}
+          onClick={handleSvgClick}
+        >
+          {/* Background overlay target for clearing selection */}
+          <rect width="560" height="560" fill="transparent" data-bg="true" />
 
-          {joinedCircles.length === 0 && connections.length === 0 && (
-            <text x={cx} y={cy + R2 - 20} textAnchor="middle" fill={colors.labelOther} fontSize={13} fontStyle="italic">
+          {/* Concentric Guide Rings */}
+          <circle cx={cx} cy={cy} r={R1} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1.5} opacity={selectedCircleId ? 0.3 : 1} />
+          <circle cx={cx} cy={cy} r={R2} fill="none" stroke={colors.ring} strokeDasharray="4 6" strokeWidth={1} opacity={selectedCircleId ? 0.3 : 1} />
+
+          {/* Empty State */}
+          {ring1Nodes.length === 0 && ring2Nodes.length === 0 && (
+            <text x={cx} y={cy + R1 + 20} textAnchor="middle" fill={colors.labelOther} fontSize={13} fontStyle="italic">
               Join circles or add connections to grow your network
             </text>
           )}
 
-          {graphData.hiddenCount > 0 && (
-            <text x={cx} y={cy + R3 + 24} textAnchor="middle" fill={colors.labelOther} fontSize={11} fontStyle="italic">
-              +{graphData.hiddenCount} more
-            </text>
-          )}
+          {/* Default Edges: Center to Ring 1 Connections ONLY */}
+          {ring1Nodes.map((node) => (
+            <line
+              key={`edge-you-${node.id}`}
+              x1={cx}
+              y1={cy}
+              x2={node.x}
+              y2={node.y}
+              stroke={colors.edge}
+              strokeWidth={1}
+              strokeOpacity={selectedCircleId ? 0.08 : 0.25}
+              style={{ transition: 'stroke-opacity 0.3s ease' }}
+            />
+          ))}
 
-          {graphData.edges.map((e, i) => {
-            const from = graphData.nodes.find(n => n.id === e.from)
-            const to = graphData.nodes.find(n => n.id === e.to)
-            if (!from || !to) return null
-            return <line key={`${e.from}-${e.to}-${i}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={e.type === 'connected' ? colors.youBorder : colors.edge} strokeWidth={getEdgeStrokeWidth(e.strength)} strokeOpacity={getEdgeOpacity(e)} strokeDasharray={e.type === 'shares a circle' ? '3 3' : undefined} style={{ transition: 'stroke-opacity 0.3s ease' }} />
+          {/* Selected Circle Member Arc Edges */}
+          {memberArcNodes.map((m) => (
+            <line
+              key={`edge-arc-${m.id}`}
+              x1={m.circleX}
+              y1={m.circleY}
+              x2={m.x}
+              y2={m.y}
+              stroke={colors.edge}
+              strokeWidth={1.5}
+              strokeDasharray="2 2"
+              strokeOpacity={0.8}
+            />
+          ))}
+
+          {/* CENTER NODE: Current User */}
+          {(() => {
+            const userRadius = 32 // 64px diameter
+            const isDimmed = selectedCircleId !== null
+            return (
+              <g
+                transform={`translate(${cx}, ${cy})`}
+                style={{ cursor: 'pointer', opacity: isDimmed ? 0.3 : 1, transition: 'opacity 0.3s ease' }}
+                onClick={(e) => { e.stopPropagation(); onSelectNode?.({ id: 'you', type: 'user', label: currentUser?.name }) }}
+              >
+                <circle cx={0} cy={0} r={userRadius + 8} fill="none" stroke={colors.glow1} strokeWidth="2" />
+                <circle cx={0} cy={0} r={userRadius + 16} fill="none" stroke={colors.glow2} strokeWidth="1" />
+                <foreignObject x={-userRadius} y={-userRadius} width={userRadius * 2} height={userRadius * 2}>
+                  <img src={avatarFor({ avatar: currentUser?.avatar, name: currentUser?.name })} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                </foreignObject>
+                <circle cx={0} cy={0} r={userRadius} fill="none" stroke={colors.youBorder} strokeWidth="2" />
+                <text x={0} y={userRadius + 18} textAnchor="middle" fontSize={13} fontWeight={600} fill={colors.labelYou} style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                  {(currentUser?.name || 'You').split(' ')[0]}
+                </text>
+              </g>
+            )
+          })()}
+
+          {/* RING 1 NODES: Direct Connections */}
+          {ring1Nodes.map((node) => {
+            const isDimmed = selectedCircleId !== null
+            if (node.type === 'overflow_connections') {
+              return (
+                <g
+                  key={node.id}
+                  transform={`translate(${node.x}, ${node.y})`}
+                  style={{ cursor: 'pointer', opacity: isDimmed ? 0.3 : 1, transition: 'opacity 0.3s ease' }}
+                  onClick={(e) => { e.stopPropagation(); onOpenTab?.('connections') }}
+                >
+                  <circle cx={0} cy={0} r={node.radius} fill={colors.personNodeBg} stroke={colors.youBorder} strokeWidth="1.5" />
+                  <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fontWeight={700} fill={colors.youBorder}>
+                    {node.label}
+                  </text>
+                </g>
+              )
+            }
+
+            const p = node.data
+            const labelProps = getRing1LabelProps(node.angle, ring1Nodes.length)
+            const truncatedLabel = p.name ? (p.name.length > labelProps.maxLen ? p.name.slice(0, labelProps.maxLen) + '…' : p.name) : 'User'
+
+            return (
+              <g
+                key={node.id}
+                transform={`translate(${node.x}, ${node.y})`}
+                style={{ cursor: 'pointer', opacity: isDimmed ? 0.3 : 1, transition: 'opacity 0.3s ease' }}
+                onPointerDown={(e) => { e.stopPropagation(); onSelectNode?.({ id: node.id, type: 'person', personId: p.id, label: p.name, avatar: p.avatar }) }}
+              >
+                <foreignObject x={-node.radius} y={-node.radius} width={node.radius * 2} height={node.radius * 2}>
+                  <img src={avatarFor({ avatar: p.avatar, name: p.name })} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', backgroundColor: colors.personNodeBg }} />
+                </foreignObject>
+                <circle cx={0} cy={0} r={node.radius} fill="none" stroke={colors.personNodeBorder} strokeWidth="1.5" />
+                <text
+                  x={labelProps.lx}
+                  y={labelProps.ly}
+                  textAnchor={labelProps.textAnchor}
+                  dominantBaseline={labelProps.dominantBaseline}
+                  fontSize={labelProps.fontSize}
+                  fontWeight={500}
+                  fill={colors.labelOther}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {truncatedLabel}
+                </text>
+              </g>
+            )
           })}
 
-          {graphData.nodes.map(node => {
-            const isHovered = hoveredNode === node.id
-            const scale = isHovered ? 1.15 : 1
+          {/* RING 2 NODES: Circles */}
+          {ring2Nodes.map((node) => {
+            const isSelected = selectedCircleId === node.circleId
+            const isDimmed = selectedCircleId !== null && !isSelected
+
+            if (node.type === 'overflow_circles') {
+              return (
+                <g
+                  key={node.id}
+                  transform={`translate(${node.x}, ${node.y})`}
+                  style={{ cursor: 'pointer', opacity: isDimmed ? 0.3 : 0.6, transition: 'opacity 0.3s ease' }}
+                  onClick={(e) => { e.stopPropagation(); onOpenTab?.('circles') }}
+                >
+                  <circle cx={0} cy={0} r={node.radius} fill={colors.circleNodeBg} stroke={colors.circleNodeBorder} strokeWidth="1.5" />
+                  <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fontWeight={700} fill={colors.circleNodeBorder}>
+                    {node.label}
+                  </text>
+                </g>
+              )
+            }
+
+            const c = node.data
+            const nodeOpacity = isSelected ? 1.0 : isDimmed ? 0.3 : 0.6
+
             return (
-              <g key={node.id} transform={`translate(${node.x}, ${node.y}) scale(${scale})`} style={{ cursor: 'pointer', transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease', opacity: getNodeOpacity(node) }} onPointerEnter={() => setHoveredNode(node.id)} onPointerLeave={() => setHoveredNode(null)} onPointerDown={() => onSelectNode(node)}>
-                {node.type === 'user' && (
-                  <>
-                    <circle cx={0} cy={0} r={node.radius + 12} fill="none" stroke={colors.glow1} strokeWidth="2" />
-                    <circle cx={0} cy={0} r={node.radius + 24} fill="none" stroke={colors.glow2} strokeWidth="1" />
-                    <foreignObject x={-node.radius} y={-node.radius} width={node.radius * 2} height={node.radius * 2}>
-                      <img src={avatarFor({ avatar: node.avatar, name: node.label })} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                    </foreignObject>
-                    <circle cx={0} cy={0} r={node.radius} fill="none" stroke={colors.youBorder} strokeWidth="3" />
-                    <text x={0} y={node.radius + 18} textAnchor="middle" fontSize={13} fontWeight={700} fill={colors.labelYou} style={{ pointerEvents: 'none', userSelect: 'none' }}>
-                      {node.label}
-                    </text>
-                  </>
-                )}
-
-                {node.type === 'circle' && (
-                  <>
-                    <circle cx={0} cy={0} r={node.radius} fill={colors.circleNodeBg} stroke={colors.circleNodeBorder} strokeWidth="2" />
-                    <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="700" fill="#FFFFFF">
-                      {(node.name || node.label || '?').charAt(0).toUpperCase()}
-                    </text>
-                    <text x={0} y={node.radius + 14} textAnchor="middle" fontSize={10} fontWeight={600} fill={colors.labelOther} style={{ pointerEvents: 'none', userSelect: 'none' }}>
-                      {node.label}
-                    </text>
-                  </>
-                )}
-
-                {node.type === 'person' && (
-                  <>
-                    <foreignObject x={-node.radius} y={-node.radius} width={node.radius * 2} height={node.radius * 2}>
-                      <img src={avatarFor({ avatar: node.avatar, name: node.label })} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', backgroundColor: colors.personNodeBg }} />
-                    </foreignObject>
-                    <circle cx={0} cy={0} r={node.radius} fill="none" stroke={colors.personNodeBorder} strokeWidth="1.5" />
-                    <text x={0} y={node.radius + 12} textAnchor="middle" fontSize={10} fontWeight={500} fill={colors.labelOther} style={{ pointerEvents: 'none', userSelect: 'none' }}>
-                      {node.label}
-                    </text>
-                  </>
+              <g
+                key={node.id}
+                transform={`translate(${node.x}, ${node.y})`}
+                style={{ cursor: 'pointer', opacity: nodeOpacity, transition: 'opacity 0.3s ease' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (isSelected) {
+                    onSelectNode?.(null)
+                  } else {
+                    onSelectNode?.({ id: node.id, type: 'circle', circleId: c.id, label: c.name, name: c.name, emoji: c.emoji, icon: c.icon })
+                  }
+                }}
+              >
+                <circle cx={0} cy={0} r={node.radius} fill={colors.circleNodeBg} stroke={isSelected ? colors.youBorder : colors.circleNodeBorder} strokeWidth={isSelected ? 2.5 : 1.5} />
+                <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize="13" fontWeight="700" fill={colors.circleNodeBorder}>
+                  {(c.name || '?').charAt(0).toUpperCase()}
+                </text>
+                {/* Circle Label: HIDDEN by default, shown ONLY when selected */}
+                {isSelected && (
+                  <text x={0} y={node.radius + 14} textAnchor="middle" fontSize={12} fontWeight={700} fill={colors.labelYou} style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                    {c.name}
+                  </text>
                 )}
               </g>
             )
           })}
-        </svg>
 
-        {hoveredNode && graphData.nodes.find(n => n.id === hoveredNode && n.id !== 'you') && (() => {
-          const n = graphData.nodes.find(n => n.id === hoveredNode)
-          return (
-            <div style={{ position: 'absolute', top: `${(n.y / 520) * 100}%`, left: `${(n.x / 500) * 100}%`, transform: 'translate(-50%, calc(-100% - 28px))', backgroundColor: colors.tooltipBg, padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, color: colors.labelYou, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10 }}>
-              {n.label} <span style={{ color: colors.labelOther, fontWeight: 500, marginLeft: 4 }}>{n.type === 'circle' ? 'Circle' : 'Person'}</span>
-            </div>
-          )
-        })()}
+          {/* SELECTED CIRCLE MEMBER ARC AVATARS */}
+          {memberArcNodes.map((m) => (
+            <g
+              key={m.id}
+              transform={`translate(${m.x}, ${m.y})`}
+              style={{ cursor: 'pointer', animation: 'slideUp 0.15s ease' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectNode?.({ id: `person-${m.personId}`, type: 'person', personId: m.personId, label: m.name, avatar: m.avatar })
+              }}
+            >
+              <foreignObject x={-m.radius} y={-m.radius} width={m.radius * 2} height={m.radius * 2}>
+                <img src={avatarFor({ avatar: m.avatar, name: m.name })} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', backgroundColor: colors.personNodeBg }} />
+              </foreignObject>
+              <circle cx={0} cy={0} r={m.radius} fill="none" stroke={colors.personNodeBorder} strokeWidth="1.5" />
+            </g>
+          ))}
+        </svg>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 16, padding: '0 4px', fontSize: 11, color: colors.labelOther, alignItems: 'center' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: colors.youBorder }} /> You</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: '1px', border: `1.5px solid ${colors.circleNodeBorder}` }} /> Circle</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: '50%', border: `1.5px solid ${colors.personNodeBorder}` }} /> Person</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 16, height: 2, backgroundColor: colors.edge, opacity: 0.35 }} /> Strong</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 16, height: 1, backgroundColor: colors.edge, opacity: 0.15 }} /> Weak</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: '50%', border: `1.5px solid ${colors.personNodeBorder}` }} /> Connection (Ring 1)</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: colors.circleNodeBg, border: `1.5px solid ${colors.circleNodeBorder}` }} /> Circle (Ring 2)</span>
       </div>
     </div>
   )
@@ -827,7 +921,7 @@ export default function Circles() {
                   ))}
                 </div>
 
-                <NetworkGraph filter={networkFilter} connections={connections} circles={circles} joinedCircles={joinedCircles} currentUser={currentUser} onSelectNode={setSelectedNode} selectedNode={selectedNode} />
+                <NetworkGraph filter={networkFilter} connections={rankedConnections} circles={circles} joinedCircles={joinedCircles} currentUser={currentUser} onSelectNode={setSelectedNode} selectedNode={selectedNode} onOpenTab={setActiveTab} />
 
                 {selectedNode && (
                   <div style={{
