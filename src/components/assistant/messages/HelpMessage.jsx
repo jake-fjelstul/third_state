@@ -1,10 +1,12 @@
+import { UserPlus, Circle, Calendar, Sparkles, Compass } from 'lucide-react'
+
 export default function HelpMessage({ clr }) {
   const items = [
-    { icon: '👋', text: 'Find people: "people into hiking"' },
-    { icon: '⭕', text: 'Find circles: "photography circles"' },
-    { icon: '📅', text: 'Find events: "events this weekend"' },
-    { icon: '✨', text: 'Create: "host a yoga meetup Saturday"' },
-    { icon: '🗺️', text: 'Navigate: "open my schedule"' },
+    { Icon: UserPlus, text: 'Find people: "people into hiking"' },
+    { Icon: Circle, text: 'Find circles: "photography circles"' },
+    { Icon: Calendar, text: 'Find events: "events this weekend"' },
+    { Icon: Sparkles, text: 'Create: "host a yoga meetup Saturday"' },
+    { Icon: Compass, text: 'Navigate: "open my schedule"' },
   ]
   return (
     <div style={{
@@ -15,10 +17,10 @@ export default function HelpMessage({ clr }) {
         Hey! I can help you find people, circles, events — or create new ones.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map(i => (
-          <div key={i.text} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>{i.icon}</span>
-            <span style={{ fontSize: 13, color: clr.textMid }}>{i.text}</span>
+        {items.map(({ Icon, text }) => (
+          <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon size={16} color={clr.indigo} />
+            <span style={{ fontSize: 13, color: clr.textMid }}>{text}</span>
           </div>
         ))}
       </div>

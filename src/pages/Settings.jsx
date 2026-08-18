@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { listMyBlocks } from '../lib/moderation'
 import { avatarFor } from '../lib/avatar'
 import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
+import { Mail, HelpCircle, Calendar, CheckCircle2 } from 'lucide-react'
 
 const clr = {
   bg:       'var(--bg)',
@@ -763,7 +764,7 @@ export default function Settings() {
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <a
-                  href="mailto:support@third-space-app.com"
+                  href="mailto:support@thirdspace.app"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -779,7 +780,7 @@ export default function Settings() {
                     border: `1px solid ${clr.border}`,
                   }}
                 >
-                  ✉️ Contact support
+                  <Mail size={16} color={clr.indigo} /> Contact support
                 </a>
                 <button
                   type="button"
@@ -799,7 +800,7 @@ export default function Settings() {
                     cursor: 'pointer',
                   }}
                 >
-                  ❓ Help and support
+                  <HelpCircle size={16} color={clr.indigo} /> Help and support
                 </button>
               </div>
             </div>
@@ -833,7 +834,9 @@ export default function Settings() {
           <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 2px 14px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
             <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: clr.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📅</div>
+                <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: clr.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Calendar size={20} color={clr.indigo} />
+                </div>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Google Calendar</p>
                   <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
@@ -917,7 +920,7 @@ export default function Settings() {
       {/* Success Toast */}
       {toastMessage && (
         <div style={{ position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 700, zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', animation: 'fadeToast 2.5s ease forwards' }}>
-          <span style={{ fontSize: 18 }}>✅</span> {toastMessage}
+          <CheckCircle2 size={18} color="#16A34A" /> {toastMessage}
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Dices, Sparkles } from 'lucide-react'
 
 const SUGGESTED_QUESTIONS = [
   "What's something you keep meaning to do and haven't?",
@@ -177,7 +178,7 @@ export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, o
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
-              🎲 Shuffle
+              <Dices size={14} color="currentColor" /> Shuffle
             </button>
           )}
 
@@ -186,14 +187,14 @@ export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, o
             onClick={handleToggleCustom}
             style={{
               padding: '6px 12px', borderRadius: 8,
-              border: `1px solid ${isCustom ? clr?.indigo || '#5B5FEF' : clr?.border || '#E5E7EB'}`,
+              border: `1.5px solid ${isCustom ? clr?.indigo || '#5B5FEF' : clr?.border || '#E5E7EB'}`,
               backgroundColor: isCustom ? 'var(--indigoLt, #EEF0FF)' : clr?.bg || '#F9FAFB',
               color: isCustom ? clr?.indigo || '#5B5FEF' : clr?.textDark || '#1F2937',
               fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            {isCustom ? '✨ Use suggested' : 'Custom'}
+            {isCustom ? <><Sparkles size={14} color="currentColor" /> Use suggested</> : 'Custom'}
           </button>
         </div>
 

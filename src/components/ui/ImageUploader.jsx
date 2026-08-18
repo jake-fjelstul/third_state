@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Camera } from 'lucide-react'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -101,8 +102,8 @@ export default function ImageUploader({
           }}>
             {hovered && (
               isCircle ? (
-                <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>📷</div>
+                <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <Camera size={20} color="#FFFFFF" style={{ marginBottom: 4 }} />
                   {overlayLabel}
                 </div>
               ) : (

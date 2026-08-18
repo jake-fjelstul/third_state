@@ -6,6 +6,7 @@ import { useCalendar } from '../hooks/useCalendar.js'
 import EventDetailModal from '../components/EventDetailModal.jsx'
 import TimePicker from '../components/TimePicker.jsx'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
+import { Camera, Calendar, CalendarCheck } from 'lucide-react'
 
 // Color system
 const clr = {
@@ -383,7 +384,7 @@ export default function Schedule() {
             display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          📸 Memories
+          <Camera size={14} color="currentColor" /> Memories
         </button>
       </div>
 
@@ -404,9 +405,9 @@ export default function Schedule() {
                   width: 32, height: 32, borderRadius: 8,
                   backgroundColor: isConnected ? '#DCFCE7' : clr.bg,
                   display: 'flex', alignItems: 'center', 
-                  justifyContent: 'center', fontSize: 16,
+                  justifyContent: 'center',
                 }}>
-                  📅
+                  <Calendar size={18} color={isConnected ? '#059669' : clr.indigo} />
                 </div>
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#064E3B' : clr.textDark, margin: 0 }}>
@@ -843,7 +844,7 @@ export default function Schedule() {
               {isConnected && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, padding: '12px 16px', backgroundColor: clr.bg, borderRadius: 12, border: `1.5px solid ${clr.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 16 }}>📅</span>
+                    <CalendarCheck size={16} color={clr.indigo} />
                     <span style={{ fontSize: 14, fontWeight: 700, color: clr.textDark }}>Sync to Google Calendar</span>
                   </div>
                   <button type="button" onClick={() => setAddToGCal(!addToGCal)} style={{

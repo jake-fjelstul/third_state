@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext.jsx'
+import { Lightbulb } from 'lucide-react'
 
 export default function QuestionPrompt({ clr, chat, messages = [] }) {
   const {
@@ -124,9 +125,9 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
           <span style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
             color: clr?.indigo || '#5B5FEF', backgroundColor: 'var(--indigoLt, #EEF0FF)',
-            padding: '3px 8px', borderRadius: 8,
+            padding: '3px 8px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
-            💡 Question pending for {pendingSq.recipientName || 'Connection'}
+            <Lightbulb size={12} color="#D97706" /> Question pending for {pendingSq.recipientName || 'Connection'}
           </span>
           <button
             type="button"
@@ -201,9 +202,9 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
         <span style={{
           fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
           color: clr?.indigo || '#5B5FEF', backgroundColor: 'var(--indigoLt, #EEF0FF)',
-          padding: '3px 8px', borderRadius: 8,
+          padding: '3px 8px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
         }}>
-          💡 {badgeLabel}
+          <Lightbulb size={12} color="#D97706" /> {badgeLabel}
         </span>
       </div>
 

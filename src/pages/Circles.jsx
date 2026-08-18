@@ -6,6 +6,7 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import Memories from './Memories.jsx'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
+import { Briefcase, PartyPopper, Activity, Users, MessageCircle } from 'lucide-react'
 
 const clr = {
   bg: 'var(--bg)',
@@ -837,15 +838,16 @@ export default function Circles() {
                   color: connectionFilter === f ? '#FFFFFF' : clr.textMid,
                   fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
                   boxShadow: connectionFilter === f ? '0 4px 12px rgba(91,95,239,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}>
-                  {f === 'all' ? 'All' : f === 'professional' ? '💼 Professional' : f === 'social' ? '🎉 Social' : '🏃 Activity'}
+                  {f === 'all' ? 'All' : f === 'professional' ? <><Briefcase size={14} color="currentColor" /> Professional</> : f === 'social' ? <><PartyPopper size={14} color="currentColor" /> Social</> : <><Activity size={14} color="currentColor" /> Activity</>}
                 </button>
               ))}
             </div>
 
             {rankedConnections.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🤝</div>
+              <div style={{ textAlign: 'center', padding: '48px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Users size={48} color={clr.indigo} style={{ marginBottom: 12 }} />
                 <p style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, margin: '0 0 8px 0' }}>No connections yet</p>
                 <p style={{ fontSize: 14, color: clr.textMid, margin: 0 }}>Join circles and start chatting to build your network</p>
               </div>
@@ -888,8 +890,8 @@ export default function Circles() {
                             </span>
                           ))}
                           {hasDM && (
-                            <span style={{ fontSize: 10, color: clr.indigo, backgroundColor: clr.indigoLt, padding: '2px 8px', borderRadius: 999 }}>
-                              💬 DM
+                            <span style={{ fontSize: 10, color: clr.indigo, backgroundColor: clr.indigoLt, padding: '2px 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <MessageCircle size={10} color={clr.indigo} /> DM
                             </span>
                           )}
                         </div>
@@ -929,8 +931,9 @@ export default function Circles() {
                       color: networkFilter === f ? '#FFFFFF' : clr.textMid,
                       fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
                       boxShadow: networkFilter === f ? '0 4px 12px rgba(91,95,239,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
                     }}>
-                      {f === 'all' ? 'All' : f === 'professional' ? '💼 Professional' : f === 'social' ? '🎉 Social' : '🏃 Activity'}
+                      {f === 'all' ? 'All' : f === 'professional' ? <><Briefcase size={14} color="currentColor" /> Professional</> : f === 'social' ? <><PartyPopper size={14} color="currentColor" /> Social</> : <><Activity size={14} color="currentColor" /> Activity</>}
                     </button>
                   ))}
                 </div>

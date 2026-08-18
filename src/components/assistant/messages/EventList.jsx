@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Calendar } from 'lucide-react'
 import { avatarFor } from '../../../lib/avatar'
 import ConfirmCard from './ConfirmCard.jsx'
 import { assistantText } from '../../../lib/assistant/conversation.js'
@@ -61,8 +62,9 @@ export default function EventList({ message, ctx, clr, onAppendMessages }) {
                 <p style={{
                   margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: clr.textDark,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  {event.emoji ?? '📅'} {event.title}
+                  {event.emoji ? event.emoji : <Calendar size={14} color={clr.indigo} />} {event.title}
                 </p>
                 <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>
                   {event.date}{event.time ? ` · ${event.time}` : ''}

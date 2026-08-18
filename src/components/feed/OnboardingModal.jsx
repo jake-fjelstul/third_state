@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../../context/AppContext'
 import { INTENT_LABELS } from '../../lib/intents'
+import { PartyPopper } from 'lucide-react'
 
 export default function OnboardingModal({ inviter, showIntent, onClose }) {
   const navigate = useNavigate()
@@ -124,8 +125,8 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
           
           {/* Header Section (Celebration) */}
           {inviter && (
-            <div style={{ textAlign: 'center', marginBottom: showIntent ? 24 : 0 }}>
-              <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
+            <div style={{ textAlign: 'center', marginBottom: showIntent ? 24 : 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <PartyPopper size={56} color="var(--indigo)" style={{ marginBottom: 12 }} />
               <img
                 src={inviter?.avatar || ''}
                 alt=""

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { useAppContext } from '../../context/AppContext.jsx'
 import {
   userMessage, assistantThinking, assistantText,
@@ -135,8 +136,8 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '8px 20px 12px',
         }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: clr.textDark }}>
-            ✨ Assistant
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: clr.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={18} color={clr.indigo} /> Assistant
           </h3>
           <button
             onClick={onClose}

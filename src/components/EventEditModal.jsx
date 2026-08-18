@@ -5,6 +5,7 @@ import TimePicker from './TimePicker.jsx'
 import LocationAutocomplete from './ui/LocationAutocomplete.jsx'
 import { supabase } from '../lib/supabase.js'
 import { checkContent } from '../lib/contentFilter.js'
+import { Camera } from 'lucide-react'
 
 const clr = {
   bg: 'var(--bg)',
@@ -218,14 +219,14 @@ export default function EventEditModal({ event, onClose, onSaved }) {
                   <div style={{
                     position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF',
-                    fontSize: 14, fontWeight: 700,
+                    fontSize: 14, fontWeight: 700, gap: 6,
                   }}>
-                    📷 Change Photo
+                    <Camera size={16} color="#FFFFFF" /> Change Photo
                   </div>
                 </>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: clr.textMid }}>
-                  <span style={{ fontSize: 24, marginBottom: 4 }}>📷</span>
+                  <Camera size={24} color={clr.indigo} style={{ marginBottom: 4 }} />
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Add a cover photo</span>
                 </div>
               )}

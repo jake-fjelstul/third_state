@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { reverseGeocode, searchVenues } from '../../lib/geocoding'
+import { MapPin } from 'lucide-react'
 
 export default function LocationAutocomplete({ 
   value, 
@@ -130,7 +131,7 @@ export default function LocationAutocomplete({
           color: clr?.indigo || '#5B5FEF',
         }}
       >
-        📍
+        <MapPin size={14} color={clr?.indigo || '#5B5FEF'} />
       </button>
 
       {open && (results.length > 0 || loading || (query.trim().length >= 2 && results.length === 0)) && (

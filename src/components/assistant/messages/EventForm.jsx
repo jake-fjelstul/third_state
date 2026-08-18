@@ -3,6 +3,7 @@ import { assistantText, assistantNavigate } from '../../../lib/assistant/convers
 import LocationAutocomplete from '../../ui/LocationAutocomplete.jsx'
 import TimePicker from '../../TimePicker.jsx'
 import { useAppContext } from '../../../context/AppContext.jsx'
+import { Calendar } from 'lucide-react'
 
 export default function EventForm({ message, clr, onComplete }) {
   const ctx = useAppContext()
@@ -66,8 +67,8 @@ export default function EventForm({ message, clr, onComplete }) {
       backgroundColor: clr.white, borderRadius: 18, padding: 16,
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}>
-      <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: clr.textDark }}>
-        📅 {message.text}
+      <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: clr.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Calendar size={16} color={clr.indigo} /> {message.text}
       </p>
       <form onSubmit={handleSubmit}>
         <label style={labelStyle}>Event Name *</label>

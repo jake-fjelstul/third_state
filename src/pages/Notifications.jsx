@@ -6,6 +6,7 @@ import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { joinLfgPost } from '../lib/lfg'
 import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
+import { Calendar, CheckCircle2, XCircle, MessageCircle, UserPlus } from 'lucide-react'
 
 function friendlyJoinError(err) {
   const m = String(err?.message || '')
@@ -133,22 +134,22 @@ export default function Notifications() {
             width: 48, height: 48, borderRadius: '12px',
             backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            <span style={{ fontSize: '24px' }}>📅</span>
+            <Calendar size={24} color={clr.indigo} />
           </div>
         ) : (notif.type === 'application_approved' || notif.type === 'application_declined') ? (
           <div style={{
             width: 48, height: 48, borderRadius: '12px',
             backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            {notif.circle ? <CircleIcon circle={notif.circle} size={24} color={clr.indigo} /> : <span style={{ fontSize: '24px' }}>{notif.type === 'application_approved' ? '✅' : '❌'}</span>}
+            {notif.circle ? <CircleIcon circle={notif.circle} size={24} color={clr.indigo} /> : (notif.type === 'application_approved' ? <CheckCircle2 size={24} color="#16A34A" /> : <XCircle size={24} color="#DC2626" />)}
           </div>
         ) : notif.type === 'circle_activity' ? (
           <div style={{
             width: 48, height: 48, borderRadius: '12px', overflow: 'hidden', position: 'relative'
           }}>
             <img src={avatarFor(notif.user)} alt={notif.user?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            <div style={{ position: 'absolute', bottom: -2, right: -2, background: clr.white, borderRadius: '50%', padding: 2 }}>
-              <span style={{ fontSize: 10 }}>💬</span>
+            <div style={{ position: 'absolute', bottom: -2, right: -2, background: clr.white, borderRadius: '50%', padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MessageCircle size={10} color={clr.indigo} />
             </div>
           </div>
         ) : (notif.type === 'question_revealed' || notif.type === 'spontaneous_question' || notif.type === 'spontaneous_question_answered') ? (
@@ -194,7 +195,7 @@ export default function Notifications() {
             width: 48, height: 48, borderRadius: '50%',
             backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            <span style={{ fontSize: '24px' }}>👤</span>
+            <UserPlus size={24} color={clr.indigo} />
           </div>
         )}
 
@@ -401,9 +402,10 @@ export default function Notifications() {
                   <button onClick={() => setActivityReplyId(activityReplyId === notif.id ? null : notif.id)}
                     style={{
                       background: activityReplyId === notif.id ? clr.indigoLt : clr.bg, border: `1px solid ${clr.border}`, borderRadius: 16, padding: '6px 14px',
-                      fontSize: 13, fontWeight: 600, color: activityReplyId === notif.id ? clr.indigo : clr.textDark, cursor: 'pointer'
+                      fontSize: 13, fontWeight: 600, color: activityReplyId === notif.id ? clr.indigo : clr.textDark, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
                     }}>
-                    💬 Quick Reply
+                    <MessageCircle size={14} color="currentColor" /> Quick Reply
                   </button>
                </div>
 

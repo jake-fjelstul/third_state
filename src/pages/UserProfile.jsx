@@ -11,6 +11,7 @@ import { getAvailabilityForUser, checkConflictAt, computeFreeSlots } from '../li
 import { getConnectionStats } from '../lib/connectionStats'
 import TimePicker from '../components/TimePicker.jsx'
 import ReportModal from '../components/moderation/ReportModal.jsx'
+import { Flame, Calendar, AlertTriangle, CheckCircle, Users, Flag, Unlock, Ban } from 'lucide-react'
 
 const clr = {
   bg:       'var(--bg)',
@@ -377,7 +378,7 @@ export default function UserProfile() {
                   })()}
                   {connStats.streak > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                      <span style={{ fontSize: 14 }}>🔥</span>
+                      <Flame size={14} color="#EF4444" />
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#F59E0B' }}>
                         {connStats.streak} week{connStats.streak === 1 ? '' : ''} streak
                       </span>
@@ -540,8 +541,8 @@ export default function UserProfile() {
                     )
                   })()}
 
-                  <button onClick={() => openSuggestModal()} style={{ marginTop: 12, width: '100%', padding: '14px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFF', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(91,95,239,0.3)' }}>
-                    📅 Suggest a Meetup
+                  <button onClick={() => openSuggestModal()} style={{ marginTop: 12, width: '100%', padding: '14px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFF', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(91,95,239,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Calendar size={15} color="#FFFFFF" /> Suggest a Meetup
                   </button>
                 </>
               )}
@@ -599,7 +600,7 @@ export default function UserProfile() {
             {/* Conflict checking UI */}
             {meetupDate && meetupTime && (
               <div style={{ marginBottom: 24, padding: '12px 16px', borderRadius: 12, backgroundColor: conflict ? '#FEF3C7' : '#DCFCE7', color: conflict ? '#D97706' : '#059669', fontSize: 14, fontWeight: 600 }}>
-                {conflictChecking ? 'Checking availability...' : conflict ? `⚠️ ${person.name.split(' ')[0]} has "${conflict.title}" then — send anyway?` : `✓ ${person.name.split(' ')[0]} is free`}
+                {conflictChecking ? 'Checking availability...' : conflict ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={15} color="#D97706" /> {person.name.split(' ')[0]} has "{conflict.title}" then — send anyway?</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CheckCircle size={15} color="#059669" /> {person.name.split(' ')[0]} is free</span>}
               </div>
             )}
             
@@ -651,9 +652,10 @@ export default function UserProfile() {
               backgroundColor: clr.white, borderRadius: 24,
               padding: '28px 24px', textAlign: 'center',
               boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
             }}
           >
-            <div style={{ fontSize: 40, marginBottom: 8 }}>👋</div>
+            <Users size={40} color={clr.indigo} style={{ marginBottom: 8 }} />
             <h3 style={{
               margin: '0 0 8px', fontSize: 20, fontWeight: 800,
               color: clr.textDark,
@@ -767,7 +769,7 @@ export default function UserProfile() {
                 gap: 8,
               }}
             >
-              🚩 Report {person?.name ? person.name.split(' ')[0] : 'User'}
+              <Flag size={15} color={clr.textDark} /> Report {person?.name ? person.name.split(' ')[0] : 'User'}
             </button>
 
             {isBlocked ? (
@@ -796,7 +798,7 @@ export default function UserProfile() {
                   gap: 8,
                 }}
               >
-                🔓 Unblock {person?.name ? person.name.split(' ')[0] : 'User'}
+                <Unlock size={15} color={clr.indigo} /> Unblock {person?.name ? person.name.split(' ')[0] : 'User'}
               </button>
             ) : (
               <button
@@ -820,7 +822,7 @@ export default function UserProfile() {
                   gap: 8,
                 }}
               >
-                🚫 Block {person?.name ? person.name.split(' ')[0] : 'User'}
+                <Ban size={15} color="#DC2626" /> Block {person?.name ? person.name.split(' ')[0] : 'User'}
               </button>
             )}
 
@@ -872,7 +874,7 @@ export default function UserProfile() {
               boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
             }}
           >
-            <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>🚫</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Ban size={32} color="#DC2626" /></div>
             <h3 style={{ margin: '0 0 10px 0', fontSize: 20, fontWeight: 800, color: clr.textDark, textAlign: 'center' }}>
               Block {person?.name}?
             </h3>

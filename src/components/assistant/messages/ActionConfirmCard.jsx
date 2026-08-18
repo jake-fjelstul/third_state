@@ -1,5 +1,6 @@
 import { ACTION_REGISTRY } from '../../../lib/assistant/actions.js'
 import { assistantText } from '../../../lib/assistant/conversation.js'
+import { Zap } from 'lucide-react'
 
 export default function ActionConfirmCard({ message, ctx, clr, onComplete, onCancel }) {
   const { actionId, description, slots, entity, reason } = message
@@ -47,7 +48,7 @@ export default function ActionConfirmCard({ message, ctx, clr, onComplete, onCan
       border: `1.5px solid ${clr.indigo}30`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 16 }}>⚡</span>
+        <Zap size={16} color={clr.indigo} />
         <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: clr.textDark }}>
           Confirm Action
         </p>

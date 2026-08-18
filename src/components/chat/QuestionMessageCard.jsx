@@ -1,4 +1,5 @@
 import { avatarFor } from '../../lib/avatar'
+import { HelpCircle } from 'lucide-react'
 
 export default function QuestionMessageCard({ clr, payload, viewerId }) {
   if (!payload) return null
@@ -15,7 +16,7 @@ export default function QuestionMessageCard({ clr, payload, viewerId }) {
     }}>
       {/* Question Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 13, lineHeight: 1 }}>💬</span>
+        <HelpCircle size={14} color={clr?.indigo || '#5B5FEF'} />
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: clr?.indigo || '#5B5FEF' }}>
           {variant === 'spontaneous' ? 'Connection Question' : 'Daily Question'}
         </span>

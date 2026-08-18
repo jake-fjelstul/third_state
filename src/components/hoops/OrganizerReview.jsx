@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { getProfileById } from '../../lib/profiles'
+import { Inbox } from 'lucide-react'
 
 const clr = {
   bg:        '#181922',
@@ -92,8 +93,8 @@ export default function OrganizerReview({ circle }) {
       </div>
 
       {filteredApps.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: clr.textMid }}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>📫</div>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: clr.textMid, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Inbox size={32} color={clr.indigo} style={{ marginBottom: 16 }} />
           <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>No {filter} applications.</p>
         </div>
       ) : (
