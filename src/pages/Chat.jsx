@@ -19,6 +19,7 @@ import QuestionPrompt from '../components/chat/QuestionPrompt.jsx'
 import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
 import AskQuestionComposer from '../components/chat/AskQuestionComposer.jsx'
 import ReportModal from '../components/moderation/ReportModal.jsx'
+import { BarChart2, Gamepad2, HelpCircle, XCircle, Flag } from 'lucide-react'
  
 const clr = {
   bg:         'var(--bg)',
@@ -785,7 +786,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                     textAlign: 'left', fontFamily: 'inherit',
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>📊</span> Poll
+                  <BarChart2 size={16} color={clr.textDark} /> Poll
                 </button>
                 <button
                   type="button"
@@ -797,7 +798,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                     textAlign: 'left', fontFamily: 'inherit',
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>🎮</span> Game
+                  <Gamepad2 size={16} color={clr.textDark} /> Game
                 </button>
                 <button
                   type="button"
@@ -809,7 +810,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                     textAlign: 'left', fontFamily: 'inherit',
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>💬</span> Question
+                  <HelpCircle size={16} color={clr.textDark} /> Question
                 </button>
                 {pendingSq && pendingSq.askerId === currentUser?.id && (
                   <button
@@ -830,7 +831,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                       textAlign: 'left', fontFamily: 'inherit',
                     }}
                   >
-                    <span style={{ fontSize: 16 }}>❓</span> Cancel Question
+                    <XCircle size={16} color="#DC2626" /> Cancel Question
                   </button>
                 )}
               </div>
@@ -988,9 +989,10 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
                   backgroundColor: clr.bg, color: clr.textDark,
                   fontSize: 15, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'inherit', WebkitTapHighlightColor: 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
-                🚩 Report message
+                <Flag size={15} color={clr.textDark} /> Report message
               </button>
             )}
             <button
@@ -1257,7 +1259,7 @@ export default function Chat() {
             backgroundColor: clr.white, color: clr.textDark, fontSize: 13, fontWeight: 700,
             display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
           }}>
-            <span style={{ fontSize: 16 }}>🎮</span> Games
+            <Gamepad2 size={16} color={clr.textDark} /> Games
           </button>
           {showGamePicker && (
             <GamePicker
