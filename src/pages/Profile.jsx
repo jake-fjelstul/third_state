@@ -512,7 +512,7 @@ export default function Profile() {
           <div style={{ padding:'0 20px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
               <h2 style={{ fontSize:22, fontWeight:800, color: clr.textDark, margin:'0 0 4px 0' }}>Recent Connections</h2>
-              <p style={{ fontSize:13, fontWeight:600, color: clr.textMid, margin:0 }}>Sorted by: Most recent interaction</p>
+              <p style={{ fontSize:13, fontWeight:600, color: clr.textMid, margin:0 }}>Your connections</p>
             </div>
             <button onClick={() => setShowExternalInvite(true)} style={{
               padding: '8px 16px', borderRadius: 999, border: 'none',
@@ -610,7 +610,7 @@ export default function Profile() {
             className="profile-edit-modal"
             style={{
             width:'100%', maxWidth:440,
-            margin: 'auto',
+            margin: '0 auto',
             backgroundColor: clr.white,
             color: clr.textDark,
             border: `1px solid ${clr.border}`,

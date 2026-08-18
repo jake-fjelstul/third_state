@@ -113,25 +113,6 @@ export async function addEventReaction({ eventId, userId, targetUserId, emoji, n
 
   if (error) throw error
 
-  // Notify recipient if targetUserId is set and not self
-  if (targetUserId && targetUserId !== userId) {
-    try {
-      const senderName = data.profiles?.name || 'Someone'
-      await supabase.rpc('enqueue_notification', {
-        p_user_id: targetUserId,
-        p_type: 'circle_activity',
-        p_payload: {
-          message: `${senderName} reacted ${emoji} to your event presence!`,
-          eventId,
-          senderId: userId,
-          emoji,
-        },
-      })
-    } catch (notifErr) {
-      console.warn('[addEventReaction] notification failed', notifErr)
-    }
-  }
-
   return mapReactionRow(data)
 }
 

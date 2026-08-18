@@ -74,7 +74,7 @@ export default function ImageUploader({
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}

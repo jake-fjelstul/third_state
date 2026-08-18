@@ -899,7 +899,6 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           <option value="">No specific circle (Community Event)</option>
           {joinedCircles.map(id => { const c = circles.find(x => x.id === id); return c ? <option key={id} value={id}>{c.name}</option> : null })}
         </select>
-        <input type="number" placeholder="Max attendees (optional)" style={inputStyle} />
         <button type="submit" style={submitStyle}>Create Event →</button>
       </form>
     )

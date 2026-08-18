@@ -22,14 +22,6 @@ export function mapMessageRow(row) {
 }
 
 const MESSAGE_SELECT_FULL = 'id, chat_id, channel_id, sender_id, text, kind, payload, created_at, profiles:sender_id(id, name, avatar_url)'
-const MESSAGE_SELECT_BASE = 'id, chat_id, channel_id, sender_id, text, created_at, profiles:sender_id(id, name, avatar_url)'
-
-function isMissingGamesColumns(error) {
-  const code = error?.code;
-  if (code !== 'PGRST204' && code !== 'PGRST200' && code !== '42703') return false
-  const message = String(error?.message || '')
-  return message.includes('kind') || message.includes('payload')
-}
 
 function mapChatSummaryRow(row) {
   return {
@@ -111,36 +103,18 @@ export async function createChannel(chatId, name) {
 export async function listMessages(chatId, { channelId = null, limit = 100 } = {}) {
   if (!chatId) return []
   
-  const buildQuery = (selectCols) => {
-    let q = supabase
-      .from('messages')
-      .select(selectCols)
-      .eq('chat_id', chatId)
-      .order('created_at', { ascending: true })
-      .limit(limit)
-    if (channelId) q = q.eq('channel_id', channelId)
-    else q = q.is('channel_id', null)
-    return q
-  }
+  let q = supabase
+    .from('messages')
+    .select(MESSAGE_SELECT_FULL)
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (channelId) q = q.eq('channel_id', channelId)
+  else q = q.is('channel_id', null)
 
-  let data, error;
-  try {
-    const res = await buildQuery(MESSAGE_SELECT_FULL)
-    data = res.data
-    error = res.error
-    if (error && isMissingGamesColumns(error)) throw error
-  } catch (err) {
-    if (isMissingGamesColumns(err)) {
-      const res = await buildQuery(MESSAGE_SELECT_BASE)
-      data = res.data
-      error = res.error
-    } else {
-      error = err
-    }
-  }
-  
+  const { data, error } = await q
   if (error) throw error
-  return (data || []).map(mapMessageRow)
+  return (data || []).reverse().map(mapMessageRow)
 }
 
 export async function sendMessage({ userId, chatId, channelId = null, text, kind = 'text', payload = null }) {
@@ -157,30 +131,14 @@ export async function sendMessage({ userId, chatId, channelId = null, text, kind
     insertPayload.payload = payload
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('messages')
-      .insert(insertPayload)
-      .select(MESSAGE_SELECT_FULL)
-      .single()
-      
-    if (error && isMissingGamesColumns(error)) throw error
-    if (error) throw error
-    return mapMessageRow(data)
-  } catch (err) {
-    if (isMissingGamesColumns(err)) {
-      delete insertPayload.kind
-      delete insertPayload.payload
-      const { data, error } = await supabase
-        .from('messages')
-        .insert(insertPayload)
-        .select(MESSAGE_SELECT_BASE)
-        .single()
-      if (error) throw error
-      return mapMessageRow(data)
-    }
-    throw err
-  }
+  const { data, error } = await supabase
+    .from('messages')
+    .insert(insertPayload)
+    .select(MESSAGE_SELECT_FULL)
+    .single()
+    
+  if (error) throw error
+  return mapMessageRow(data)
 }
 
 export async function markRead({ userId, chatId }) {

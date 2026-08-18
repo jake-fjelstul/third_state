@@ -109,6 +109,8 @@ export default function UserProfile() {
   const isMasterPrivate = p.isPrivateProfile && !isConnected && !isSelf
   const showBio = p.showBio || isSelf
   const showInterests = p.showInterests || isSelf
+  const hasBio = !!person?.bio?.trim()
+  const hasInterests = !!(person?.interests && person.interests.length > 0)
   const showCircles = p.showCircles || isSelf
   const showLocation = p.showLocation || isSelf
   const showAvailability = (p.showAvailability !== false && isConnected) || isSelf
@@ -397,13 +399,13 @@ export default function UserProfile() {
             </section>
           )}
 
-          {(showBio || showInterests) && (
+          {((showBio && hasBio) || (showInterests && hasInterests)) && (
             <section>
               <h3 style={{ fontSize:18, fontWeight:800, color:clr.textDark, marginBottom:12 }}>About</h3>
               <div style={{ backgroundColor:clr.white, padding:20, borderRadius:20, boxShadow:'0 2px 12px rgba(0,0,0,0.06)' }}>
-                {showBio && <p style={{ fontSize:15, color:clr.textMid, lineHeight:1.6, margin:0 }}>{person.bio}</p>}
-                {showInterests && (
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop: showBio ? 16 : 0 }}>
+                {showBio && hasBio && <p style={{ fontSize:15, color:clr.textMid, lineHeight:1.6, margin:0 }}>{person.bio}</p>}
+                {showInterests && hasInterests && (
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop: (showBio && hasBio) ? 16 : 0 }}>
                     {person.interests?.map(i => (
                       <span key={i} style={{ padding:'6px 14px', borderRadius:999, backgroundColor:clr.bg, color:clr.textDark, fontSize:13, fontWeight:600 }}>{i}</span>
                     ))}
