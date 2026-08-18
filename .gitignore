@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .env.local
 .env.*.local
+*.p8
 admin/dist
 admin/node_modules
 
@@ -26,3 +27,6 @@ admin/node_modules
 *.njsproj
 *.sln
 *.sw?
+
+.vite
+Demo/
