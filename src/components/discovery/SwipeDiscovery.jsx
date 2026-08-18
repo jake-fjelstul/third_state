@@ -65,6 +65,8 @@ function DiscoveryCard({ card }) {
       <div style={{
         height: 520, display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
+        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+        isolation: 'isolate', transform: 'translateZ(0)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         <div style={{ position:'relative', height:'55%' }}>
@@ -109,6 +111,8 @@ function DiscoveryCard({ card }) {
       <div style={{
         height: 520, display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
+        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+        isolation: 'isolate', transform: 'translateZ(0)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         <div style={{
@@ -145,6 +149,8 @@ function DiscoveryCard({ card }) {
       <div style={{
         height: 520, display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
+        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+        isolation: 'isolate', transform: 'translateZ(0)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         {e.coverImageUrl ? (
@@ -191,6 +197,8 @@ function DiscoveryCard({ card }) {
       <div style={{
         height: 520, display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
+        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+        isolation: 'isolate', transform: 'translateZ(0)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
       }}>
         {/* Amber accent header with Zap-style treatment */}
