@@ -1299,7 +1299,6 @@ function getBatteryConfig(points) {
   }
   return {
     label: 'Running Low',
-    sublabel: 'Time to get out there 👋',
     color: '#EF4444',  // red
     glow: 'rgba(239,68,68,0.4)',
     segments: 1,
@@ -1404,9 +1403,11 @@ function SocialBattery() {
             <p style={{ fontSize: 16, fontWeight: 800, color: clr.textDark, margin: '0 0 2px 0' }}>
               Social Battery
             </p>
-            <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>
-              {config.sublabel}
-            </p>
+            {config.sublabel && (
+              <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>
+                {config.sublabel}
+              </p>
+            )}
           </div>
           <div style={{ backgroundColor: config.color + '20', borderRadius: 12, padding: '6px 12px', textAlign: 'center' }}>
             <p style={{ fontSize: 20, fontWeight: 800, color: config.color, margin: 0, lineHeight: 1 }}>
