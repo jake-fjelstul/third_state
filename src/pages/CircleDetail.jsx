@@ -124,6 +124,39 @@ export default function CircleDetail() {
     return () => clearTimeout(t)
   }, [joinError])
 
+  // Keyboard state for pinning page shell
+  const [kbHeight, setKbHeight] = useState(0)
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    let isMounted = true
+    let showHandle = null
+    let hideHandle = null
+
+    const setupListeners = async () => {
+      const showH = await Keyboard.addListener('keyboardWillShow', (info) => {
+        if (isMounted) setKbHeight(info.keyboardHeight)
+      })
+      if (!isMounted) { showH.remove(); return }
+      showHandle = showH
+
+      const hideH = await Keyboard.addListener('keyboardWillHide', () => {
+        if (isMounted) setKbHeight(0)
+      })
+      if (!isMounted) { showH.remove(); hideH.remove(); return }
+      hideHandle = hideH
+    }
+
+    setupListeners()
+
+    return () => {
+      isMounted = false
+      if (showHandle) showHandle.remove()
+      if (hideHandle) hideHandle.remove()
+    }
+  }, [])
+
   // Event detail modal state
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [detailClosing, setDetailClosing] = useState(false)
@@ -217,11 +250,23 @@ export default function CircleDetail() {
   }
 
   return (
-    <div style={{
+    <div style={(activeTab === 'chat' && kbHeight > 0) ? {
+      position: 'fixed',
+      top: 0, left: 0, right: 0,
+      bottom: kbHeight,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      zIndex: 1000,
+      backgroundColor: clr.bg,
+      fontFamily: "'DM Sans','Inter',sans-serif",
+      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
+    } : {
       minHeight: '100vh',
       backgroundColor: clr.bg,
       fontFamily: "'DM Sans','Inter',sans-serif",
       paddingBottom: 100,
+      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
     }}>
 
       {/* ── Hero banner ── */}
@@ -231,6 +276,7 @@ export default function CircleDetail() {
         position: 'relative',
         overflow: 'visible',
         zIndex: 3,
+        flexShrink: 0,
       }}>
         {cover.kind === 'image' && (
           <>
@@ -470,6 +516,7 @@ export default function CircleDetail() {
           display: 'flex',
           position: 'relative',
           zIndex: 2,
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', width: '100%' }}>
@@ -502,7 +549,18 @@ export default function CircleDetail() {
       </div>
 
       {/* ── Tab content ── */}
-      <div style={{ padding: '20px 16px', margin: '0 auto' }}>
+      <div style={(activeTab === 'chat' && kbHeight > 0) ? {
+        padding: 0,
+        margin: '0 auto',
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+      } : {
+        padding: '20px 16px',
+        margin: '0 auto',
+      }}>
 
         {/* ABOUT */}
         {activeTab === 'about' && (
@@ -800,6 +858,7 @@ export default function CircleDetail() {
             currentUser={currentUser}
             activeChannel={activeChannel}
             setActiveChannel={setActiveChannel}
+            kbHeight={kbHeight}
           />
         )}
 
@@ -1145,7 +1204,7 @@ export default function CircleDetail() {
 
 
 /* ── Discord-style circle chat panel ── */
-function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markChatRead, currentUser, activeChannel, setActiveChannel }) {
+function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markChatRead, currentUser, activeChannel, setActiveChannel, kbHeight = 0 }) {
   const groupChat = Object.values(chatState || {}).find(c => c.circleId === circle.id)
   const chatId = groupChat?.id || null
 
@@ -1190,50 +1249,10 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     if (chatId) markChatRead(chatId)
   }, [chatId, activeChannel, markChatRead])
 
-  const [kbHeight, setKbHeight] = useState(0)
   const textareaRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const hasInitiallyScrolled = useRef(false)
   const stickToBottom = useRef(true)
-
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return
-
-    let isMounted = true
-    let showHandle = null
-    let hideHandle = null
-
-    const setupListeners = async () => {
-      const showH = await Keyboard.addListener('keyboardWillShow', (info) => {
-        if (!isMounted) return
-        setKbHeight(info.keyboardHeight)
-      })
-      if (!isMounted) {
-        showH.remove()
-        return
-      }
-      showHandle = showH
-
-      const hideH = await Keyboard.addListener('keyboardWillHide', () => {
-        if (!isMounted) return
-        setKbHeight(0)
-      })
-      if (!isMounted) {
-        showH.remove()
-        hideH.remove()
-        return
-      }
-      hideHandle = hideH
-    }
-
-    setupListeners()
-
-    return () => {
-      isMounted = false
-      if (showHandle) showHandle.remove()
-      if (hideHandle) hideHandle.remove()
-    }
-  }, [])
 
   useEffect(() => {
     if (kbHeight > 0) {
@@ -1454,27 +1473,24 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
 
   return (
     <div style={kbHeight > 0 ? {
-      position: 'fixed',
-      top: 0, left: 0, right: 0,
-      bottom: kbHeight,
-      height: 'auto',
-      borderRadius: 0,
-      zIndex: 1000,
-      paddingTop: 'max(12px, env(safe-area-inset-top))',
-      backgroundColor: dk.panel,
-      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+      backgroundColor: clr.white,
+      boxShadow: 'none',
+      border: 'none',
       display: 'flex',
       flexDirection: 'column',
-      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
+      height: '100%',
+      flex: 1,
+      borderRadius: 0,
+      margin: 0,
       overflow: 'hidden',
     } : {
-      backgroundColor: dk.panel,
+      backgroundColor: clr.white,
       borderRadius: 20,
-      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+      border: `1px solid ${clr.border}`,
       display: 'flex',
       flexDirection: 'column',
       height: 520,
-      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
       overflow: 'hidden',
     }}>
       {/* ── Channel bar ── */}
