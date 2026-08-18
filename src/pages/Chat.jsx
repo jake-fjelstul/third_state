@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { Keyboard } from '@capacitor/keyboard'
@@ -125,6 +125,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
   const messagesContainerRef = useRef(null)
+  const hasInitiallyScrolled = useRef(false)
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
@@ -271,8 +272,48 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     return () => setCurrentlyOpenChatId(null)
   }, [baseId, setCurrentlyOpenChatId])
 
+  // Reset initial scroll flag when thread or channel changes
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    hasInitiallyScrolled.current = false
+  }, [baseId, activeChannelName])
+
+  // Instant jump before paint on initial load of messages
+  useLayoutEffect(() => {
+    if (!messages || messages.length === 0) return
+    if (hasInitiallyScrolled.current) return
+
+    const el = messagesContainerRef.current
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
+    hasInitiallyScrolled.current = true
+  }, [messages, baseId, activeChannelName])
+
+  // Re-pin to bottom as late content loads (reactions, images, composer height), unless scrolled up
+  useEffect(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
+
+    const observer = new ResizeObserver(() => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+      if (distanceFromBottom <= 80) {
+        el.scrollTop = el.scrollHeight
+      }
+    })
+
+    observer.observe(el)
+    Array.from(el.children).forEach(child => observer.observe(child))
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [baseId, activeChannelName, messages.length])
+
+  // Smooth scroll to new incoming or sent messages
+  useEffect(() => {
+    if (hasInitiallyScrolled.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   useEffect(() => {
