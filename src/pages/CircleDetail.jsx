@@ -1413,12 +1413,13 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
   if (!groupChat) {
     return (
       <div style={{
-        backgroundColor: '#1E1F2B', borderRadius: 20, padding: 40,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+        backgroundColor: clr.white, borderRadius: 20, padding: 40,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        border: `1px solid ${clr.border}`,
         textAlign: 'center', minHeight: 200,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <p style={{ fontSize: 15, color: '#8B8FA3' }}>
+        <p style={{ fontSize: 15, color: clr.textMid }}>
           Join this circle to access the group chat.
         </p>
       </div>
@@ -1426,18 +1427,18 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
   }
 
   const dk = {
-    panel: '#1E1F2B',
-    channelBar: '#181922',
-    msgArea: '#23243A',
-    inputBar: '#181922',
-    inputBg: '#2A2B3D',
-    inputBorder: '#363849',
-    text: '#E2E4F0',
-    textMuted: '#8B8FA3',
-    textFaint: '#5C5F73',
-    otherBubble: '#2A2B3D',
-    activeCh: '#5B5FEF',
-    inactiveCh: 'transparent',
+    panel:       clr.white,
+    channelBar:  clr.bg,
+    msgArea:     clr.bg,
+    inputBar:    clr.bg,
+    inputBg:     clr.white,
+    inputBorder: clr.border,
+    text:        clr.textDark,
+    textMuted:   clr.textMid,
+    textFaint:   clr.textLight,
+    otherBubble: clr.indigoLt,
+    activeCh:    clr.indigo,
+    inactiveCh:  'transparent',
   }
 
   const pollClr = {
@@ -1479,7 +1480,7 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
       {/* ── Channel bar ── */}
       <div style={{
         display: 'flex', gap: 6, padding: '12px 16px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: `1px solid ${clr.border}`,
         overflowX: 'auto', scrollbarWidth: 'none',
         backgroundColor: dk.channelBar,
         alignItems: 'center',
@@ -1683,7 +1684,7 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
         onSubmit={handleSend}
         style={{
           display: 'flex', gap: 10, padding: '12px 16px',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          borderTop: `1px solid ${clr.border}`,
           backgroundColor: dk.inputBar,
           alignItems: 'flex-end',
           flexShrink: 0,
