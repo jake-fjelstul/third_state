@@ -33,8 +33,6 @@ export async function getConnectionStats({ viewerId, targetId, connectedAt, last
   if (daysConnected != null && daysConnected >= 7) {
     if (daysSinceHangout != null) {
       status = daysSinceHangout <= reconnectThresholdDays ? 'Active' : 'Reconnect'
-    } else if (daysConnected > reconnectThresholdDays) {
-      status = 'Reconnect'
     } else {
       status = 'Active'
     }

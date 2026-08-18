@@ -11,6 +11,7 @@ function mapConnectionRow(row) {
     city: p.city,
     interests: p.interests || [],
     lastHangout: row.last_hangout,
+    lastInteractionAt: row.last_interaction_at,
     connectedAt: row.created_at,
   }
 }
@@ -19,7 +20,7 @@ export async function listMyConnections(userId) {
   if (!userId) return []
   const { data, error } = await supabase
     .from('connections')
-    .select('connected_user_id, last_hangout, created_at, profiles:connected_user_id(id, name, avatar_url, bio, age, city, interests)')
+    .select('connected_user_id, last_hangout, last_interaction_at, created_at, profiles:connected_user_id(id, name, avatar_url, bio, age, city, interests)')
     .eq('user_id', userId)
   if (error) throw error
   return (data || []).map(mapConnectionRow)
