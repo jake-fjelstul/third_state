@@ -167,11 +167,7 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
     }
   }, [])
 
-  useEffect(() => {
-    if (kbHeight > 0) {
-      bottomRef.current?.scrollIntoView({ behavior: 'auto' })
-    }
-  }, [kbHeight])
+
 
   const adjustTextareaHeight = useCallback(() => {
     const el = textareaRef.current
@@ -383,12 +379,20 @@ function ThreadView({ chat, baseId, channelId, onBack }) {
   }
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      height: kbHeight > 0 ? `calc(100vh - ${kbHeight}px)` : 'calc(100vh - 80px - env(safe-area-inset-bottom))',
-      backgroundColor: clr.bg,
-      fontFamily: "'DM Sans','Inter',sans-serif",
-    }}>
+    <div
+      onTransitionEnd={(e) => {
+        if (e.target === e.currentTarget && e.propertyName === 'height' && kbHeight > 0) {
+          bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+        }
+      }}
+      style={{
+        display: 'flex', flexDirection: 'column',
+        height: kbHeight > 0 ? `calc(100vh - ${kbHeight}px)` : 'calc(100vh - 80px - env(safe-area-inset-bottom))',
+        transition: 'height 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
+        backgroundColor: clr.bg,
+        fontFamily: "'DM Sans','Inter',sans-serif",
+      }}
+    >
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,

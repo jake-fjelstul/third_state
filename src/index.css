@@ -127,6 +127,7 @@ body {
 
 #root {
   min-height: 100vh;
+  background-color: var(--bg);
 }
 
 /* Edit profile modal — theme-aware text fields */
