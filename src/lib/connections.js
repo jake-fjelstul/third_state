@@ -22,6 +22,7 @@ export async function listMyConnections(userId) {
     .from('connections')
     .select('connected_user_id, last_hangout, last_interaction_at, created_at, profiles:connected_user_id(id, name, avatar_url, bio, age, city, interests)')
     .eq('user_id', userId)
+    .order('last_interaction_at', { ascending: false, nullsFirst: false })
   if (error) throw error
   return (data || []).map(mapConnectionRow)
 }

@@ -52,11 +52,21 @@ function getInteractionScore(person, chatState, circles, joinedCircles) {
       c => c.circleId === circleId || c.id === circleId
     )
     const theyPosted = circleChat?.messages?.some(
-      m => m.sender === person.name || m.sender === person.name.split(' ')[0]
+      m => (m.senderId || m.sender_id) === person.id
     )
     if (theyPosted) score += 8
   })
-  return score
+
+  // Recency decay multiplier over existing affinity/volume score:
+  // Full weight (1.0) within last 7 days, decaying to ~0.45 at 30 days, floor of 0.2 for older/null.
+  const lastInteraction = person.lastInteractionAt || person.last_interaction_at || person.lastHangout || person.last_hangout
+  let recencyMultiplier = 0.2
+  if (lastInteraction) {
+    const daysAgo = Math.max(0, (Date.now() - new Date(lastInteraction).getTime()) / 86400000)
+    recencyMultiplier = daysAgo <= 7 ? 1.0 : (0.2 + 0.8 * Math.exp(-(daysAgo - 7) / 20))
+  }
+
+  return Math.round(score * recencyMultiplier)
 }
 
 function getConnectionTier(score) {

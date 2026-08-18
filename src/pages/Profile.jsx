@@ -512,7 +512,7 @@ export default function Profile() {
           <div style={{ padding:'0 20px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
               <h2 style={{ fontSize:22, fontWeight:800, color: clr.textDark, margin:'0 0 4px 0' }}>Recent Connections</h2>
-              <p style={{ fontSize:13, fontWeight:600, color: clr.textMid, margin:0 }}>Your connections</p>
+              <p style={{ fontSize:13, fontWeight:600, color: clr.textMid, margin:0 }}>Sorted by: Most recent interaction</p>
             </div>
             <button onClick={() => setShowExternalInvite(true)} style={{
               padding: '8px 16px', borderRadius: 999, border: 'none',
