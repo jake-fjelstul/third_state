@@ -1190,7 +1190,6 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
     if (chatId) markChatRead(chatId)
   }, [chatId, activeChannel, markChatRead])
 
-  const formRef = useRef(null)
   const [kbHeight, setKbHeight] = useState(0)
   const textareaRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -1242,9 +1241,31 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
       if (el) {
         el.scrollTop = el.scrollHeight
       }
-      msgsEndRef.current?.scrollIntoView({ behavior: 'auto' })
     }
   }, [kbHeight])
+
+  const showTimeSeparator = (msg, prev) => {
+    if (!prev) return true
+    const t1 = msg?.createdAt ? new Date(msg.createdAt).getTime() : 0
+    const t2 = prev?.createdAt ? new Date(prev.createdAt).getTime() : 0
+    if (!t1 || !t2) return false
+    return (t1 - t2) > 15 * 60 * 1000
+  }
+
+  const formatSeparator = (iso) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    const now = new Date()
+    const sameDay = d.toDateString() === now.toDateString()
+    const yest = new Date(now); yest.setDate(now.getDate() - 1)
+    const isYesterday = d.toDateString() === yest.toDateString()
+    const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    if (sameDay) return t
+    if (isYesterday) return `Yesterday ${t}`
+    const withinWeek = (now - d) < 7 * 24 * 60 * 60 * 1000
+    if (withinWeek) return `${d.toLocaleDateString([], { weekday: 'long' })} ${t}`
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${t}`
+  }
 
   const handleScroll = () => {
     const el = messagesContainerRef.current
@@ -1431,10 +1452,28 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
   }
 
   return (
-    <div style={{
-      backgroundColor: dk.panel, borderRadius: 20,
+    <div style={kbHeight > 0 ? {
+      position: 'fixed',
+      top: 0, left: 0, right: 0,
+      bottom: kbHeight,
+      height: 'auto',
+      borderRadius: 0,
+      zIndex: 1000,
+      paddingTop: 'max(12px, env(safe-area-inset-top))',
+      backgroundColor: dk.panel,
       boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-      display: 'flex', flexDirection: 'column', height: 520,
+      display: 'flex',
+      flexDirection: 'column',
+      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
+      overflow: 'hidden',
+    } : {
+      backgroundColor: dk.panel,
+      borderRadius: 20,
+      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+      display: 'flex',
+      flexDirection: 'column',
+      height: 520,
+      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
       overflow: 'hidden',
     }}>
       {/* ── Channel bar ── */}
@@ -1527,50 +1566,92 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
             </p>
           </div>
         ) : (
-          messages.map((msg) => {
-            const isMe = msg.senderId === currentUser?.id
+          messages.map((msg, i, arr) => {
+            const prev = i > 0 ? arr[i - 1] : null
+            const needsSeparator = showTimeSeparator(msg, prev)
+            const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
+            const isSameSender = prev && (prev.senderId === msg.senderId || prev.senderName === msg.senderName)
+            const showHeader = !isMe && (needsSeparator || !isSameSender)
+            const timeStr = msg.createdAt ? formatSeparator(msg.createdAt) : (msg.time ?? '')
+
             if (msg.kind === 'poll') {
               return (
-                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                      {msg.senderAvatar && (
-                        <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                      )}
-                      <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                <Fragment key={msg.id || i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
                     </div>
                   )}
-                  <PollMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
-                  <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
+                    {showHeader && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
+                        {msg.senderAvatar && (
+                          <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                        )}
+                        <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                      </div>
+                    )}
+                    <PollMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
+                  </div>
+                </Fragment>
               )
             }
 
             if (msg.kind === 'game') {
               return (
-                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                      {msg.senderAvatar && (
-                        <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                      )}
-                      <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                <Fragment key={msg.id || i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
                     </div>
                   )}
-                  <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
-                  <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
+                    {showHeader && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
+                        {msg.senderAvatar && (
+                          <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                        )}
+                        <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                      </div>
+                    )}
+                    <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
+                  </div>
+                </Fragment>
               )
             }
 
             if (msg.kind === 'question') {
               return (
-                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && (
+                <Fragment key={msg.id || i}>
+                  {needsSeparator && (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
+                    {showHeader && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
+                        {msg.senderAvatar && (
+                          <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                        )}
+                        <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                      </div>
+                    )}
+                    <QuestionMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
+                  </div>
+                </Fragment>
+              )
+            }
+
+            return (
+              <Fragment key={msg.id || i}>
+                {needsSeparator && (
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
+                  {showHeader && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
                       {msg.senderAvatar && (
                         <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
@@ -1578,67 +1659,34 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
                       <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
                     </div>
                   )}
-                  <QuestionMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
-                  <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
-                    {msg.time ?? ''}
-                  </span>
-                </div>
-              )
-            }
-
-            return (
-              <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                {!isMe && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                    {msg.senderAvatar && (
-                      <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                    )}
-                    <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
+                  <div style={{
+                    maxWidth: '75%',
+                    padding: '10px 14px',
+                    borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    backgroundColor: isMe ? dk.activeCh : dk.otherBubble,
+                    color: isMe ? '#FFFFFF' : dk.text,
+                    fontSize: 14, lineHeight: 1.5,
+                    boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
+                  }}>
+                    {msg.text}
                   </div>
-                )}
-                <div style={{
-                  maxWidth: '75%',
-                  padding: '10px 14px',
-                  borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                  backgroundColor: isMe ? dk.activeCh : dk.otherBubble,
-                  color: isMe ? '#FFFFFF' : dk.text,
-                  fontSize: 14, lineHeight: 1.5,
-                  boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
-                }}>
-                  {msg.text}
                 </div>
-                <span style={{ fontSize: 10, color: dk.textFaint, marginTop: 3, marginLeft: 4, marginRight: 4 }}>
-                  {msg.time ?? ''}
-                </span>
-              </div>
+              </Fragment>
             )
           })
         )}
         <div ref={msgsEndRef} />
       </div>
 
-      {kbHeight > 0 && (
-        <div style={{ height: formRef.current?.offsetHeight || 64, flexShrink: 0 }} />
-      )}
-
       {/* ── Input bar ── */}
       <form
-        ref={formRef}
         onSubmit={handleSend}
-        style={kbHeight > 0 ? {
-          position: 'fixed',
-          left: 0, right: 0,
-          bottom: kbHeight,
-          zIndex: 1000,
-          backgroundColor: dk.inputBar,
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          padding: '12px 16px',
-          display: 'flex', gap: 10, alignItems: 'flex-end',
-        } : {
+        style={{
           display: 'flex', gap: 10, padding: '12px 16px',
           borderTop: '1px solid rgba(255,255,255,0.06)',
           backgroundColor: dk.inputBar,
           alignItems: 'flex-end',
+          flexShrink: 0,
         }}
       >
         <button
