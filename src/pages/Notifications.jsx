@@ -663,7 +663,7 @@ export default function Notifications() {
 
             {connectionRequests.length > 0 && (
               <section>
-                <CollapsibleSection title={`Connection requests (${connectionRequests.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Connection requests (${connectionRequests.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {connectionRequests.map(n => renderNotifCard(n, 'connection'))}
                   </div>
@@ -673,7 +673,7 @@ export default function Notifications() {
 
             {chatActivity.length > 0 && (
               <section>
-                <CollapsibleSection title={`Chat activity (${chatActivity.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Chat activity (${chatActivity.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {chatActivity.map(n => renderNotifCard(n, 'chat'))}
                   </div>
@@ -683,7 +683,7 @@ export default function Notifications() {
 
             {lfgActivity.length > 0 && (
               <section>
-                <CollapsibleSection title={`Free right now (${lfgActivity.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Free right now (${lfgActivity.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {lfgActivity.map(n => renderNotifCard(n, 'lfg'))}
                   </div>
@@ -693,7 +693,7 @@ export default function Notifications() {
 
             {eventReminders.length > 0 && (
               <section>
-                <CollapsibleSection title={`Event reminders (${eventReminders.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Event reminders (${eventReminders.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {eventReminders.map(n => renderNotifCard(n, 'event'))}
                   </div>
@@ -703,7 +703,7 @@ export default function Notifications() {
 
             {reconnectNudges.length > 0 && (
               <section>
-                <CollapsibleSection title={`Reconnect nudges (${reconnectNudges.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Reconnect nudges (${reconnectNudges.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {reconnectNudges.map(n => renderNotifCard(n, 'reconnect'))}
                   </div>
@@ -713,7 +713,7 @@ export default function Notifications() {
 
             {circleActivity.length > 0 && (
               <section>
-                <CollapsibleSection title={`Circle activity (${circleActivity.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Circle activity (${circleActivity.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {circleActivity.map(n => renderNotifCard(n, 'circle'))}
                   </div>
@@ -723,7 +723,7 @@ export default function Notifications() {
 
             {otherActivity.length > 0 && (
               <section>
-                <CollapsibleSection title={`Other (${otherActivity.length})`} defaultOpen={false} titleFontSize={16}>
+                <CollapsibleSection title={`Other (${otherActivity.length})`} defaultOpen={true} titleFontSize={16}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {otherActivity.map(n => renderNotifCard(n, 'other'))}
                   </div>
