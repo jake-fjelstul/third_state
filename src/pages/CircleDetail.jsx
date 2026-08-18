@@ -23,6 +23,10 @@ import GameMessageCard from '../components/games/GameMessageCard.jsx'
 import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
 import { createCircleInviteLink, buildCircleInviteMessage } from '../lib/invites.js'
 import QRCard from '../components/ui/QRCard.jsx'
+import {
+  Smile, Calendar, Mountain, Star, Coffee, Briefcase, Sparkles,
+  Camera, Hourglass, Dribbble, FileText, Video, Mic, ListChecks, MessageCircle
+} from 'lucide-react'
 
 const clr = {
   bg: 'var(--bg)',
@@ -44,12 +48,12 @@ const TABS = [
 ]
 
 const VIBE_ICONS = {
-  'Beginner Friendly': '😊',
-  'Weekly Meetups': '📅',
-  'Outdoors': '🏔️',
-  'All Levels': '⭐',
-  'Casual': '☕',
-  'Professional': '💼',
+  'Beginner Friendly': Smile,
+  'Weekly Meetups': Calendar,
+  'Outdoors': Mountain,
+  'All Levels': Star,
+  'Casual': Coffee,
+  'Professional': Briefcase,
 }
 
 export default function CircleDetail() {
@@ -331,8 +335,8 @@ export default function CircleDetail() {
         </div>
 
         {isOrganizer && (
-          <button type="button" onClick={() => setShowCoverUploader(true)} style={{ position: 'absolute', top: 66, right: 20, zIndex: 3, border: 'none', borderRadius: 999, padding: '8px 12px', background: 'rgba(15,23,42,0.45)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-            📷 Change cover
+          <button type="button" onClick={() => setShowCoverUploader(true)} style={{ position: 'absolute', top: 66, right: 20, zIndex: 3, border: 'none', borderRadius: 999, padding: '8px 12px', background: 'rgba(15,23,42,0.45)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Camera size={14} color="#FFFFFF" /> Change cover
           </button>
         )}
 
@@ -406,9 +410,10 @@ export default function CircleDetail() {
                 backgroundColor: clr.white, color: clr.textMid,
                 fontSize: 16, fontWeight: 700, cursor: 'not-allowed',
                 boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
               }}
             >
-              ⏳ Pending Review
+              <Hourglass size={16} color={clr.textMid} /> Pending Review
             </button>
           ) : acceptsApplications ? (
             <button
@@ -422,9 +427,10 @@ export default function CircleDetail() {
                 cursor: joinBusy ? 'wait' : 'pointer',
                 opacity: joinBusy ? 0.7 : 1,
                 boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
               }}
             >
-              {joinBusy ? 'Sending…' : 'Apply to Join 🏀'}
+              {joinBusy ? 'Sending…' : <><Dribbble size={16} color={clr.indigo} /> Apply to Join</>}
             </button>
           ) : isPrivate ? (
             <div
@@ -522,8 +528,16 @@ export default function CircleDetail() {
                         {i + 1}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: clr.textDark }}>
-                          {h.type === 'written' ? '✍️ Written' : h.type === 'video' ? '🎥 Video' : h.type === 'voice' ? '🎤 Voice' : '📋 Multiple Choice'}
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: clr.textDark, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {h.type === 'written' ? (
+                            <><FileText size={14} color={clr.indigo} /> Written</>
+                          ) : h.type === 'video' ? (
+                            <><Video size={14} color={clr.indigo} /> Video</>
+                          ) : h.type === 'voice' ? (
+                            <><Mic size={14} color={clr.indigo} /> Voice</>
+                          ) : (
+                            <><ListChecks size={14} color={clr.indigo} /> Multiple Choice</>
+                          )}
                         </p>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', backgroundColor: '#FEF3C7', padding: '4px 8px', borderRadius: 6, textTransform: 'uppercase' }}>Required</span>
@@ -549,17 +563,20 @@ export default function CircleDetail() {
             }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 14px 0' }}>Circle Vibe</h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {(circle.vibes ?? circle.vibe?.split(',').map(v => v.trim()) ?? []).map((v) => (
-                  <span key={v} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '9px 16px', borderRadius: 999,
-                    border: `1.5px solid ${clr.border}`,
-                    backgroundColor: clr.white,
-                    fontSize: 14, color: clr.textDark, fontWeight: 500,
-                  }}>
-                    <span>{VIBE_ICONS[v] ?? '✨'}</span> {v}
-                  </span>
-                ))}
+                {(circle.vibes ?? circle.vibe?.split(',').map(v => v.trim()) ?? []).map((v) => {
+                  const IconComp = VIBE_ICONS[v] ?? Sparkles
+                  return (
+                    <span key={v} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '9px 16px', borderRadius: 999,
+                      border: `1.5px solid ${clr.border}`,
+                      backgroundColor: clr.white,
+                      fontSize: 14, color: clr.textDark, fontWeight: 500,
+                    }}>
+                      <IconComp size={14} color={clr.indigo} /> {v}
+                    </span>
+                  )
+                })}
               </div>
             </div>
 
@@ -818,8 +835,8 @@ export default function CircleDetail() {
               {/* Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', marginBottom: 16 }}>
                 <div>
-                  <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark }}>
-                    🏀 Require an application
+                  <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: clr.textDark, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Dribbble size={16} color={clr.indigo} /> Require an application
                   </p>
                   <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>
                     People apply and you approve them
@@ -1560,8 +1577,8 @@ function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markCh
         {msgsLoading ? (
           <div style={{ margin: 'auto', color: dk.textMuted, fontSize: 14 }}>Loading messages…</div>
         ) : messages.length === 0 ? (
-          <div style={{ margin: 'auto', textAlign: 'center' }}>
-            <p style={{ fontSize: 24, margin: '0 0 8px' }}>💬</p>
+          <div style={{ margin: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <MessageCircle size={24} color={dk.textMuted} style={{ marginBottom: 8 }} />
             <p style={{ color: dk.textMuted, fontSize: 14, margin: 0 }}>
               No messages in <strong style={{ color: dk.text }}>#{activeChannel}</strong> yet. Be the first!
             </p>
