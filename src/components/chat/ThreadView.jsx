@@ -330,11 +330,24 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
     }
   }, [baseId, activeChannelName, messages.length])
 
-  // Smooth scroll to new incoming or sent messages, only if user intends to stick to bottom
+  // Smooth-scroll only when a genuinely new message lands at the end. Cache
+  // -> network swaps and older-page loads jump instantly (or not at all), and
+  // we scroll the list itself: scrollIntoView also scrolled the whole page,
+  // which was the "popup scrolling" on open (issue 2).
+  const lastIdRef = useRef(null)
+  const idsRef = useRef(new Set())
   useEffect(() => {
-    if (hasInitiallyScrolled.current && stickToBottom.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
+    const el = messagesContainerRef.current
+    const last = messages[messages.length - 1]
+    const prevLast = lastIdRef.current
+    const appended = !!last && !!prevLast && last.id !== prevLast && idsRef.current.has(prevLast)
+      && !idsRef.current.has(last.id)
+      && messages.length - idsRef.current.size <= 3
+    lastIdRef.current = last?.id || null
+    idsRef.current = new Set(messages.map(m => m.id))
+    if (!el || !hasInitiallyScrolled.current || !stickToBottom.current) return
+    if (appended) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    else el.scrollTop = el.scrollHeight
   }, [messages])
 
   useEffect(() => {
@@ -457,12 +470,14 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
     <div
       onTransitionEnd={(e) => {
         if (e.target === e.currentTarget && e.propertyName === 'height' && kbHeight > 0) {
-          bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+          const el = messagesContainerRef.current
+          if (el) el.scrollTop = el.scrollHeight
         }
       }}
       style={{
         display: 'flex', flexDirection: 'column',
-        height: kbHeight > 0 ? `calc(100vh - ${kbHeight}px)` : 'calc(100vh - 80px - env(safe-area-inset-bottom))',
+        // A pushed screen covers the tab bar, so it gets the full height.
+        height: kbHeight > 0 ? `calc(100dvh - ${kbHeight}px)` : '100dvh',
         transition: 'height 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
         backgroundColor: clr.bg,
         fontFamily: "'DM Sans','Inter',sans-serif",
@@ -765,7 +780,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
 
       {/* Input bar */}
       <form onSubmit={handleSend} style={{
-        padding: '12px 16px',
+        padding: kbHeight > 0 ? '12px 16px' : '12px 16px calc(12px + env(safe-area-inset-bottom))',
         backgroundColor: clr.bg,
         borderTop: `1px solid ${clr.border}`,
         display: 'flex', alignItems: 'flex-end', gap: 10,

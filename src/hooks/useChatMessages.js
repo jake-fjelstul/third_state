@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { listMessages, mapMessageRow, listChatReactions, MESSAGE_PAGE_SIZE } from '../lib/chat'
 import { getCachedMessages, setCachedMessages } from '../lib/chatCache.js'
+import { uniqueTopic } from '../lib/realtimeTopic.js'
 
 /**
  * Subscribes to new messages for a chat (optionally filtered to a channel).
@@ -48,7 +49,7 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
     // so users get every message at the chat level (server-side filter doesn't
     // support compound filters cleanly here).
     const sub = supabase
-      .channel(`chat:${chatId}`)
+      .channel(uniqueTopic(`chat:${chatId}`))
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },

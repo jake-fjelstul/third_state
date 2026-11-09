@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchGame } from '../lib/games'
+import { uniqueTopic } from '../lib/realtimeTopic.js'
 
 export function useGameState(gameId) {
   const [game, setGame] = useState(null)
@@ -17,7 +18,7 @@ export function useGameState(gameId) {
       .finally(() => { if (!cancelled) setLoading(false) })
 
     const sub = supabase
-      .channel(`game:${gameId}`)
+      .channel(uniqueTopic(`game:${gameId}`))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
         async () => {
           // Refetch to get joined profile rows

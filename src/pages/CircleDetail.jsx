@@ -1,3 +1,4 @@
+import { PageSkeleton } from '../components/ui/Skeleton.jsx'
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getCircle, updateCircle, saveHoopsForCircle, inviteToCircle } from '../lib/circles'
@@ -209,7 +210,7 @@ export default function CircleDetail() {
   }
 
   if (circleLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>Loading…</div>
+    return <PageSkeleton cover />
   }
   if (!circle) {
     return (

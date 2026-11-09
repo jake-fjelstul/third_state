@@ -7,6 +7,7 @@ import { listMyBlocks } from '../lib/moderation'
 import { avatarFor } from '../lib/avatar'
 import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
 import { Mail, HelpCircle, Calendar, CheckCircle2 } from 'lucide-react'
+import { canGoBack } from '../lib/tabActive.js'
 
 const clr = {
   bg:       'var(--bg)',
@@ -187,7 +188,7 @@ export default function Settings() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingLeft: 4 }}>
           <button
             type="button"
-            onClick={() => navigate('/profile')}
+            onClick={() => (canGoBack() ? navigate(-1) : navigate('/profile'))}
             aria-label="Back to profile"
             style={{
               width: 36, height: 36, borderRadius: '50%',

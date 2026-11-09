@@ -12,6 +12,7 @@ import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
 import ThreadView, { clr, GroupAvatar, UserAvatar, normChat } from '../components/chat/ThreadView.jsx'
 import { Gamepad2 } from 'lucide-react'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
+import { canGoBack } from '../lib/tabActive.js'
 
 /* ── New Chat Modal (iPhone-style) ── */
 function NewChatModal({ onClose, onSelect, joinedCircles, currentUser, chatState, connections }) {
@@ -191,9 +192,9 @@ export default function Chat() {
 
     if (!chat) {
       return (
-        <div style={{ height:'calc(100vh - 80px - env(safe-area-inset-bottom))', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily:"'DM Sans','Inter',sans-serif" }}>
+        <div style={{ height:'100dvh', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily:"'DM Sans','Inter',sans-serif" }}>
           <div style={{ display:'flex', alignItems:'center', gap:12, padding:'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px', backgroundColor:clr.bg, borderBottom:`1px solid ${clr.border}` }}>
-            <button onClick={() => navigate('/chat')} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
+            <button onClick={() => (canGoBack() ? navigate(-1) : navigate('/chat'))} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
               <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
                 <path d="M19 12H5M12 5l-7 7 7 7"/>
               </svg>
@@ -214,9 +215,8 @@ export default function Chat() {
       }
     }
 
-    // Opened from a circle page: Back goes back there.
-    const backToCircle = location.state?.fromCircle
-    return <ThreadView chat={chat} baseId={baseId} channelId={channelId} onBack={() => (backToCircle ? navigate(-1) : navigate('/chat'))} />
+    // Pop back to whatever is underneath (chat list, circle page...).
+    return <ThreadView chat={chat} baseId={baseId} channelId={channelId} onBack={() => (canGoBack() ? navigate(-1) : navigate('/chat'))} />
   }
 
   const listItems = Object.values(chatState).filter(c => {

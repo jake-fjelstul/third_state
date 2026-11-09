@@ -101,7 +101,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     flexShrink: 0,
     zIndex: 15,
-    animation: 'slideDown 0.25s ease',
+    animation: 'tsFadeIn 0.2s ease',
     position: 'relative',
     // Collapse + fade when skipped with the X
     overflow: 'hidden',

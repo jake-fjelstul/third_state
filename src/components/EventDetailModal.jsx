@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
 import { getEvent, markAttendance, listEventAttendeesWithStatus } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
@@ -23,7 +24,8 @@ const clr = {
 // wrapper and the body below always has an event.
 export default function EventDetailModal(props) {
   if (!props.event) return null
-  return <EventDetailModalBody {...props} />
+  // Rendered at <body> so no transformed/animated ancestor can trap it.
+  return createPortal(<EventDetailModalBody {...props} />, document.body)
 }
 
 function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCancelRsvp }) {

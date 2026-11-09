@@ -1,0 +1,117 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="shared.css"><script src="icons.js"></script>
+<title>Chat and circle</title></head>
+<body>
+<div class="board">
+  <div class="board-title">Chat and circles</div>
+  <div class="board-sub">Lists are edge-to-edge rows with hairline structure instead of stacks of shadowed cards. The thread slides over the list like iMessage, and you can drag it back from the left edge with the list visible underneath.</div>
+  <div class="row">
+    <div>
+      <div class="phone" id="list"></div>
+      <div class="caption"><b>Messages.</b> Large left title, one search field, unread shown by weight and an accent dot. Circle chats get rounded-square avatars so they read differently from people.</div>
+    </div>
+    <div>
+      <div class="phone" id="thread" style="background:#F4F4F6"></div>
+      <div class="caption"><b>Thread, mid swipe-back.</b> The chat list stays mounted underneath and shifts in as you drag. No reload, no blank frame, no scroll animation on open.</div>
+    </div>
+    <div>
+      <div class="phone" id="circle"></div>
+      <div class="caption"><b>Circle.</b> The cover photo does the visual work. Black primary button, simple underline tabs, events as plain rows with a date block. Chat opens the same thread screen as DMs.</div>
+    </div>
+  </div>
+</div>
+<script>
+const chats = [
+  ['MR', 'Maya Rodriguez', 'Down for coffee Thursday?', '2m', 18, true, false],
+  ['RC', 'Morning Run Club', 'Theo: 6:30 at the boathouse', '14m', 20, true, true],
+  ['TL', 'Theo Lin', 'You: haha same', '1h', 200, false, false],
+  ['PS', 'Priya Shah', 'That place was so good', '3h', 330, false, false],
+  ['BG', 'Board Game Nights', 'Jonah started a poll', 'Tue', 240, false, true],
+  ['JK', 'Jonah Kim', 'You reacted ❤️ to a photo', 'Mon', 140, false, false],
+  ['AL', 'Ana López', 'See you there!', 'Sun', 50, false, false],
+]
+function chatList() {
+  return `${statusBar()}
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px 2px 20px">
+    <div style="font:800 34px var(--font-display);letter-spacing:-.03em">Messages</div>
+    <div class="icon-btn">${ic('edit', 23)}</div>
+  </div>
+  <div class="search" style="margin-top:8px">${ic('search', 18)}<span>Search</span></div>
+  ${chats.map(([ini, n, s, t, hue, unread, group]) => `
+    <div class="list-row ${unread ? 'unread' : ''}">
+      ${group ? `<div class="av" style="width:56px;height:56px;border-radius:16px;font-size:19px;background:hsl(${hue} 40% 55%)">${ini}</div>` : avatar(ini, 56, hue)}
+      <div class="main"><div class="t">${n}</div><div class="s">${s}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;align-self:stretch;padding-top:4px">
+        <span class="meta" style="margin:0">${t}</span>
+        ${unread ? '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent)"></span>' : ''}
+      </div>
+    </div>`).join('')}
+  ${tabbar(3)}`
+}
+document.getElementById('list').innerHTML = chatList()
+
+document.getElementById('thread').innerHTML = `
+  <div style="position:absolute;inset:0;transform:translateX(-26%);filter:brightness(.9)">${chatList()}</div>
+  <div style="position:absolute;inset:0;transform:translateX(18%);background:var(--surface);box-shadow:-12px 0 30px rgba(0,0,0,.18)">
+    ${statusBar()}
+    <div class="navbar">
+      <div class="icon-btn">${ic('chevL', 28, 2.2)}</div>
+      <div class="center">${avatar('MR', 30, 18)}<div style="font-weight:600;font-size:16px">Maya</div></div>
+      <div class="icon-btn">${ic('more', 24)}</div>
+    </div>
+    <div class="thread">
+      <div class="ts">Today 9:12 AM</div>
+      <div class="b them">are you going to the hike tomorrow?</div>
+      <div class="b me">yes!! 7:30 right</div>
+      <div class="b me">want to grab coffee before?</div>
+      <div class="b them">down for coffee Thursday?</div>
+      <div style="align-self:flex-start;width:236px;border-radius:18px;border:1px solid var(--line);background:var(--surface);overflow:hidden;margin-top:6px">
+        <div style="padding:12px 14px 10px">
+          <div style="display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13px;font-weight:600">${ic('coffee', 16)} Coffee invite</div>
+          <div style="font-size:16px;font-weight:600;margin-top:6px">Thu, Mar 4 · 10:00 AM</div>
+          <div style="font-size:14px;color:var(--ink-2);margin-top:2px">Sightglass, 7th St</div>
+        </div>
+        <div style="display:flex;border-top:0.5px solid var(--line)">
+          <div style="flex:1;text-align:center;padding:11px 0;font-size:15px;font-weight:600;color:var(--ink-2)">Decline</div>
+          <div style="flex:1;text-align:center;padding:11px 0;font-size:15px;font-weight:600;color:var(--accent);border-left:0.5px solid var(--line)">Accept</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:8px 12px 34px;display:flex;gap:8px;align-items:center;background:var(--surface)">
+      <div class="icon-btn" style="width:36px;height:36px;border-radius:50%;background:var(--surface-2)">${ic('plus', 20, 2.2)}</div>
+      <div style="flex:1;height:38px;border-radius:19px;border:1px solid var(--line);display:flex;align-items:center;padding:0 14px;color:var(--ink-3);font-size:16px">Message</div>
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center">${ic('send', 18, 2.6)}</div>
+    </div>
+  </div>
+  <div style="position:absolute;top:400px;left:58px;z-index:70;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.18);border:2px solid rgba(255,255,255,.7)"></div>`
+
+document.getElementById('circle').innerHTML = `
+  <div style="height:250px;position:relative;background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 390 250%22><rect width=%22390%22 height=%22250%22 fill=%22%23E9B9A6%22/><circle cx=%2260%22 cy=%22260%22 r=%22150%22 fill=%22%23D99A84%22/><circle cx=%22330%22 cy=%22280%22 r=%22170%22 fill=%22%23C77F69%22/><circle cx=%22300%22 cy=%2290%22 r=%2230%22 fill=%22%23F7E3D3%22/></svg>') center/cover">
+    <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,0) 35%)"></div>
+    <div style="position:relative;color:#fff">${statusBar().replace('class="status"', 'class="status" style="color:#fff"')}</div>
+    <div style="position:absolute;top:58px;left:12px;right:12px;display:flex;justify-content:space-between;color:#fff">
+      <div class="icon-btn" style="background:rgba(0,0,0,.25);border-radius:50%;width:38px;height:38px;color:#fff">${ic('chevL', 24, 2.2)}</div>
+      <div class="icon-btn" style="background:rgba(0,0,0,.25);border-radius:50%;width:38px;height:38px;color:#fff">${ic('more', 22)}</div>
+    </div>
+  </div>
+  <div style="padding:18px 20px 14px">
+    <div style="font:800 28px var(--font-display);letter-spacing:-.03em">Morning Run Club</div>
+    <div style="font-size:15px;color:var(--ink-2);margin-top:4px">42 members · Running · Open circle</div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <div class="btn primary" style="flex:1;height:44px;font-size:16px">${ic('message', 18, 2.2)}&nbsp; Chat</div>
+      <div class="btn secondary" style="flex:1;height:44px;font-size:16px">Invite</div>
+    </div>
+  </div>
+  <div class="seg"><div class="on">Events</div><div>About</div><div>Members</div><div>Photos</div></div>
+  ${[['MAR', '4', 'Saturday long run', 'Sat · 7:00 AM · Boathouse', '12 going'], ['MAR', '6', 'Track intervals', 'Mon · 6:30 PM · Kezar', '8 going'], ['MAR', '11', 'Bagels after the run', 'Sat · 9:30 AM · Wise Sons', '15 going']].map(([m, d, t, s, g]) => `
+    <div class="list-row" style="padding:12px 20px">
+      <div style="width:48px;height:52px;border-radius:12px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.04em">${m}</div>
+        <div style="font:700 20px var(--font-display);line-height:1.1">${d}</div>
+      </div>
+      <div class="main"><div class="t">${t}</div><div class="s" style="font-size:14px">${s}</div></div>
+      <div style="font-size:13px;color:var(--ink-3)">${g}</div>
+    </div>`).join('')}
+  ${tabbar(1)}`
+</script>
+</body></html>

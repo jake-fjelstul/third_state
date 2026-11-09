@@ -1,3 +1,4 @@
+import { PageSkeleton } from '../components/ui/Skeleton.jsx'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { listProfiles } from '../lib/profiles'
@@ -16,6 +17,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { updateProfile } from '../lib/auth'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
+import { readCache, writeCache } from '../lib/localCache.js'
+import { useRefreshOnTabReturn } from '../lib/tabActive.js'
 
 const clr = {
   bg: 'var(--bg)',
@@ -646,32 +649,39 @@ export default function Circles() {
   const [connectionFilter, setConnectionFilter] = useState('all')
   const [connectionSearch, setConnectionSearch] = useState('')
 
-  const [circles, setCircles] = useState([])
-  const [circlesLoading, setCirclesLoading] = useState(true)
+  // Cached lists render instantly; the fetch below refreshes them (issue 5).
+  const [circles, setCircles] = useState(() => readCache('circles.page') || [])
+  const [circlesLoading, setCirclesLoading] = useState(() => !readCache('circles.page'))
   const [circlesError, setCirclesError] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnTabReturn(() => setReloadKey(k => k + 1))
 
-  const [people, setPeople] = useState([])
+  const [people, setPeople] = useState(() => readCache('circles.people') || [])
   useEffect(() => {
     let cancelled = false
     listProfiles({ excludeUserId: currentUser?.id })
-      .then(list => { if (!cancelled) setPeople(list) })
+      .then(list => {
+        if (cancelled) return
+        setPeople(list)
+        writeCache('circles.people', list)
+      })
       .catch(err => console.error('[Circles] listProfiles failed', err))
     return () => { cancelled = true }
-  }, [currentUser?.id])
+  }, [currentUser?.id, reloadKey])
 
   useEffect(() => {
     let cancelled = false
-    setCirclesLoading(true)
     getCirclesPage()
       .then(({ circles }) => {
         if (cancelled) return
         setCircles(circles)
+        writeCache('circles.page', circles)
         setCirclesError(null)
       })
       .catch(err => { if (!cancelled) setCirclesError(err) })
       .finally(() => { if (!cancelled) setCirclesLoading(false) })
     return () => { cancelled = true }
-  }, [currentUser?.id, circleMembershipVersion])
+  }, [currentUser?.id, circleMembershipVersion, reloadKey])
 
   const rankedConnections = useMemo(() => {
     const seen = new Set()
@@ -749,7 +759,7 @@ export default function Circles() {
   }
 
   if (circlesLoading && circles.length === 0) {
-    return <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>Loading circles…</div>
+    return <PageSkeleton />
   }
 
   return (
@@ -784,7 +794,7 @@ export default function Circles() {
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
         {activeTab === 'circles' && (
-          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: 0 }}>Ranked Activity</h2>
               {joinedCircles.length > 0 && (
@@ -881,7 +891,7 @@ export default function Circles() {
         )}
 
         {activeTab === 'connections' && (
-          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
 
 
             <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -969,13 +979,13 @@ export default function Circles() {
         )}
 
         {activeTab === 'memories' && (
-          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
-            <Memories />
+          <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
+            <Memories embedded />
           </div>
         )}
 
         {activeTab === 'network' && (
-          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
             {joinedCircles.length === 0 && connections.length === 0 ? (
               <p style={{ fontSize: 15, color: clr.textMid, textAlign: 'center', padding: '60px 20px', backgroundColor: clr.white, borderRadius: 24 }}>
                 Join some circles or make connections to see your network graph 🕸️

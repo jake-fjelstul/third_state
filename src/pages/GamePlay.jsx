@@ -1,3 +1,4 @@
+import { PageSkeleton } from '../components/ui/Skeleton.jsx'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
@@ -30,7 +31,7 @@ export default function GamePlay() {
   }, [toast])
 
   if (loading) {
-    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: clr.textMid }}>Loading game...</div>
+    return <div style={{ paddingTop: 'env(safe-area-inset-top)' }}><PageSkeleton /></div>
   }
 
   if (error || !game) {
@@ -101,7 +102,7 @@ export default function GamePlay() {
   return (
     <div style={{
       position: 'relative',
-      height: 'calc(100dvh - 80px - env(safe-area-inset-bottom))',
+      height: '100dvh',
       backgroundColor: clr.bg,
       display: 'flex', flexDirection: 'column',
       fontFamily: "'DM Sans','Inter',sans-serif",
@@ -157,7 +158,7 @@ export default function GamePlay() {
       </div>
 
       {/* Actions */}
-      <div style={{ padding: '10px 16px 12px', display: 'flex', gap: 10, flexShrink: 0 }}>
+      <div style={{ padding: '10px 16px calc(12px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, flexShrink: 0 }}>
         <button
           onClick={() => navigate(`/chat/${game.chatId}`)}
           style={{

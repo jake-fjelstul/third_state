@@ -19,7 +19,8 @@ import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
 import OnboardingFlow from '../components/onboarding/OnboardingFlow.jsx'
-import SocialBattery from '../components/battery/SocialBattery.jsx'
+import { readCache, writeCache, reviveEvents } from '../lib/localCache.js'
+import { useRefreshOnTabReturn } from '../lib/tabActive.js'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
 import AssistantBar from '../components/feed/AssistantBar.jsx'
@@ -1354,23 +1355,26 @@ export default function Feed() {
     }
   }
 
-  const [people, setPeople] = useState([])
-  const [circles, setCircles] = useState([])
-  const [events, setEvents] = useState([])
+  // Cached lists render instantly; the fetches refresh them (issue 5).
+  const [people, setPeople] = useState(() => readCache('feed.people') || [])
+  const [circles, setCircles] = useState(() => readCache('feed.circles') || [])
+  const [events, setEvents] = useState(() => readCache('feed.events', { revive: reviveEvents }) || [])
+  const [feedReloadKey, setFeedReloadKey] = useState(0)
+  useRefreshOnTabReturn(() => { setFeedReloadKey(k => k + 1); refreshLfg() })
 
   useEffect(() => {
     let cancelled = false
     listProfiles({ excludeUserId: currentUser?.id })
-      .then(list => { if (!cancelled) setPeople(list) })
+      .then(list => { if (!cancelled) { setPeople(list); writeCache('feed.people', list) } })
       .catch(err => console.error('[Feed] listProfiles failed', err))
     listVisibleCircles(currentUser?.id)
-      .then(list => { if (!cancelled) setCircles(list) })
+      .then(list => { if (!cancelled) { setCircles(list); writeCache('feed.circles', list) } })
       .catch(err => console.error('[Feed] listCircles failed', err))
     listUpcomingEvents({ limit: 30 })
-      .then(list => { if (!cancelled) setEvents(list) })
+      .then(list => { if (!cancelled) { setEvents(list); writeCache('feed.events', list) } })
       .catch(err => console.error('[Feed] listUpcomingEvents failed', err))
     return () => { cancelled = true }
-  }, [currentUser?.id, circleMembershipVersion])
+  }, [currentUser?.id, circleMembershipVersion, feedReloadKey])
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
 
@@ -1542,7 +1546,7 @@ export default function Feed() {
 
         {/* ── View Controller ── */}
         {searchResults ? (
-          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
             {searchResults.people.length === 0 && searchResults.circles.length === 0 && searchResults.events.length === 0 ? (
               <div style={{ padding: '8px 0' }}>
                 {askAssistantRow}
@@ -1693,9 +1697,6 @@ export default function Feed() {
               </section>
             )}
 
-            <div style={{ marginTop: 28 }}>
-              <SocialBattery />
-            </div>
 
 
 
