@@ -3,10 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 import { profileCompleteness } from '../lib/profileCompleteness.jsx'
-import { listUpcomingEvents, expandRecurrence, updateEvent } from '../lib/events'
+import { listUpcomingEvents, expandRecurrence, updateEvent, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events'
 import { uploadEventCover, uploadCircleCover } from '../lib/storage'
 import { listVisibleCircles, updateCircle, requiresApplication } from '../lib/circles'
-import { listProfiles } from '../lib/profiles'
+import { listProfiles, searchProfiles } from '../lib/profiles'
 import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
@@ -14,11 +14,12 @@ import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
-import { Calendar, Camera, Dribbble, Zap, Lightbulb, Sparkles, MapPin, Clock, Timer, Flame, Hand } from 'lucide-react'
+import { Calendar, Camera, Dribbble, Zap, MapPin, Clock, Timer } from 'lucide-react'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
-import { listBatteryHistory, relativeTime } from '../lib/battery.js'
+import OnboardingFlow from '../components/onboarding/OnboardingFlow.jsx'
+import SocialBattery from '../components/battery/SocialBattery.jsx'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
 import AssistantBar from '../components/feed/AssistantBar.jsx'
@@ -30,6 +31,7 @@ import {
   leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews,
 } from '../lib/lfg'
 import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
 
 const clr = {
   bg: 'var(--bg)',
@@ -233,7 +235,7 @@ function EventCard({ event, idx, isRsvpd, onViewDetails }) {
               <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
               <line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
             </svg>
-            <span style={{ fontSize: 12, color: clr.textMid }}>{event.date} · {event.time}</span>
+            <span style={{ fontSize: 12, color: clr.textMid }}>{event.dateLabel || event.date} · {event.timeLabel || event.time}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg width="12" height="12" fill="none" stroke={clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
@@ -356,7 +358,7 @@ function UpNextCard({ meetup, idx, onViewDetails }) {
         overflow: 'hidden', textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
       }}>
-        {meetup.time} · {meetup.location}
+        {meetup.timeLabel || meetup.time} · {meetup.location}
       </p>
     </div>
   )
@@ -409,12 +411,14 @@ function CreateCard({ action, onClick }) {
 }
 
 function CreateModals({ show, onClose, onShowToast, people, connections, refreshCircles, refreshLfg }) {
+  const kbHeight = useKeyboardHeight()
   const navigate = useNavigate()
   const { joinedCircles, startDM, sendMessage, createEventAndRsvp, currentUser, discoverySwipes, createCircle, blockedUserIds, circleMembershipVersion } = useAppContext()
   const [coffeeSearch, setCoffeeSearch] = useState('')
   const [coffeeTarget, setCoffeeTarget] = useState(null)
   const [circlePrivacy, setCirclePrivacy] = useState('open')
   const [eventTime, setEventTime] = useState('18:00')
+  const [eventDuration, setEventDuration] = useState(DEFAULT_DURATION_MINUTES)
   const [coffeeTime, setCoffeeTime] = useState('10:00')
   const [coffeeDate, setCoffeeDate] = useState('')
   const [coffeeNote, setCoffeeNote] = useState('')
@@ -518,22 +522,25 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
   if (!show) return null
 
+  // The sheet rides above the keyboard so search results stay visible.
   const bottomSheetStyle = {
     position: 'fixed', inset: 0, zIndex: 300,
     backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', alignItems: 'flex-end',
     justifyContent: 'center', overflow: 'hidden',
+    paddingBottom: kbHeight,
+    transition: 'padding-bottom 0.25s ease',
   }
   const sheetContentStyle = {
     width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
     backgroundColor: clr.white,
     borderRadius: '24px 24px 0 0',
-    padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
-    maxHeight: 'calc(100dvh - 16px)',
+    padding: kbHeight > 0 ? '24px 20px 16px' : '24px 20px calc(48px + env(safe-area-inset-bottom))',
+    maxHeight: `calc(100dvh - 16px - ${kbHeight}px)`,
     overflowY: 'auto',
     overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
     overscrollBehavior: 'contain',
-    animation: 'slideUp 0.25s ease',
+    animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
   }
 
   const Handle = () => <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}><div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} /></div>
@@ -773,6 +780,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             notes: '',
             recurrenceRule,
             recurrenceEndDate: effectiveEndDate,
+            durationMinutes: eventDuration,
           });
 
           if (coverFile && createdEvent?.id) {
@@ -859,6 +867,13 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Start Time</label>
           <TimePicker value={eventTime} onChange={setEventTime} />
           <input type="hidden" name="eTime" value={eventTime} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Duration</label>
+          <select value={eventDuration} onChange={e => setEventDuration(Number(e.target.value))} style={inputStyle}>
+            {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </div>
 
         {/* Repeats Select */}
@@ -1181,9 +1196,13 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               msg += `\n\n${coffeeNote.trim()}`
             }
             const chatId = await startDM(coffeeTarget)
+            // The inviter's local wall-clock time, as an absolute instant.
+            const startsAtDate = coffeeDate ? new Date(`${coffeeDate}T${coffeeTime || '10:00'}:00`) : null
+            const startsAt = startsAtDate && !Number.isNaN(startsAtDate.getTime()) ? startsAtDate.toISOString() : null
             await sendMessage(chatId, msg, null, 'coffee_invite', {
               date: coffeeDate,
               time: coffeeTime,
+              startsAt,
               whenFormatted: when,
               location: coffeeLocation?.name || '',
               locationLat: coffeeLocation?.lat ?? null,
@@ -1275,256 +1294,6 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 }
 
 /* ── Battery Helpers & Components ── */
-function getBatteryConfig(points) {
-  if (points >= 80) return {
-    label: 'Fully Charged',
-    sublabel: "You're on fire socially",
-    SubIcon: Flame,
-    color: '#10B981',  // green
-    glow: 'rgba(16,185,129,0.4)',
-    segments: 4,
-  }
-  if (points >= 60) return {
-    label: 'Charged Up',
-    sublabel: 'Keep the momentum going',
-    SubIcon: null,
-    color: '#5B5FEF',  // indigo
-    glow: 'rgba(91,95,239,0.4)',
-    segments: 3,
-  }
-  if (points >= 35) return {
-    label: 'Getting There',
-    sublabel: 'A meetup would charge you up',
-    SubIcon: null,
-    color: '#F59E0B',  // amber
-    glow: 'rgba(245,158,11,0.4)',
-    segments: 2,
-  }
-  return {
-    label: 'Running Low',
-    sublabel: 'Time to get out there',
-    SubIcon: Hand,
-    color: '#EF4444',  // red
-    glow: 'rgba(239,68,68,0.4)',
-    segments: 1,
-  }
-}
-
-function BatteryIcon({ percentage, color, glow }) {
-  const filledSegments = Math.ceil((percentage / 100) * 4)
-
-  return (
-    <div style={{ flexShrink: 0 }}>
-      <svg
-        width="80" height="40"
-        viewBox="0 0 80 40"
-        fill="none"
-      >
-        <rect
-          x="2" y="4"
-          width="68" height="32"
-          rx="6" ry="6"
-          stroke={color}
-          strokeWidth="2.5"
-          fill="none"
-        />
-        <rect
-          x="70" y="14"
-          width="8" height="12"
-          rx="2" ry="2"
-          fill={color}
-          opacity="0.6"
-        />
-        {[0, 1, 2, 3].map(i => (
-          <rect
-            key={i}
-            x={7 + i * 16}
-            y={9}
-            width={13}
-            height={22}
-            rx={3}
-            fill={i < filledSegments ? color : clr.bg}
-            style={{
-              filter: i < filledSegments ? `drop-shadow(0 0 4px ${glow})` : 'none',
-              transition: 'fill 0.5s ease',
-            }}
-          />
-        ))}
-        {percentage >= 60 && (
-          <path
-            d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"
-            fill={color}
-            transform="translate(31, 15) scale(0.6)"
-          />
-        )}
-      </svg>
-      <p style={{
-        fontSize: 11, fontWeight: 700,
-        color: color, textAlign: 'center',
-        margin: '4px 0 0 0',
-        letterSpacing: '0.04em',
-      }}>
-        {percentage}%
-      </p>
-    </div>
-  )
-}
-
-function SocialBattery() {
-  const { batteryPoints, currentUser } = useAppContext()
-  const [showHistory, setShowHistory] = useState(false)
-  const [history, setHistory] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const config = getBatteryConfig(batteryPoints)
-
-  useEffect(() => {
-    if (!showHistory || !currentUser?.id) return
-    let cancelled = false
-    setHistoryLoading(true)
-    listBatteryHistory(currentUser.id, 3)
-      .then(rows => { if (!cancelled) setHistory(rows) })
-      .catch(err => console.error('[SocialBattery] history load failed', err))
-      .finally(() => { if (!cancelled) setHistoryLoading(false) })
-    return () => { cancelled = true }
-  }, [showHistory, currentUser?.id, batteryPoints])
-
-  return (
-    <section style={{ marginBottom: 24 }}>
-      <div
-        onClick={() => setShowHistory(h => !h)}
-        style={{
-          backgroundColor: clr.white,
-          borderRadius: showHistory ? '24px 24px 0 0' : 24,
-          padding: '20px',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-          cursor: 'pointer',
-          transition: 'transform 0.15s ease, border-radius 0.2s ease',
-        }}
-        onMouseEnter={e => e.currentTarget.style.transform = showHistory ? 'translateY(0)' : 'translateY(-1px)'}
-        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            <p style={{ fontSize: 16, fontWeight: 800, color: clr.textDark, margin: '0 0 2px 0' }}>
-              Social Battery
-            </p>
-            {config.sublabel && (
-              <p style={{ fontSize: 12, color: clr.textMid, margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <span>{config.sublabel}</span>
-                {config.SubIcon && <config.SubIcon size={13} color="currentColor" />}
-              </p>
-            )}
-          </div>
-          <div style={{ backgroundColor: config.color + '20', borderRadius: 12, padding: '6px 12px', textAlign: 'center' }}>
-            <p style={{ fontSize: 20, fontWeight: 800, color: config.color, margin: 0, lineHeight: 1 }}>
-              {batteryPoints}
-            </p>
-            <p style={{ fontSize: 9, fontWeight: 700, color: config.color, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              pts
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <BatteryIcon percentage={batteryPoints} color={config.color} glow={config.glow} />
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: config.color }}>{config.label}</span>
-              <span style={{ fontSize: 12, color: clr.textMid }}>{batteryPoints}/100</span>
-            </div>
-            <div style={{ height: 8, borderRadius: 999, backgroundColor: clr.bg, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${batteryPoints}%`,
-                borderRadius: 999,
-                backgroundColor: config.color,
-                boxShadow: `0 0 8px ${config.glow}`,
-                transition: 'width 1s cubic-bezier(0.34,1.56,0.64,1)',
-              }} />
-            </div>
-            <p style={{ fontSize: 11, color: clr.textMid, margin: '8px 0 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {batteryPoints < 35 ? (
-                <><Lightbulb size={12} color={clr.indigo} style={{ flexShrink: 0 }} /> Join a circle or attend an event to charge up</>
-              ) : batteryPoints < 60 ? (
-                <><Lightbulb size={12} color={clr.indigo} style={{ flexShrink: 0 }} /> Send a message or join a circle to boost your battery</>
-              ) : (
-                <><Sparkles size={12} color={clr.indigo} style={{ flexShrink: 0 }} /> Great work — keep socializing!</>
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
-          <svg width="16" height="16" fill="none" stroke={clr.textLight} strokeWidth="2.5" viewBox="0 0 24 24"
-            style={{ transform: showHistory ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </div>
-      </div>
-
-      {showHistory && (
-        <div style={{
-          backgroundColor: clr.white,
-          borderRadius: '0 0 24px 24px',
-          marginTop: 0,
-          padding: '16px 20px 20px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-          animation: 'slideDown 0.2s ease',
-        }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Recent Activity
-          </p>
-
-          {historyLoading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{ height: 44, borderRadius: 14, backgroundColor: clr.bg, animation: 'pulse 1.4s ease-in-out infinite' }} />
-              ))}
-            </div>
-          ) : history.length === 0 ? (
-            <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
-              No activity yet. Join a circle, RSVP to an event, or send a message to start moving the needle.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {history.map(h => {
-                const positive = h.points >= 0
-                const sign = positive ? '+' : '−'
-                const absVal = Math.abs(h.points)
-                const pillBg = positive ? '#DCFCE7' : '#FEE2E2'
-                const pillFg = positive ? '#059669' : '#DC2626'
-                return (
-                  <div key={h.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 12px', borderRadius: 14,
-                    backgroundColor: clr.bg,
-                  }}>
-                    <span style={{
-                      fontSize: 13, fontWeight: 800,
-                      color: pillFg, backgroundColor: pillBg,
-                      padding: '4px 10px', borderRadius: 999, minWidth: 48, textAlign: 'center',
-                    }}>
-                      {sign}{absVal}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {h.reason}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: clr.textLight }}>
-                        {relativeTime(h.createdAt)} · battery now {h.result}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  )
-}
-
 /* ── Main Feed ── */
 export default function Feed() {
   const navigate = useNavigate()
@@ -1654,8 +1423,8 @@ export default function Feed() {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     return [...(meetups || [])]
-      .filter(m => new Date(m.date) >= today)
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .filter(m => m.dateObj && m.dateObj >= today)
+      .sort((a, b) => a.dateObj - b.dateObj)
       .slice(0, 3)
   }, [meetups])
 
@@ -1682,16 +1451,32 @@ export default function Feed() {
     return () => document.head.removeChild(style)
   }, [])
 
+  // People search runs on the server so it isn't limited to who's loaded (M3).
+  const [serverPeople, setServerPeople] = useState([])
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) { setServerPeople([]); return }
+    let cancelled = false
+    const t = setTimeout(() => {
+      searchProfiles({ query: q, excludeUserId: currentUser?.id, limit: 30 })
+        .then(rows => { if (!cancelled) setServerPeople(rows) })
+        .catch(err => console.error('[Feed] people search failed', err))
+    }, 250)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [searchQuery, currentUser?.id])
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null
     const q = searchQuery.toLowerCase()
     const activeBlockedIds = blockedUserIds || []
+    const local = people.filter(p => !activeBlockedIds.includes(p.id) && (p.name.toLowerCase().includes(q) || p.interests?.some(i => i.toLowerCase().includes(q)) || p.bio?.toLowerCase().includes(q)))
+    const seen = new Set(local.map(p => p.id))
     return {
-      people: people.filter(p => !activeBlockedIds.includes(p.id) && (p.name.toLowerCase().includes(q) || p.interests?.some(i => i.toLowerCase().includes(q)) || p.bio?.toLowerCase().includes(q))),
+      people: [...local, ...serverPeople.filter(p => !seen.has(p.id) && !activeBlockedIds.includes(p.id))],
       circles: circles.filter(c => c.name.toLowerCase().includes(q) || c.interestTag?.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)),
       events: events.filter(e => e.title.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q)),
     }
-  }, [searchQuery, people, circles, events, blockedUserIds])
+  }, [searchQuery, people, serverPeople, circles, events, blockedUserIds])
 
   const getGreeting = () => {
     const h = new Date().getHours()
@@ -1757,7 +1542,7 @@ export default function Feed() {
 
         {/* ── View Controller ── */}
         {searchResults ? (
-          <div style={{ animation: 'slideUp 0.15s ease' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
             {searchResults.people.length === 0 && searchResults.circles.length === 0 && searchResults.events.length === 0 ? (
               <div style={{ padding: '8px 0' }}>
                 {askAssistantRow}
@@ -2000,7 +1785,7 @@ export default function Feed() {
               padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
               maxHeight: 'calc(100dvh - 16px)',
               overflowY: 'auto',
-              animation: 'slideUp 0.25s ease',
+              animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -2133,12 +1918,16 @@ export default function Feed() {
       {(() => {
         if (!currentUser || onboardingDismissed) return null
         const needsCelebration = !!recentInviter
-        const needsIntent = currentUser.intentCapturedAt == null && !window.localStorage.getItem(`ts_intent_${currentUser.id}`)
-        if (!needsCelebration && !needsIntent) return null
+        // intentCapturedAt now loads correctly (H6), so this is the real signal.
+        const needsOnboarding = currentUser.intentCapturedAt == null
+        if (needsOnboarding) {
+          return <OnboardingFlow onDone={() => { if (!needsCelebration) setOnboardingDismissed(true) }} />
+        }
+        if (!needsCelebration) return null
         return (
           <OnboardingModal
-            inviter={recentInviter || null}
-            showIntent={needsIntent}
+            inviter={recentInviter}
+            showIntent={false}
             onClose={() => setOnboardingDismissed(true)}
           />
         )

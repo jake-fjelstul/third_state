@@ -1,14 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppContext } from '../../context/AppContext.jsx'
-import { rsvp } from '../../lib/events.js'
-import { updateMessagePayload } from '../../lib/chat.js'
 import { buildMapsUrl } from '../../lib/geocoding.js'
 import { supabase } from '../../lib/supabase.js'
 import { Coffee, Calendar, MapPin, StickyNote, Hourglass, CalendarCheck } from 'lucide-react'
 
 export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
   const payload = message.payload || {}
-  const { createEventAndRsvp, currentUser, refreshProfile } = useAppContext()
+  const { currentUser, refreshProfile } = useAppContext()
   const [status, setStatus] = useState(payload.status || 'pending')
   const [loading, setLoading] = useState(false)
 
@@ -18,70 +16,39 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
   const whenStr = payload.whenFormatted || (payload.date ? `${payload.date} ${payload.time || ''}` : '')
   const locationName = payload.location || ''
 
+  // Realtime UPDATEs on the message flow in through props (H8).
+  useEffect(() => {
+    if (payload.status) setStatus(payload.status)
+  }, [payload.status])
+
   const handleAccept = async () => {
     if (loading || status !== 'pending') return
     setLoading(true)
     try {
       const title = `Coffee Chat: ${payload.inviterName || 'Connection'} & ${currentUser?.name?.split(' ')[0] || 'Me'}`
-      
-      let eventId = null
-      // Try atomic RPC function first
-      try {
-        const { data, error } = await supabase.rpc('accept_coffee_invite', {
-          p_message_id: message.id,
-          p_title: title,
-          p_date: payload.date,
-          p_time: payload.time || '10:00',
-          p_location: locationName || null,
-          p_location_lat: payload.locationLat ?? null,
-          p_location_lng: payload.locationLng ?? null,
-          p_location_address: payload.locationAddress || null,
-          p_notes: payload.note || null,
-        })
-        if (!error && data) {
-          eventId = data
-        }
-      } catch (e) {
-        console.warn('[CoffeeInviteMessageCard] accept_coffee_invite RPC failed, falling back', e)
-      }
+      // Prefer the absolute instant the inviter picked; older invites only
+      // carry date + time, which we read in this device's time zone.
+      const startsAt = payload.startsAt
+        || (payload.date ? new Date(`${payload.date}T${payload.time || '10:00'}:00`).toISOString() : null)
+      if (!startsAt) throw new Error('This invite has no date')
 
-      if (!eventId) {
-        // Fallback: client-side event creation
-        const event = await createEventAndRsvp({
-          circleId: null,
-          title,
-          date: payload.date,
-          time: payload.time || '10:00',
-          location: locationName,
-          locationLat: payload.locationLat ?? null,
-          locationLng: payload.locationLng ?? null,
-          locationAddress: payload.locationAddress || '',
-          notes: payload.note || '',
-        })
-        eventId = event.id
+      const { error } = await supabase.rpc('accept_coffee_invite', {
+        p_message_id: message.id,
+        p_starts_at: startsAt,
+        p_title: title,
+        p_location: locationName || null,
+        p_location_lat: payload.locationLat ?? null,
+        p_location_lng: payload.locationLng ?? null,
+        p_location_address: payload.locationAddress || null,
+        p_notes: payload.note || null,
+      })
+      if (error) throw error
 
-        if (inviterId && inviterId !== viewerId) {
-          await rsvp({ userId: inviterId, eventId: event.id }).catch(err => {
-            console.warn('[CoffeeInviteMessageCard] rsvp inviter fallback warning', err)
-          })
-        }
-
-        const updatedPayload = {
-          ...payload,
-          status: 'accepted',
-          eventId: event.id,
-          acceptedAt: new Date().toISOString(),
-          acceptedBy: viewerId,
-        }
-
-        await updateMessagePayload(message.id, updatedPayload)
-      }
-
-      await refreshProfile?.().catch(() => {})
       setStatus('accepted')
+      await refreshProfile?.().catch(() => {})
     } catch (err) {
       console.error('[CoffeeInviteMessageCard] handleAccept failed', err)
-      alert('Could not accept invite. Please try again.')
+      alert(err?.message ? `Could not accept invite: ${err.message}` : 'Could not accept invite. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -91,16 +58,12 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
     if (loading || status !== 'pending') return
     setLoading(true)
     try {
-      const updatedPayload = {
-        ...payload,
-        status: 'declined',
-        declinedAt: new Date().toISOString(),
-        declinedBy: viewerId,
-      }
-      await updateMessagePayload(message.id, updatedPayload)
-      setStatus('declined')
+      const { error } = await supabase.rpc('decline_coffee_invite', { p_message_id: message.id })
+      if (error) throw error
+      setStatus(isInviter ? 'cancelled' : 'declined')
     } catch (err) {
       console.error('[CoffeeInviteMessageCard] handleDecline failed', err)
+      alert('Could not update the invite. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -238,13 +201,13 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
             </div>
           )}
 
-          {status === 'declined' && (
+          {(status === 'declined' || status === 'cancelled') && (
             <div style={{
               textAlign: 'center', padding: '8px 12px', borderRadius: 12,
               backgroundColor: '#F3F4F6', color: clr.textMid,
               fontSize: 12, fontWeight: 600,
             }}>
-              ✕ Invite declined
+              {status === 'cancelled' ? '✕ Invite cancelled' : '✕ Invite declined'}
             </div>
           )}
         </div>

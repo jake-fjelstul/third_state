@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext.jsx'
-import { Lightbulb } from 'lucide-react'
+import { Lightbulb, X } from 'lucide-react'
 
 export default function QuestionPrompt({ clr, chat, messages = [] }) {
   const {
@@ -20,6 +20,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
   const [cancelling, setCancelling] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [closing, setClosing] = useState(false)
   const dropdownRef = useRef(null)
 
   const isDm = chat?.type === 'dm'
@@ -102,6 +103,16 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
     zIndex: 15,
     animation: 'slideDown 0.25s ease',
     position: 'relative',
+    // Collapse + fade when skipped with the X
+    overflow: 'hidden',
+    maxHeight: closing ? 0 : 400,
+    opacity: closing ? 0 : 1,
+    paddingTop: closing ? 0 : 14,
+    paddingBottom: closing ? 0 : 14,
+    marginTop: closing ? 0 : 10,
+    marginBottom: closing ? 0 : 4,
+    borderWidth: closing ? 0 : 1.5,
+    transition: 'max-height 0.24s ease, opacity 0.18s ease, padding 0.24s ease, margin 0.24s ease',
   }
 
   // Asker view for pending spontaneous question
@@ -187,7 +198,8 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
 
   const handleDismiss = async (permanent) => {
     setDropdownOpen(false)
-    setDismissed(true)
+    setClosing(true)
+    setTimeout(() => setDismissed(true), 260)
     try {
       await dismissDailyQuestion(permanent)
     } catch (err) {
@@ -206,6 +218,28 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
         }}>
           <Lightbulb size={12} color="#D97706" /> {badgeLabel}
         </span>
+        {!isRecipientSq && (
+          <button
+            type="button"
+            onClick={() => handleDismiss(false)}
+            aria-label="Skip today's question"
+            style={{
+              // 44pt tap target; the visible circle is smaller.
+              width: 44, height: 44, margin: '-12px -12px -12px 0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              color: clr?.textMid || '#6B7280',
+            }}
+          >
+            <span style={{
+              width: 26, height: 26, borderRadius: '50%',
+              backgroundColor: clr?.bg || '#F3F4F6',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <X size={15} />
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Question Text */}

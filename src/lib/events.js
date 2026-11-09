@@ -2,21 +2,64 @@ import { supabase } from './supabase'
 
 // ---------- mappers ----------
 
+const pad2 = (n) => String(n).padStart(2, '0')
+
+/** Choices for an event's length; availability uses the resulting end time. */
+export const DURATION_OPTIONS = [
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 hour' },
+  { value: 90, label: '1.5 hours' },
+  { value: 120, label: '2 hours' },
+  { value: 180, label: '3 hours' },
+  { value: 240, label: '4 hours' },
+]
+export const DEFAULT_DURATION_MINUTES = 90
+
+/** 'YYYY-MM-DD' for a Date in the device's local time zone. */
+export function toLocalDateString(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+/** 24-hour 'HH:mm' for a Date in the device's local time zone. */
+export function toLocalTimeString(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return ''
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/** '7:30 PM' style label for display. */
+export function formatTimeLabel(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+/** 'Wed, Oct 14' style label for display. */
+export function formatDateLabel(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
 function mapEventRow(row) {
   if (!row) return null
   const dateObj = row.starts_at ? new Date(row.starts_at) : null
-  const date = dateObj ? dateObj.toISOString().slice(0, 10) : ''
-  const time = dateObj
-    ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : ''
+  // date/time are form values (local, 24h) so editing round-trips exactly;
+  // dateLabel/timeLabel are for display.
+  const date = toLocalDateString(dateObj)
+  const time = toLocalTimeString(dateObj)
   return {
     id: row.id,
     circleId: row.circle_id,
     circleName: row.circles?.name || row.circle_name || '',
     title: row.title,
     startsAt: row.starts_at,
+    endsAt: row.ends_at || null,
+    durationMinutes: row.ends_at && row.starts_at
+      ? Math.round((new Date(row.ends_at) - new Date(row.starts_at)) / 60000)
+      : null,
     date,
     time,
+    dateLabel: formatDateLabel(dateObj),
+    timeLabel: formatTimeLabel(dateObj),
     location: row.location || '',
     locationLat: row.location_lat ?? null,
     locationLng: row.location_lng ?? null,
@@ -94,7 +137,7 @@ export async function listMyMeetups(userId, { upcomingOnly = false } = {}) {
     .select(`
       event_id,
       events:event_id (
-        id, circle_id, title, starts_at, location, location_lat, location_lng, location_address, notes, created_by, cover_image_url, recurrence_rule, recurrence_end_date, recurrence_parent_id,
+        id, circle_id, title, starts_at, ends_at, location, location_lat, location_lng, location_address, notes, created_by, cover_image_url, recurrence_rule, recurrence_end_date, recurrence_parent_id,
         circles(name)
       )
     `)
@@ -125,7 +168,7 @@ export async function listPastEventsForUser(userId) {
     .select(`
       event_id,
       events:event_id (
-        id, circle_id, title, starts_at, location, location_lat, location_lng, location_address, notes, created_by, cover_image_url, recurrence_rule, recurrence_end_date, recurrence_parent_id,
+        id, circle_id, title, starts_at, ends_at, location, location_lat, location_lng, location_address, notes, created_by, cover_image_url, recurrence_rule, recurrence_end_date, recurrence_parent_id,
         circles(name)
       )
     `)
@@ -162,16 +205,24 @@ export function expandRecurrence({ startsAt, rule, endDate, maxOccurrences = 26 
   const results = [startsAt]
   const endTs = endDate ? new Date(`${endDate}T23:59:59.999Z`).getTime() : null
 
+  const base = new Date(startsAt)
   let current = new Date(startsAt)
+  let monthStep = 0
 
   while (results.length < cap) {
-    const next = new Date(current)
+    let next = new Date(current)
     if (rule === 'weekly') {
       next.setDate(next.getDate() + 7)
     } else if (rule === 'biweekly') {
       next.setDate(next.getDate() + 14)
     } else if (rule === 'monthly') {
-      next.setMonth(next.getMonth() + 1)
+      // Same day each month, clamped to the month's last day, always counted
+      // from the original date: Jan 31 -> Feb 28 -> Mar 31 (L2).
+      monthStep += 1
+      const y = base.getFullYear()
+      const m = base.getMonth() + monthStep
+      const lastDay = new Date(y, m + 1, 0).getDate()
+      next = new Date(y, m, Math.min(base.getDate(), lastDay), base.getHours(), base.getMinutes(), base.getSeconds())
     } else {
       break
     }
@@ -189,9 +240,23 @@ export function expandRecurrence({ startsAt, rule, endDate, maxOccurrences = 26 
 
 // ---------- writes ----------
 
-function combineDateTimeToIso(date, time) {
+/** Normalize '7:30', '07:30', '7:30 PM' or '19:30' to 24-hour 'HH:mm'. */
+export function normalizeTime(time) {
+  if (!time) return null
+  const m = String(time).trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/)
+  if (!m) return null
+  let h = Number(m[1])
+  const min = Number(m[2])
+  const ampm = m[3]?.toUpperCase()
+  if (ampm === 'PM' && h < 12) h += 12
+  if (ampm === 'AM' && h === 12) h = 0
+  if (h > 23 || min > 59) return null
+  return `${pad2(h)}:${pad2(min)}`
+}
+
+export function combineDateTimeToIso(date, time) {
   if (!date) return null
-  const t = time && /^\d{1,2}:\d{2}$/.test(time) ? time : '12:00'
+  const t = normalizeTime(time) || '12:00'
   const local = new Date(`${date}T${t}:00`)
   if (Number.isNaN(local.getTime())) return null
   return local.toISOString()
@@ -212,14 +277,17 @@ export async function createEvent({
   coverImageUrl,
   recurrenceRule,
   recurrenceEndDate,
+  durationMinutes,
 }) {
   const iso = startsAt || combineDateTimeToIso(date, time)
   if (!iso) throw new Error('Event must have a valid date/time')
+  const durMs = Number(durationMinutes) > 0 ? Number(durationMinutes) * 60000 : null
 
   const row = {
     circle_id: circleId,
     title,
     starts_at: iso,
+    ends_at: durMs ? new Date(new Date(iso).getTime() + durMs).toISOString() : null,
     location: location || null,
     location_lat: locationLat ?? null,
     location_lng: locationLng ?? null,
@@ -264,6 +332,7 @@ export async function createEvent({
         circle_id: circleId,
         title,
         starts_at: childIso,
+        ends_at: durMs ? new Date(new Date(childIso).getTime() + durMs).toISOString() : null,
         location: location || null,
         location_lat: locationLat ?? null,
         location_lng: locationLng ?? null,
@@ -297,12 +366,20 @@ export async function updateEvent({
   locationAddress,
   notes,
   coverImageUrl,
+  durationMinutes,
 }) {
   if (!eventId) throw new Error('Missing eventId')
   const patch = {}
   if (title !== undefined) patch.title = title
   if (date !== undefined || time !== undefined || startsAt !== undefined) {
     patch.starts_at = startsAt || combineDateTimeToIso(date, time)
+  }
+  if (durationMinutes !== undefined) {
+    const base = patch.starts_at
+    if (!base && Number(durationMinutes) > 0) throw new Error('Changing duration needs the start time')
+    patch.ends_at = Number(durationMinutes) > 0 && base
+      ? new Date(new Date(base).getTime() + Number(durationMinutes) * 60000).toISOString()
+      : null
   }
   if (location !== undefined) patch.location = location
   if (locationLat !== undefined) patch.location_lat = locationLat

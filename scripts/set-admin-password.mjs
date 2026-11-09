@@ -73,15 +73,19 @@ async function main() {
     },
   })
 
-  const { data: usersData, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-  if (listError) {
-    console.error(`Error listing users: ${listError.message}`)
-    process.exit(1)
+  // Page through every user; the first page alone stops at 1,000 (L8).
+  const wanted = targetEmail.trim().toLowerCase()
+  let targetUser = null
+  for (let page = 1; !targetUser; page++) {
+    const { data: usersData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
+    if (listError) {
+      console.error(`Error listing users: ${listError.message}`)
+      process.exit(1)
+    }
+    const users = usersData?.users || []
+    targetUser = users.find((u) => u.email && u.email.toLowerCase() === wanted) || null
+    if (users.length < 1000) break
   }
-
-  const targetUser = usersData.users.find(
-    (u) => u.email && u.email.toLowerCase() === targetEmail.trim().toLowerCase()
-  )
 
   if (!targetUser) {
     console.error('Error: User not found.')

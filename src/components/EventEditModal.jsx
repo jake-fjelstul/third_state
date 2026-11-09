@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { updateEvent, deleteEvent } from '../lib/events.js'
+import { updateEvent, deleteEvent, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events.js'
 import { uploadEventCover } from '../lib/storage.js'
 import TimePicker from './TimePicker.jsx'
 import LocationAutocomplete from './ui/LocationAutocomplete.jsx'
@@ -18,12 +18,19 @@ const clr = {
   red: '#DC2626',
 }
 
-export default function EventEditModal({ event, onClose, onSaved }) {
-  if (!event) return null
+// Hooks must run unconditionally (L1), so the null check lives in a thin
+// wrapper and the body below always has an event.
+export default function EventEditModal(props) {
+  if (!props.event) return null
+  return <EventEditModalBody {...props} />
+}
+
+function EventEditModalBody({ event, onClose, onSaved }) {
 
   const [title, setTitle] = useState(event.title || '')
   const [date, setDate] = useState(event.date || '')
   const [time, setTime] = useState(event.time || '12:00')
+  const [durationMinutes, setDurationMinutes] = useState(event.durationMinutes || DEFAULT_DURATION_MINUTES)
   const [notes, setNotes] = useState(event.notes || '')
   const [eventLocation, setEventLocation] = useState(
     event.location
@@ -103,6 +110,7 @@ export default function EventEditModal({ event, onClose, onSaved }) {
         locationAddress: eventLocation?.address || '',
         notes,
         coverImageUrl: coverUrl,
+        durationMinutes,
       })
 
       if (scope === 'future' && hasRecurringSeries && event.startsAt && updated.startsAt) {
@@ -132,6 +140,7 @@ export default function EventEditModal({ event, onClose, onSaved }) {
               notes,
               coverImageUrl: coverUrl,
               startsAt: newSibIso,
+              durationMinutes,
             }).catch(err => console.error('[EventEditModal] sibling update failed', sib.id, err))
           }
         }
@@ -184,7 +193,7 @@ export default function EventEditModal({ event, onClose, onSaved }) {
           width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
           backgroundColor: clr.white, borderRadius: '24px 24px 0 0',
           padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
-          maxHeight: '85dvh', overflowY: 'auto', animation: 'slideUp 0.25s ease',
+          maxHeight: '85dvh', overflowY: 'auto', animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -266,6 +275,16 @@ export default function EventEditModal({ event, onClose, onSaved }) {
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Start Time</label>
             <TimePicker value={time} onChange={setTime} />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Duration</label>
+            <select value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))} style={{
+              width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 14,
+              border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15, color: clr.textDark, fontFamily: 'inherit',
+            }}>
+              {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
 
           {/* Location */}

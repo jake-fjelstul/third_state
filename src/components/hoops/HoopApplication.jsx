@@ -261,7 +261,7 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
   )
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: clr.bg, animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: clr.bg, animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both' }}>
       {step === 0 && renderOverview()}
       {step > 0 && step <= totalSteps && renderHoop()}
       {step === totalSteps + 1 && renderReview()}

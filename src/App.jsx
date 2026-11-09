@@ -1,5 +1,8 @@
-import { useEffect, useRef } from 'react'
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutlet } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { pageSlide, springs, routeDepth } from './lib/motion.js'
+import { HARDWARE_BACK_EVENT } from './lib/hardwareBack.js'
 import { Capacitor } from '@capacitor/core'
 import './App.css'
 import { useAppContext } from './context/AppContext.jsx'
@@ -22,6 +25,9 @@ import OnboardingModal from './components/feed/OnboardingModal.jsx'
 import MemoriesPage from './pages/Memories.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
 import LandingPage from './pages/Landing.jsx'
+import ResetPasswordPage from './pages/ResetPassword.jsx'
+import PushPrompt from './components/push/PushPrompt.jsx'
+import { supabase } from './lib/supabase'
 const clr = {
   bg: 'var(--bg)',
   white: 'var(--white)',
@@ -86,7 +92,7 @@ const NAV_ITEMS = [
 
 /* ── Bottom tab bar — always fixed ── */
 function BottomNav() {
-  const location = useNavigate ? useLocation() : { pathname: '' }
+  const location = useLocation()
   const navigate = useNavigate()
   const { chatState } = useAppContext()
   const hasUnreadChat = Object.values(chatState || {}).some(chat => chat.unread > 0)
@@ -197,6 +203,94 @@ function TopNav() {
   )
 }
 
+/* ── Animated page container (items 3 and 9) ──
+   Going deeper (list → chat) slides the new page in from the right; going
+   back slides it out. Tab switches cross-fade. A swipe from the left edge on
+   a pushed page goes back, like iOS. */
+function AnimatedOutlet() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const outlet = useOutlet()
+  const reduced = useReducedMotion()
+  const pageRef = useRef(null)
+  const swipe = useRef(null)
+
+  // Direction of the last route change, derived during render (no refs).
+  const [routeAnim, setRouteAnim] = useState({ path: location.pathname, dir: 0 })
+  if (routeAnim.path !== location.pathname) {
+    const from = routeDepth(routeAnim.path)
+    const to = routeDepth(location.pathname)
+    setRouteAnim({ path: location.pathname, dir: to > from ? 1 : to < from ? -1 : 0 })
+  }
+  const dir = routeAnim.dir
+  const canSwipeBack = routeDepth(location.pathname) > 0
+
+  const onTouchStart = (e) => {
+    const t = e.touches[0]
+    if (!canSwipeBack || t.clientX > 24) return
+    swipe.current = { x0: t.clientX, y0: t.clientY, dx: 0, active: false }
+  }
+  const onTouchMove = (e) => {
+    const s = swipe.current
+    if (!s) return
+    const t = e.touches[0]
+    s.dx = Math.max(0, t.clientX - s.x0)
+    if (!s.active && Math.abs(t.clientY - s.y0) > 12 && Math.abs(t.clientY - s.y0) > s.dx) { swipe.current = null; return }
+    if (s.dx > 8) s.active = true
+    if (s.active && pageRef.current) {
+      pageRef.current.style.transition = 'none'
+      pageRef.current.style.transform = `translateX(${s.dx}px)`
+    }
+  }
+  const onTouchEnd = () => {
+    const s = swipe.current
+    swipe.current = null
+    if (!s?.active || !pageRef.current) return
+    const el = pageRef.current
+    if (s.dx > window.innerWidth * 0.33) {
+      el.style.transition = 'transform 0.2s ease-out'
+      el.style.transform = 'translateX(100%)'
+      setTimeout(() => {
+        el.style.transition = ''
+        el.style.transform = ''
+        navigate(-1)
+      }, 180)
+    } else {
+      el.style.transition = 'transform 0.2s ease-out'
+      el.style.transform = 'translateX(0)'
+      setTimeout(() => { el.style.transition = ''; el.style.transform = '' }, 220)
+    }
+  }
+
+  if (reduced) return outlet
+
+  return (
+    <div
+      style={{ position: 'relative', overflowX: 'clip' }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
+    >
+      <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+        <motion.div
+          key={location.pathname}
+          ref={pageRef}
+          custom={dir}
+          variants={pageSlide}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={dir === 0 ? { duration: 0.16 } : springs.page}
+          style={{ width: '100%', backgroundColor: 'var(--bg)', minHeight: '100%' }}
+        >
+          {outlet}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  )
+}
+
 /* ── Shell layout wrapping all authenticated pages ── */
 function ShellLayout() {
   const location = useLocation()
@@ -218,12 +312,14 @@ function ShellLayout() {
         alignItems: 'center',
       }}>
         <div style={{ width: '100%', maxWidth: 900 }}>
-          <Outlet />
+          <AnimatedOutlet />
         </div>
       </div>
 
       {/* Bottom tab bar — always visible */}
       <BottomNav />
+
+      <PushPrompt />
 
       <style>{`
         * { box-sizing: border-box; }
@@ -350,6 +446,65 @@ function App() {
     return () => { cancelled = true; cleanup() }
   }, [session?.user?.id, navigate])
 
+  // Password-reset links on web land with a recovery session.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') navigate('/reset-password', { replace: true })
+    })
+    return () => subscription.unsubscribe()
+  }, [navigate])
+
+  // Android hardware back: sheet first, then history, then exit from Home.
+  const locationRef = useRef(null)
+  const loc = useLocation()
+  useEffect(() => { locationRef.current = loc.pathname }, [loc.pathname])
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android') return
+    let remove = () => {}
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.addListener('backButton', () => {
+        const ev = new CustomEvent(HARDWARE_BACK_EVENT, { cancelable: true })
+        if (!window.dispatchEvent(ev)) return // a sheet handled it
+        const path = locationRef.current || '/'
+        if (path === '/feed' || path === '/' || path === '/auth') { CapApp.exitApp(); return }
+        if (routeDepth(path) === 0) { navigate('/feed'); return }
+        navigate(-1)
+      }).then(h => { remove = () => h.remove() })
+    }).catch(() => {})
+    return () => remove()
+  }, [navigate])
+
+  // Universal Links (https://third-space-app.com/...) and thirdspace:// links
+  // that aren't OAuth callbacks open the matching in-app route (H3, item 14).
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    const routeFromUrl = (raw) => {
+      if (!raw) return
+      let u
+      try { u = new URL(raw) } catch { return }
+      let path
+      if (u.protocol === 'https:' && /(^|\.)third-space-app\.com$/.test(u.hostname)) {
+        path = u.pathname
+      } else if (u.protocol === 'thirdspace:' || u.protocol === 'com.thirdspace.social:') {
+        // thirdspace://j/CODE parses host='j', pathname='/CODE'
+        path = `/${u.hostname}${u.pathname}`.replace(/\/+$/, '')
+        if (path.startsWith('/auth') || path.startsWith('/calendar-callback')) return // handled elsewhere
+      } else {
+        return
+      }
+      if (!path || path === '/') return
+      navigate(`${path}${u.search}${u.hash}`)
+    }
+
+    let remove = () => {}
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.getLaunchUrl().then(res => routeFromUrl(res?.url)).catch(() => {})
+      CapApp.addListener('appUrlOpen', ({ url }) => routeFromUrl(url))
+        .then(h => { remove = () => h.remove() })
+    }).catch(() => {})
+    return () => remove()
+  }, [navigate])
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
     let remove = () => {}
@@ -371,6 +526,7 @@ function App() {
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<AuthGuard />}>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />

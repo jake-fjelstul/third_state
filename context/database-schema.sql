@@ -1,5 +1,5 @@
-# Generated: 2026-08-18T02:08:20Z
-# Commit:    fdfa49b
+# Generated: 2026-08-18T20:26:29Z
+# Commit:    fbbfdcd
 # Branch:    main
 # Source:    live pg_dump
 
@@ -7,7 +7,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict m0XrNPjrygGGNVqBg785X7ckr6Hg7UIqcpUNUSCqSCCdZvszYNWv7wHq7VAS8AO
+\restrict L9ScRgnzkZYrDh4Y2SNVbAVZIKcHmiWiV93dqY1Vq2z8VMb7WRA2ufoGwnKNhR2
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.6
@@ -114,9 +114,9 @@ begin
   v_iso := (p_date || 'T' || v_t || ':00')::timestamptz;
 
   insert into public.events (
-    title, starts_at, location, location_lat, location_lng, location_address, notes, created_by
+    title, starts_at, location, location_lat, location_lng, location_address, notes, created_by, source
   ) values (
-    p_title, v_iso, nullif(p_location, ''), p_location_lat, p_location_lng, nullif(p_location_address, ''), nullif(p_notes, ''), v_uid
+    p_title, v_iso, nullif(p_location, ''), p_location_lat, p_location_lng, nullif(p_location_address, ''), nullif(p_notes, ''), v_uid, 'coffee'
   ) returning id into v_event_id;
 
   -- RSVP accepting user
@@ -2644,33 +2644,23 @@ declare
   v_target record;
 begin
   for rec in
-    select c.user_id, c.connected_user_id, 
-           coalesce(c.last_hangout, c.created_at) as effective_last_hangout, 
-           p.reconnect_threshold_days
+    select c.user_id, c.connected_user_id, c.last_hangout, p.reconnect_threshold_days
     from public.connections c
     join public.profiles p on p.id = c.user_id
-    where (now() - coalesce(c.last_hangout, c.created_at)) >= make_interval(days => coalesce(p.reconnect_threshold_days, 21))
+    where c.last_hangout is not null
+      and c.last_hangout < (now() - make_interval(days => coalesce(p.reconnect_threshold_days, 21)))
+      and (c.last_nudged_at is null or c.last_nudged_at < c.last_hangout)
   loop
-    -- skip if recent nudge exists
-    if exists (
-      select 1 from public.notifications n
-      where n.user_id = rec.user_id
-        and n.type = 'reconnect_nudge'
-        and (n.payload->'user'->>'id')::uuid = rec.connected_user_id
-        and n.created_at > now() - interval '7 days'
-    ) then
-      continue;
-    end if;
-
     select id, name, avatar_url into v_target
-      from public.profiles where id = rec.connected_user_id;
+    from public.profiles
+    where id = rec.connected_user_id;
 
     perform public.enqueue_notification(
       rec.user_id,
       'reconnect_nudge',
       jsonb_build_object(
         'targetId', v_target.id,
-        'user', jsonb_build_object('id', v_target.id, 'name', v_target.name, 'avatar', coalesce(v_target.avatar_url,'')),
+        'user', jsonb_build_object('id', v_target.id, 'name', v_target.name, 'avatar', coalesce(v_target.avatar_url, '')),
         'message', format(
           'You haven''t hung out with %s in a while. Reach out to reconnect!',
           split_part(v_target.name, ' ', 1)
@@ -2682,8 +2672,14 @@ begin
         )
       )
     );
+
+    update public.connections
+    set last_nudged_at = now()
+    where user_id = rec.user_id
+      and connected_user_id = rec.connected_user_id;
   end loop;
-end; $$;
+end;
+$$;
 
 
 --
@@ -2826,6 +2822,73 @@ begin
     end if;
   end loop;
 end;
+$$;
+
+
+--
+-- Name: get_circles_page(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.get_circles_page() RETURNS jsonb
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  with my_circles as (
+    select circle_id
+    from public.circle_members
+    where user_id = auth.uid()
+  ),
+  my_circle_ids_json as (
+    select coalesce(jsonb_agg(circle_id), '[]'::jsonb) as val
+    from my_circles
+  ),
+  visible_circles as (
+    select
+      c.id,
+      c.name,
+      c.icon,
+      c.emoji,
+      c.city,
+      c.type,
+      c.category,
+      c.interest_tag,
+      c.member_count,
+      c.cover_image_url,
+      c.cover_gradient,
+      c.applications_enabled,
+      c.organizer_id
+    from public.circles c
+    where c.type = 'open'
+       or (c.type = 'private' and c.applications_enabled = true)
+       or exists (
+         select 1 from my_circles mc where mc.circle_id = c.id
+       )
+    order by c.member_count desc
+  ),
+  circles_json as (
+    select coalesce(jsonb_agg(to_jsonb(vc)), '[]'::jsonb) as val
+    from visible_circles vc
+  ),
+  joined_members as (
+    select
+      cm.circle_id,
+      cm.user_id,
+      p.name,
+      coalesce(p.avatar_url, '') as avatar_url,
+      cm.role
+    from public.circle_members cm
+    join public.profiles p on p.id = cm.user_id
+    where cm.circle_id in (select circle_id from my_circles)
+  ),
+  joined_members_json as (
+    select coalesce(jsonb_agg(to_jsonb(jm)), '[]'::jsonb) as val
+    from joined_members jm
+  )
+  select jsonb_build_object(
+    'my_circle_ids', (select val from my_circle_ids_json),
+    'circles', (select val from circles_json),
+    'joined_circle_members', (select val from joined_members_json)
+  );
 $$;
 
 
@@ -3518,6 +3581,68 @@ begin
   end if;
   return new;
 end; $$;
+
+
+--
+-- Name: notify_on_event_reaction(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.notify_on_event_reaction() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_sender_name text;
+begin
+  if new.target_user_id is null or new.target_user_id = new.user_id then
+    return new;
+  end if;
+
+  select name into v_sender_name
+    from public.profiles
+   where id = new.user_id;
+
+  if v_sender_name is null or btrim(v_sender_name) = '' then
+    v_sender_name := 'Someone';
+  end if;
+
+  begin
+    perform public.enqueue_notification(
+      new.target_user_id,
+      'circle_activity',
+      jsonb_build_object(
+        'message', v_sender_name || ' reacted ' || new.emoji || ' to your event presence!',
+        'eventId', new.event_id,
+        'senderId', new.user_id,
+        'emoji', new.emoji
+      )
+    );
+  exception when others then
+    raise warning '[notify_on_event_reaction] failed for reaction %: %', new.id, sqlerrm;
+  end;
+
+  return new;
+end; $$;
+
+
+--
+-- Name: promote_elapsed_coffee_attendance(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.promote_elapsed_coffee_attendance() RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+begin
+  update public.event_attendees ea
+  set attended = true
+  from public.events e
+  where ea.event_id = e.id
+    and e.source = 'coffee'
+    and e.starts_at < now() - interval '2 hours'
+    and ea.attended is null;
+end;
+$$;
 
 
 --
@@ -4420,6 +4545,98 @@ end; $$;
 
 
 --
+-- Name: write_hangout_from_attendance(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.write_hangout_from_attendance() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_when timestamptz;
+begin
+  select coalesce(starts_at, now()) into v_when
+  from public.events
+  where id = NEW.event_id;
+
+  if v_when is null then
+    v_when := now();
+  end if;
+
+  update public.connections c
+  set last_hangout = greatest(coalesce(c.last_hangout, '-infinity'::timestamptz), v_when),
+      last_interaction_at = greatest(coalesce(c.last_interaction_at, '-infinity'::timestamptz), v_when)
+  where (
+    (c.user_id = NEW.user_id and c.connected_user_id in (
+      select ea.user_id
+      from public.event_attendees ea
+      where ea.event_id = NEW.event_id
+        and ea.user_id <> NEW.user_id
+        and ea.attended = true
+    ))
+    or
+    (c.connected_user_id = NEW.user_id and c.user_id in (
+      select ea.user_id
+      from public.event_attendees ea
+      where ea.event_id = NEW.event_id
+        and ea.user_id <> NEW.user_id
+        and ea.attended = true
+    ))
+  );
+
+  return NEW;
+end;
+$$;
+
+
+--
+-- Name: write_interaction_from_message(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.write_interaction_from_message() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_chat_type text;
+  v_other_user_id uuid;
+  v_msg_time timestamptz;
+begin
+  if NEW.sender_id is null then
+    return NEW;
+  end if;
+
+  select type into v_chat_type
+  from public.chats
+  where id = NEW.chat_id;
+
+  if v_chat_type <> 'dm' or v_chat_type is null then
+    return NEW;
+  end if;
+
+  select user_id into v_other_user_id
+  from public.chat_members
+  where chat_id = NEW.chat_id
+    and user_id <> NEW.sender_id
+  limit 1;
+
+  if v_other_user_id is null then
+    return NEW;
+  end if;
+
+  v_msg_time := coalesce(NEW.created_at, now());
+
+  update public.connections c
+  set last_interaction_at = greatest(coalesce(c.last_interaction_at, '-infinity'::timestamptz), v_msg_time)
+  where (c.user_id = NEW.sender_id and c.connected_user_id = v_other_user_id)
+     or (c.user_id = v_other_user_id and c.connected_user_id = NEW.sender_id);
+
+  return NEW;
+end;
+$$;
+
+
+--
 -- Name: admin_users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4591,6 +4808,8 @@ CREATE TABLE public.connections (
     connected_user_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     last_hangout timestamp with time zone,
+    last_interaction_at timestamp with time zone,
+    last_nudged_at timestamp with time zone,
     CONSTRAINT connections_check CHECK ((user_id <> connected_user_id))
 );
 
@@ -4691,7 +4910,9 @@ CREATE TABLE public.events (
     recurrence_end_date date,
     recurrence_parent_id uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT events_recurrence_rule_check CHECK ((recurrence_rule = ANY (ARRAY['none'::text, 'weekly'::text, 'biweekly'::text, 'monthly'::text])))
+    source text DEFAULT 'circle'::text NOT NULL,
+    CONSTRAINT events_recurrence_rule_check CHECK ((recurrence_rule = ANY (ARRAY['none'::text, 'weekly'::text, 'biweekly'::text, 'monthly'::text]))),
+    CONSTRAINT events_source_check CHECK ((source = ANY (ARRAY['circle'::text, 'coffee'::text])))
 );
 
 
@@ -5479,6 +5700,13 @@ CREATE INDEX idx_circles_discoverable ON public.circles USING btree (type, appli
 
 
 --
+-- Name: idx_connections_user_last_interaction; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_connections_user_last_interaction ON public.connections USING btree (user_id, last_interaction_at DESC NULLS LAST);
+
+
+--
 -- Name: idx_connreq_recipient; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5752,6 +5980,13 @@ CREATE TRIGGER trg_notify_connection_request AFTER INSERT OR UPDATE ON public.co
 
 
 --
+-- Name: event_reactions trg_notify_on_event_reaction; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_notify_on_event_reaction AFTER INSERT ON public.event_reactions FOR EACH ROW EXECUTE FUNCTION public.notify_on_event_reaction();
+
+
+--
 -- Name: messages trg_push_on_message; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5770,6 +6005,20 @@ CREATE TRIGGER trg_push_on_notification AFTER INSERT ON public.notifications FOR
 --
 
 CREATE TRIGGER trg_sync_chat_members AFTER INSERT OR DELETE ON public.circle_members FOR EACH ROW EXECUTE FUNCTION public.sync_chat_members_with_circle_members();
+
+
+--
+-- Name: event_attendees trg_write_hangout_from_attendance; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_write_hangout_from_attendance AFTER UPDATE OF attended ON public.event_attendees FOR EACH ROW WHEN (((new.attended IS TRUE) AND (old.attended IS DISTINCT FROM true))) EXECUTE FUNCTION public.write_hangout_from_attendance();
+
+
+--
+-- Name: messages trg_write_interaction_from_message; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_write_interaction_from_message AFTER INSERT ON public.messages FOR EACH ROW EXECUTE FUNCTION public.write_interaction_from_message();
 
 
 --
@@ -7012,13 +7261,6 @@ CREATE POLICY "spontaneous: asker select" ON public.spontaneous_questions FOR SE
 ALTER TABLE public.spontaneous_questions ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: notifications system inserts notifications; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "system inserts notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
-
-
---
 -- Name: lfg_posts update own lfg posts; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -7220,5 +7462,5 @@ CREATE POLICY "users update own profile" ON public.profiles FOR UPDATE TO authen
 -- PostgreSQL database dump complete
 --
 
-\unrestrict m0XrNPjrygGGNVqBg785X7ckr6Hg7UIqcpUNUSCqSCCdZvszYNWv7wHq7VAS8AO
+\unrestrict L9ScRgnzkZYrDh4Y2SNVbAVZIKcHmiWiV93dqY1Vq2z8VMb7WRA2ufoGwnKNhR2
 

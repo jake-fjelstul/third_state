@@ -24,8 +24,14 @@ const clr = {
   border: 'var(--border)',
 }
 
-export default function EventRecapModal({ event, onClose }) {
-  if (!event) return null
+// Hooks must run unconditionally (L1), so the null check lives in a thin
+// wrapper and the body below always has an event.
+export default function EventRecapModal(props) {
+  if (!props.event) return null
+  return <EventRecapModalBody {...props} />
+}
+
+function EventRecapModalBody({ event, onClose }) {
 
   const navigate = useNavigate()
   const { currentUser } = useAppContext()
@@ -141,7 +147,7 @@ export default function EventRecapModal({ event, onClose }) {
           width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
           backgroundColor: clr.white, borderRadius: '24px 24px 0 0',
           padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
-          maxHeight: '85dvh', overflowY: 'auto', animation: 'slideUp 0.25s ease',
+          maxHeight: '85dvh', overflowY: 'auto', animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
         }}
       >
         {/* Header */}

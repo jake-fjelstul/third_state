@@ -19,12 +19,25 @@ export async function fetchGame(gameId) {
   return data ? mapGameRow(data) : null
 }
 
-export async function commitGameMove({ gameId, newState, declaredWinner = null }) {
-  const { data, error } = await supabase.rpc('commit_game_move', {
-    p_game_id: gameId, p_new_state: newState, p_declared_winner: declaredWinner,
+/**
+ * Send a move to the game-move edge function, which validates it with the
+ * shared rules and computes the winner server-side. `move` is the same
+ * argument the board passes to applyMove (cell index, column, or
+ * { from, to, ... }).
+ */
+export async function commitGameMove({ gameId, move }) {
+  const { data, error } = await supabase.functions.invoke('game-move', {
+    body: { gameId, move },
   })
-  if (error) throw error
-  return data ? mapGameRow(data) : null
+  if (error) {
+    let message = error.message
+    try {
+      const body = await error.context?.json?.()
+      if (body?.error) message = body.error
+    } catch { /* keep generic message */ }
+    throw new Error(message)
+  }
+  return data?.game ? mapGameRow(data.game) : null
 }
 
 export async function resignGame(gameId) {

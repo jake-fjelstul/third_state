@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { updateProfile } from './auth'
+import { updateProfile, getProfile as getMyProfileRow } from './auth'
 
 export function defaultPrivacy() {
   return {
@@ -22,23 +22,9 @@ export function defaultNotificationPrefs() {
   }
 }
 
-const PROFILE_SELECT_WITH_LOCATION = 'id, name, age, city, bio, avatar_url, intents, intent_captured_at, intent_note, interests, latitude, longitude, privacy, notification_prefs'
-const PROFILE_SELECT_BASE = 'id, name, age, city, bio, avatar_url, intents, intent_captured_at, intent_note, interests, privacy, notification_prefs'
-const PROFILE_SELECT_NO_PRIVACY = 'id, name, age, city, bio, avatar_url, intents, intent_captured_at, intent_note, interests, notification_prefs'
-
-function isMissingLocationColumn(error) {
-  const code = error?.code;
-  if (code !== 'PGRST204' && code !== 'PGRST200' && code !== '42703') return false
-  const message = String(error?.message || '')
-  return message.includes('latitude') || message.includes('longitude')
-}
-
-function isMissingPrivacyColumn(error) {
-  const code = error?.code;
-  if (code !== 'PGRST204' && code !== 'PGRST200' && code !== '42703') return false
-  const message = String(error?.message || '')
-  return message.includes('privacy')
-}
+// Other people's profiles. public_profiles applies their privacy settings
+// server-side and rounds location to ~1 km (audit M8).
+const PUBLIC_PROFILE_SELECT = 'id, name, age, city, bio, avatar_url, intents, interests, latitude, longitude, privacy, created_at'
 
 function mapProfileRow(row) {
   if (!row) return null
@@ -50,92 +36,59 @@ function mapProfileRow(row) {
     bio: row.bio,
     avatar: row.avatar_url || '',
     intents: row.intents || [],
-    intentCapturedAt: row.intent_captured_at || null,
-    intentNote: row.intent_note || '',
     interests: row.interests || [],
     latitude: row.latitude,
     longitude: row.longitude,
     privacy: row.privacy ?? defaultPrivacy(),
-    notificationPrefs: row.notification_prefs ?? defaultNotificationPrefs(),
   }
 }
 
-async function runWithFallbacks(runQuery) {
-  try {
-    return await runQuery(PROFILE_SELECT_WITH_LOCATION)
-  } catch (error) {
-    if (isMissingPrivacyColumn(error)) {
-      return await runQuery(PROFILE_SELECT_NO_PRIVACY)
-    }
-    if (!isMissingLocationColumn(error)) throw error
-    
-    try {
-      return await runQuery(PROFILE_SELECT_BASE)
-    } catch (err) {
-      if (isMissingPrivacyColumn(err)) {
-        return await runQuery(PROFILE_SELECT_NO_PRIVACY)
-      }
-      throw err
-    }
-  }
-}
-
-export async function listProfiles({ excludeUserId, limit = 50 } = {}) {
-  return await runWithFallbacks(async (select) => {
-    let q = supabase.from('profiles').select(select).limit(limit)
-    if (excludeUserId) q = q.neq('id', excludeUserId)
-    const { data, error } = await q
-    if (error) throw error
-    return (data || []).map(mapProfileRow)
-  })
+/** People to discover, nearest first, searched on the server (audit M3). */
+export async function listProfiles({ excludeUserId, limit = 60, query = null } = {}) {
+  const { data, error } = await supabase.rpc('discover_people', { p_query: query, p_limit: limit })
+  if (error) throw error
+  return (data || []).filter(r => r.id !== excludeUserId).map(mapProfileRow)
 }
 
 export async function searchProfiles({ query, excludeUserId, limit = 20 }) {
   if (!query || !query.trim()) return []
-  const term = `%${query.trim()}%`
-  return await runWithFallbacks(async (select) => {
-    let q = supabase
-      .from('profiles')
-      .select(select)
-      .or(`name.ilike.${term},bio.ilike.${term}`)
-      .limit(limit)
-    if (excludeUserId) q = q.neq('id', excludeUserId)
-    const { data, error } = await q
-    if (error) throw error
-    return (data || []).map(mapProfileRow)
-  })
+  return listProfiles({ excludeUserId, limit, query: query.trim() })
 }
 
 export async function getProfileById(id) {
   if (!id) return null
-  return await runWithFallbacks(async (select) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(select)
-      .eq('id', id)
-      .maybeSingle()
-    if (error) throw error
-    return mapProfileRow(data)
-  })
+  const { data, error } = await supabase
+    .from('public_profiles')
+    .select(PUBLIC_PROFILE_SELECT)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return mapProfileRow(data)
 }
 
 export async function listProfilesByIds(ids) {
   const filtered = (ids || []).filter(Boolean)
   if (filtered.length === 0) return []
-  return await runWithFallbacks(async (select) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(select)
-      .in('id', filtered)
-    if (error) throw error
-    return (data || []).map(mapProfileRow)
-  })
+  const { data, error } = await supabase
+    .from('public_profiles')
+    .select(PUBLIC_PROFILE_SELECT)
+    .in('id', filtered)
+  if (error) throw error
+  return (data || []).map(mapProfileRow)
 }
 
+/** Everyone who shares a circle with me (New Message, audit M11). */
+export async function listCircleMates() {
+  const { data, error } = await supabase.rpc('my_circle_mates')
+  if (error) throw error
+  return (data || []).map(r => ({ id: r.id, name: r.name, avatar: r.avatar_url || '' }))
+}
+
+// Both read your own full row: public_profiles has no notification_prefs.
 export async function updatePrivacy(userId, patch) {
-  const current = await getProfileById(userId)
+  const current = await getMyProfileRow(userId)
   if (!current) throw new Error('Profile not found')
-  const merged = { ...current.privacy, ...patch }
+  const merged = { ...(current.privacy ?? defaultPrivacy()), ...patch }
   await updateProfile(userId, { privacy: merged })
 }
 
@@ -148,8 +101,8 @@ export async function saveIntents(userId, { intents, note }) {
 }
 
 export async function updateNotificationPrefs(userId, patch) {
-  const current = await getProfileById(userId)
+  const current = await getMyProfileRow(userId)
   if (!current) throw new Error('Profile not found')
-  const merged = { ...current.notificationPrefs, ...patch }
+  const merged = { ...defaultNotificationPrefs(), ...(current.notification_prefs || {}), ...patch }
   await updateProfile(userId, { notification_prefs: merged })
 }

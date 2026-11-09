@@ -43,9 +43,11 @@ export function AuthGate({ children }) {
             await supabase.auth.signOut()
             setAuthState('denied')
           }
-        } catch {
-          await supabase.auth.signOut()
-          setAuthState('denied')
+        } catch (err) {
+          // A network blip during token refresh is not proof you aren't an
+          // admin; keep the session and let the next refresh re-check (L8).
+          console.error('[AuthGate] admin check failed', err)
+          if (event === 'SIGNED_IN') setAuthState('denied')
         }
       } else if (event === 'SIGNED_OUT') {
         setAuthState('signed-out')

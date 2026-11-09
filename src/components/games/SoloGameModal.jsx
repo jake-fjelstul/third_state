@@ -12,9 +12,14 @@ const clr = {
   border: 'var(--border)',
 }
 
+// Null check in a wrapper so the body's hooks always run (L1).
 export default function SoloGameModal({ gameType, onClose }) {
   const mod = GAME_TYPES[gameType]?.module
   if (!mod) return null
+  return <SoloGameModalBody gameType={gameType} mod={mod} onClose={onClose} />
+}
+
+function SoloGameModalBody({ gameType, mod, onClose }) {
 
   const [state, setState] = useState(mod.initialState())
   const [humanTurn, setHumanTurn] = useState(true)

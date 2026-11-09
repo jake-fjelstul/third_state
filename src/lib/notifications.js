@@ -41,6 +41,8 @@ export function mapNotificationRow(row) {
     name: payload.name || payload.user?.name || '',
     postId: payload.postId || null,
     pollId: payload.pollId || null,
+    inviteId: payload.inviteId || null,
+    eventId: payload.eventId || null,
   }
 }
 

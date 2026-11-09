@@ -39,16 +39,13 @@ export async function updateLastHangout({ userId, connectedUserId, when }) {
 
 // ---------- Connection Requests ----------
 
+/**
+ * Send (or re-send) a connection request. If they already asked you, this
+ * accepts their request instead. Returns { status: 'pending'|'connected', request_id }.
+ */
 export async function sendConnectionRequest({ requesterId, recipientId }) {
   if (!requesterId || !recipientId || requesterId === recipientId) return null
-  const { data, error } = await supabase
-    .from('connection_requests')
-    .upsert(
-      { requester_id: requesterId, recipient_id: recipientId, status: 'pending' },
-      { onConflict: 'requester_id,recipient_id', ignoreDuplicates: true }
-    )
-    .select()
-    .maybeSingle()
+  const { data, error } = await supabase.rpc('send_connection_request', { p_recipient: recipientId })
   if (error) throw error
   return data || null
 }

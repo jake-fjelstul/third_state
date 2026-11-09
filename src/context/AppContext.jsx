@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import {
   listMyMeetups,
   rsvp as rsvpDb,
@@ -6,11 +6,15 @@ import {
   createEvent,
 } from '../lib/events'
 import { supabase } from '../lib/supabase'
-import { updatePrivacy, defaultPrivacy } from '../lib/profiles'
+import { signalPushMoment } from '../lib/pushMoment.js'
+import { clearChatCache } from '../lib/chatCache.js'
+import { haptic } from '../lib/motion.js'
+import { updatePrivacy, defaultPrivacy, defaultNotificationPrefs } from '../lib/profiles'
 import {
   fetchProfileForUser,
   isProfileSessionFatalError,
   signOut as authSignOut,
+  getProfile as getProfileRow,
 } from '../lib/auth'
 import {
   listMyConnections,
@@ -26,6 +30,7 @@ import {
   joinCircle as joinCircleDb,
   leaveCircle as leaveCircleDb,
   applyToCircle as applyToCircleDb,
+  listMyApplications,
   listApplicationsForCircle,
   approveApplication as approveAppDb,
   declineApplication as declineAppDb,
@@ -87,6 +92,7 @@ export function AppProvider({ children }) {
 
   // Battery state
   const [batteryPoints, setBatteryPoints] = useState(40)
+  const profileRefetchTimer = useRef(null)
   const [lastActiveDate, setLastActiveDate] = useState(() => {
     return window.localStorage.getItem('ts_last_active') ?? new Date().toDateString()
   })
@@ -121,13 +127,15 @@ export function AppProvider({ children }) {
     bio: profile.bio,
     avatar: profile.avatar_url || '',
     intents: profile.intents || [],
-    intentCapturedAt: profile.intentCapturedAt || null,
-    intentNote: profile.intentNote || '',
+    intentCapturedAt: profile.intent_captured_at ?? null,
+    intentNote: profile.intent_note ?? '',
     interests: profile.interests || [],
+    circleOrder: profile.circle_order || [],
+    shareCalendarBusy: !!profile.share_calendar_busy,
     latitude: profile.latitude,
     longitude: profile.longitude,
     privacy: profile.privacy ?? defaultPrivacy(),
-    notificationPrefs: profile.notificationPrefs,
+    notificationPrefs: { ...defaultNotificationPrefs(), ...(profile.notification_prefs || {}) },
     stats: { circlesJoined: 0, meetupsAttended: 0, connections: 0 },
   }), [])
 
@@ -226,6 +234,32 @@ export function AppProvider({ children }) {
         }
         setProfileError(err)
       })
+
+    // Keep the server's idea of this user's time zone current (reminders).
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (tz) supabase.rpc('set_my_timezone', { p_tz: tz }).then(({ error }) => {
+        if (error) console.error('[AppContext] set_my_timezone failed', error)
+      })
+    } catch { /* Intl unavailable */ }
+
+    // My own applications, so "Request sent" survives a relaunch (H9).
+    listMyApplications(userId)
+      .then(apps => {
+        if (cancelled) return
+        const mine = apps.map(a => ({
+          id: a.id,
+          circleId: a.circle_id,
+          applicantId: userId,
+          status: a.status,
+          submittedAt: a.submitted_at,
+        }))
+        setPendingApplications(prev => {
+          const ids = new Set(mine.map(a => a.id))
+          return [...mine, ...prev.filter(a => !ids.has(a.id))]
+        })
+      })
+      .catch(err => console.error('[AppContext] failed to load my applications', err))
 
     const circlesPromise = listMyCircleIds(userId)
       .then(ids => { if (!cancelled) setJoinedCircles(ids) })
@@ -473,13 +507,22 @@ export function AppProvider({ children }) {
           table: 'profiles',
           filter: `id=eq.${session.user.id}`,
         },
-        (payload) => {
-          const profile = payload.new
-          if (!profile) return
-          if (typeof profile.battery_points === 'number') setBatteryPoints(profile.battery_points)
-          if (typeof profile.reconnect_threshold_days === 'number') setReconnectThresholdDays(profile.reconnect_threshold_days)
-          if (typeof profile.search_radius === 'number') setSearchRadius(profile.search_radius)
-          if (typeof profile.theme === 'string') setTheme(profile.theme)
+        () => {
+          // Realtime only carries columns other users may read, so re-read
+          // the full row (battery, settings) through get_my_profile.
+          clearTimeout(profileRefetchTimer.current)
+          profileRefetchTimer.current = setTimeout(async () => {
+            try {
+              const profile = await getProfileRow(session.user.id)
+              if (!profile) return
+              if (typeof profile.battery_points === 'number') setBatteryPoints(profile.battery_points)
+              if (typeof profile.reconnect_threshold_days === 'number') setReconnectThresholdDays(profile.reconnect_threshold_days)
+              if (typeof profile.search_radius === 'number') setSearchRadius(profile.search_radius)
+              if (typeof profile.theme === 'string') setTheme(profile.theme)
+            } catch (err) {
+              console.error('[AppContext] profile refetch failed', err)
+            }
+          }, 300)
         }
       )
       .subscribe()
@@ -508,47 +551,27 @@ export function AppProvider({ children }) {
     window.localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(payload))
   }, [discoverySwipes])
 
-  const chargeBattery = useCallback(async (points, reason) => {
-    setBatteryPoints(prev => Math.max(0, Math.min(100, (prev || 0) + points)))
+  // Battery points are owned by the server (triggers on circle joins,
+  // messages and attendance). This only re-reads the current value.
+  const chargeBattery = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('adjust_battery', { p_points: points, p_reason: reason || null })
-      if (error) throw error
-      if (typeof data === 'number') setBatteryPoints(data)
-      return data
+      await refreshProfile()
     } catch (err) {
-      console.error('[AppContext] chargeBattery failed', err)
-      await refreshProfile().catch(() => {})
-      throw err
+      console.error('[AppContext] battery refresh failed', err)
     }
   }, [refreshProfile])
 
-  // Inactivity drain (once per session load, using accurate timestamps)
+  // Inactivity drain (server-side, once per session load)
   useEffect(() => {
     if (!currentUser?.id) return
-    const today = new Date().toDateString()
-    const now = Date.now()
-    const rawLast = window.localStorage.getItem('ts_last_active_at') || window.localStorage.getItem('ts_last_active')
-
-    if (rawLast) {
-      const lastTime = new Date(rawLast).getTime()
-      if (!isNaN(lastTime)) {
-        const diffMs = now - lastTime
-        // Only drain if at least 24 full hours (86,400,000 ms) have passed since last activity
-        if (diffMs >= 24 * 60 * 60 * 1000) {
-          const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-          if (days > 0) {
-            const drain = Math.min(days * 8, 40)
-            chargeBattery(-drain, `${days} day${days > 1 ? 's' : ''} inactive`).catch(() => {})
-          }
-        }
-      }
-    }
-
-    const isoNow = new Date().toISOString()
-    window.localStorage.setItem('ts_last_active_at', isoNow)
-    window.localStorage.setItem('ts_last_active', today)
-    setLastActiveDate(today)
-  }, [chargeBattery, currentUser?.id])
+    supabase.rpc('apply_inactivity_drain')
+      .then(({ data, error }) => {
+        if (error) throw error
+        if (typeof data === 'number') setBatteryPoints(data)
+      })
+      .catch(err => console.error('[AppContext] apply_inactivity_drain failed', err))
+    setLastActiveDate(new Date().toDateString())
+  }, [currentUser?.id])
 
   // Apply dark mode class to <html>
   useEffect(() => {
@@ -569,6 +592,7 @@ export function AppProvider({ children }) {
     }
     await authSignOut()
     resetLocalAuthState()
+    clearChatCache()
   }
 
   const updateMyPrivacy = useCallback(async (patch) => {
@@ -641,7 +665,7 @@ export function AppProvider({ children }) {
     try {
       await joinCircleDb({ userId: session.user.id, circleId })
       setCircleMembershipVersion(v => v + 1)
-      chargeBattery(15, 'Joined a new circle')
+      chargeBattery()
     } catch (err) {
       // rollback
       setJoinedCircles(prev => prev.filter(id => id !== circleId))
@@ -664,6 +688,18 @@ export function AppProvider({ children }) {
     }
   }, [session, joinedCircles])
 
+  // After joining through an RPC (circle invite), re-read memberships.
+  const refreshJoinedCircles = useCallback(async () => {
+    if (!session?.user?.id) return
+    try {
+      const ids = await listMyCircleIds(session.user.id)
+      setJoinedCircles(ids)
+      setCircleMembershipVersion(v => v + 1)
+    } catch (err) {
+      console.error('[AppContext] refreshJoinedCircles failed', err)
+    }
+  }, [session?.user?.id])
+
   const createCircle = useCallback(async ({ hoops, ...payload }) => {
     if (!session?.user?.id) throw new Error('Not authenticated')
     const created = await createCircleDb({ userId: session.user.id, ...payload })
@@ -683,7 +719,7 @@ export function AppProvider({ children }) {
     return created
   }, [session?.user?.id])
 
-  const createEventAndRsvp = useCallback(async ({ circleId, title, date, time, location, locationLat, locationLng, locationAddress, notes, coverImageUrl, recurrenceRule, recurrenceEndDate }) => {
+  const createEventAndRsvp = useCallback(async ({ circleId, title, date, time, location, locationLat, locationLng, locationAddress, notes, coverImageUrl, recurrenceRule, recurrenceEndDate, durationMinutes }) => {
     if (!session?.user) throw new Error('Not authenticated')
     const event = await createEvent({
       userId: session.user.id,
@@ -699,6 +735,7 @@ export function AppProvider({ children }) {
       coverImageUrl,
       recurrenceRule,
       recurrenceEndDate,
+      durationMinutes,
     })
     // creator is auto-RSVP'd server-side; reflect locally
     setMeetups(prev => [...prev, event])
@@ -769,14 +806,6 @@ export function AppProvider({ children }) {
 
   const sendMessage = useCallback(async (chatId, text, channelId = null, kind = 'text', payload = null) => {
     if (!session?.user || !chatId || !text?.trim()) return
-    // daily-throttled battery reward
-    const today = new Date().toDateString()
-    const msgKey = `ts_last_msg_reward_${session.user.id}_${today}`
-    if (typeof window !== 'undefined' && !window.localStorage.getItem(msgKey)) {
-      chargeBattery(5, 'Sent a message')
-      window.localStorage.setItem(msgKey, '1')
-    }
-
     // optimistically bump preview locally; realtime will reconcile
     setChatState(prev => {
       const existing = prev[chatId]
@@ -794,11 +823,12 @@ export function AppProvider({ children }) {
 
     try {
       await sendMessageDb({ userId: session.user.id, chatId, channelId, text, kind, payload })
+      signalPushMoment()
     } catch (err) {
       console.error('[AppContext] sendMessage failed', err)
       throw err
     }
-  }, [session, chargeBattery])
+  }, [session])
 
   const startDM = useCallback(async (person) => {
     if (!session?.user || !person?.id) throw new Error('startDM requires a person')
@@ -885,15 +915,21 @@ export function AppProvider({ children }) {
     const personId = typeof person === 'string' ? person : person.id
     if (!personId) return
     try {
-      await sendConnectionRequest({ requesterId: session.user.id, recipientId: personId })
+      const res = await sendConnectionRequest({ requesterId: session.user.id, recipientId: personId })
+      // They had already asked us, so this accepted their request.
+      if (res?.status === 'connected') await refreshConnections()
+      signalPushMoment()
+      return res
     } catch (err) {
       console.error('[AppContext] connectWithPerson (request) failed', err)
       throw err
     }
-  }, [session])
+  }, [session, refreshConnections])
 
   const acceptConnection = useCallback(async (requestId, notificationId) => {
     await acceptConnectionRequest(requestId)
+    haptic('Medium')
+    signalPushMoment()
     if (notificationId) {
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
       try { await deleteNotifDb(notificationId) }
@@ -1026,8 +1062,8 @@ export function AppProvider({ children }) {
     return createPollDb({ chatId, channelId, question, options, allowMultiple })
   }, [])
 
-  const makeGameMove = useCallback(async ({ gameId, newState, declaredWinner = null }) => {
-    return await commitGameMove({ gameId, newState, declaredWinner })
+  const makeGameMove = useCallback(async ({ gameId, move }) => {
+    return await commitGameMove({ gameId, move })
   }, [])
 
   const forfeitGame = useCallback(async (gameId) => {
@@ -1100,6 +1136,7 @@ export function AppProvider({ children }) {
       disconnectFromPerson,
       batteryPoints,
       chargeBattery,
+      refreshJoinedCircles,
       notifications,
       dismissNotification,
       markNotificationRead,
@@ -1141,7 +1178,7 @@ export function AppProvider({ children }) {
       answerSpontaneousQuestion,
       cancelSpontaneousQuestion,
     }),
-    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById, getDailyQuestion, answerDailyQuestion, dismissDailyQuestion, syncQuestionReveals, getPendingQuestion, askSpontaneousQuestion, answerSpontaneousQuestion, cancelSpontaneousQuestion],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, refreshJoinedCircles, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById, getDailyQuestion, answerDailyQuestion, dismissDailyQuestion, syncQuestionReveals, getPendingQuestion, askSpontaneousQuestion, answerSpontaneousQuestion, cancelSpontaneousQuestion],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

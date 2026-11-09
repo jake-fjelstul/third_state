@@ -5,7 +5,10 @@ import { listChannels } from '../lib/chat'
 import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { joinLfgPost } from '../lib/lfg'
+import { respondCircleInvite } from '../lib/circles'
 import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
+import { AnimatePresence, motion } from 'framer-motion'
+import { listStagger } from '../lib/motion.js'
 import { Calendar, CheckCircle2, XCircle, MessageCircle, UserPlus } from 'lucide-react'
 
 function friendlyJoinError(err) {
@@ -36,6 +39,8 @@ const HANDLED_TYPES = [
   'question_revealed', 'spontaneous_question', 'spontaneous_question_answered',
   'lfg_post', 'lfg_join',
   'poll_created',
+  'circle_invite',
+  'event_reaction',
 ]
 
 export default function Notifications() {
@@ -50,6 +55,7 @@ export default function Notifications() {
     startDM,
     sendMessage,
     blockedUserIds,
+    refreshJoinedCircles,
   } = useAppContext()
   
   const [drafts, setDrafts] = useState({})
@@ -75,18 +81,28 @@ export default function Notifications() {
     n.type === 'lfg_post' || n.type === 'lfg_join')
   const eventReminders = visibleNotifications.filter(n => n.type === 'event_approaching')
   const reconnectNudges = visibleNotifications.filter(n => n.type === 'reconnect_nudge')
-  const circleActivity = visibleNotifications.filter(n => n.type === 'circle_activity' || n.type === 'application_approved' || n.type === 'application_declined')
+  const circleActivity = visibleNotifications.filter(n => n.type === 'circle_activity' || n.type === 'circle_invite' || n.type === 'event_reaction' || n.type === 'application_approved' || n.type === 'application_declined')
   const otherActivity = visibleNotifications.filter(n => !HANDLED_TYPES.includes(n.type))
 
-  const now = Date.now()
-  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
-  const recentNotifications = visibleNotifications
-    .filter(n => {
-      if (!n.createdAt) return false
-      const time = new Date(n.createdAt).getTime()
-      return !isNaN(time) && (now - time) <= TWENTY_FOUR_HOURS
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  // Each notification lives in exactly one category. Inside a category,
+  // "Today" and "Earlier" headers replace the old separate Recent section,
+  // which duplicated everything from the last 24 hours (item 10).
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const newestFirst = (a, b) => (new Date(b.createdAt).getTime() || 0) - (new Date(a.createdAt).getTime() || 0)
+  const isToday = (n) => {
+    const t = n.createdAt ? new Date(n.createdAt).getTime() : NaN
+    return !isNaN(t) && t >= startOfToday.getTime()
+  }
+  const sections = [
+    { key: 'connection', title: 'Connection requests', items: connectionRequests },
+    { key: 'chat', title: 'Chat activity', items: chatActivity },
+    { key: 'lfg', title: 'Free right now', items: lfgActivity },
+    { key: 'event', title: 'Event reminders', items: eventReminders },
+    { key: 'reconnect', title: 'Reconnect nudges', items: reconnectNudges },
+    { key: 'circle', title: 'Circle activity', items: circleActivity },
+    { key: 'other', title: 'Other', items: otherActivity },
+  ].filter(sec => sec.items.length > 0)
 
   const setActionState = (id, state) => {
     setActionStates(prev => ({ ...prev, [id]: state }))
@@ -211,8 +227,8 @@ export default function Notifications() {
                 <span style={{ fontWeight: 700 }}>Catch up with {notif.user?.name?.split(' ')[0]}</span>
                 <span style={{ display: 'block', marginTop: 4 }}>{notif.message}</span>
               </>
-            ) : notif.type === 'circle_activity' ? (
-              <><span style={{ fontWeight: 700 }}>{notif.user?.name}</span> {notif.message}</>
+            ) : (notif.type === 'circle_activity' || notif.type === 'circle_invite' || notif.type === 'event_reaction') ? (
+              <><span style={{ fontWeight: 700 }}>{notif.user?.name || 'Someone'}</span> {notif.message}</>
             ) : notif.type === 'application_approved' || notif.type === 'application_declined' ? (
               <><span style={{ fontWeight: 700 }}>{notif.circle?.name}</span> {notif.message}</>
             ) : notif.type === 'event_approaching' ? (
@@ -278,6 +294,57 @@ export default function Notifications() {
                 style={{
                   flex: 1, backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 0',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: actionState === 'accepting' || actionState === 'declining' ? 'not-allowed' : 'pointer', opacity: actionState === 'accepting' || actionState === 'declining' ? 0.7 : 1,
+                }}>
+                {actionState === 'declining' ? 'Declining...' : 'Decline'}
+              </button>
+            </div>
+          )}
+
+          {notif.type === 'circle_invite' && (actionState === 'accepted' || actionState === 'declined') && (
+            <div style={{ backgroundColor: actionState === 'accepted' ? '#ECFDF5' : '#F3F4F6', color: actionState === 'accepted' ? '#059669' : clr.textMid, borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              {actionState === 'accepted' ? '✓ Joined' : 'Declined'}
+            </div>
+          )}
+
+          {notif.type === 'circle_invite' && actionState !== 'accepted' && actionState !== 'declined' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={async () => {
+                  setActionState(notif.id, 'accepting')
+                  try {
+                    const res = await respondCircleInvite(notif.inviteId, true)
+                    setActionState(notif.id, 'accepted')
+                    await refreshJoinedCircles?.()
+                    dismissNotification(notif.id)
+                    if (res?.circle_id) navigate(`/circles/${res.circle_id}`)
+                  } catch (err) {
+                    console.error(err)
+                    setActionState(notif.id, null)
+                  }
+                }}
+                disabled={actionState === 'accepting' || actionState === 'declining'}
+                style={{
+                  flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0', minHeight: 40,
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: actionState === 'accepting' ? 0.7 : 1,
+                }}>
+                {actionState === 'accepting' ? 'Joining...' : 'Join'}
+              </button>
+              <button
+                onClick={async () => {
+                  setActionState(notif.id, 'declining')
+                  try {
+                    await respondCircleInvite(notif.inviteId, false)
+                    setActionState(notif.id, 'declined')
+                    dismissNotification(notif.id)
+                  } catch (err) {
+                    console.error(err)
+                    setActionState(notif.id, null)
+                  }
+                }}
+                disabled={actionState === 'accepting' || actionState === 'declining'}
+                style={{
+                  flex: 1, backgroundColor: clr.bg, color: clr.textDark, border: `1px solid ${clr.border}`, padding: '8px 0', minHeight: 40,
+                  borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: actionState === 'declining' ? 0.7 : 1,
                 }}>
                 {actionState === 'declining' ? 'Declining...' : 'Decline'}
               </button>
@@ -397,7 +464,7 @@ export default function Notifications() {
                       background: clr.bg, border: `1px solid ${clr.border}`, borderRadius: 16, padding: '6px 14px',
                       fontSize: 13, fontWeight: 600, color: clr.textDark, cursor: 'pointer'
                     }}>
-                    👍 Like
+                    Dismiss
                   </button>
                   <button onClick={() => setActivityReplyId(activityReplyId === notif.id ? null : notif.id)}
                     style={{
@@ -653,85 +720,41 @@ export default function Notifications() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             
-            {recentNotifications.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Recent (${recentNotifications.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {recentNotifications.map(n => renderNotifCard(n, 'recent'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {connectionRequests.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Connection requests (${connectionRequests.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {connectionRequests.map(n => renderNotifCard(n, 'connection'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {chatActivity.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Chat activity (${chatActivity.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {chatActivity.map(n => renderNotifCard(n, 'chat'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {lfgActivity.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Free right now (${lfgActivity.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {lfgActivity.map(n => renderNotifCard(n, 'lfg'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {eventReminders.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Event reminders (${eventReminders.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {eventReminders.map(n => renderNotifCard(n, 'event'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {reconnectNudges.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Reconnect nudges (${reconnectNudges.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {reconnectNudges.map(n => renderNotifCard(n, 'reconnect'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {circleActivity.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Circle activity (${circleActivity.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {circleActivity.map(n => renderNotifCard(n, 'circle'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
-
-            {otherActivity.length > 0 && (
-              <section>
-                <CollapsibleSection title={`Other (${otherActivity.length})`} defaultOpen={true} titleFontSize={16}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {otherActivity.map(n => renderNotifCard(n, 'other'))}
-                  </div>
-                </CollapsibleSection>
-              </section>
-            )}
+            {sections.map(sec => {
+              const sorted = [...sec.items].sort(newestFirst)
+              const today = sorted.filter(isToday)
+              const earlier = sorted.filter(n => !isToday(n))
+              const subHeader = (label) => (
+                <p style={{
+                  margin: '4px 0 0', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
+                  textTransform: 'uppercase', color: clr.textLight,
+                }}>{label}</p>
+              )
+              return (
+                <section key={sec.key}>
+                  <CollapsibleSection title={`${sec.title} (${sec.items.length})`} defaultOpen={true} titleFontSize={16}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {today.length > 0 && earlier.length > 0 && subHeader('Today')}
+                      <AnimatePresence initial={false}>
+                        {today.map(n => (
+                          <motion.div key={n.id} layout variants={listStagger.item} initial="initial" animate="animate" exit="exit">
+                            {renderNotifCard(n, sec.key)}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      {earlier.length > 0 && today.length > 0 && subHeader('Earlier')}
+                      <AnimatePresence initial={false}>
+                        {earlier.map(n => (
+                          <motion.div key={n.id} layout variants={listStagger.item} initial="initial" animate="animate" exit="exit">
+                            {renderNotifCard(n, sec.key)}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </CollapsibleSection>
+                </section>
+              )
+            })}
 
           </div>
         )}

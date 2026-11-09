@@ -1,15 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
-import { redeemInviteCode } from '../lib/invites.js'
-import { supabase } from '../lib/supabase.js'
+import { previewInvite, redeemInviteCode } from '../lib/invites.js'
 
 const PENDING_JOIN_KEY = 'ts.pendingJoinCode'
 
 export default function JoinLanding() {
   const { code } = useParams()
   const navigate = useNavigate()
-  const { session, refreshConnections } = useAppContext()
+  const { session, authLoading, refreshConnections } = useAppContext()
+  const userId = session?.user?.id || null
+  const redeemedRef = useRef(false)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const [status, setStatus] = useState('checking')
   const [targetName, setTargetName] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -22,35 +28,38 @@ export default function JoinLanding() {
 
     let cancelled = false
 
-    // Fetch public preview info before auth check
-    supabase
-      .from('invites')
-      .select('*, circles(name)')
-      .eq('code', code)
-      .maybeSingle()
-      .then(({ data }) => {
+    // Public preview of this one code (works signed out)
+    previewInvite(code)
+      .then((data) => {
         if (cancelled || !data) return
-        if (data.circles?.name) {
-          setTargetName(`Joining ${data.circles.name}...`)
+        if (data.circle_name) {
+          setTargetName(`Joining ${data.circle_name}...`)
         } else if (data.kind === 'personal') {
-          setTargetName('Connecting...')
+          setTargetName(data.inviter_name ? `Connecting with ${data.inviter_name}...` : 'Connecting...')
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[JoinLanding] previewInvite failed', err))
 
-    if (!session?.user) {
+    // Wait for the session to restore before deciding we're signed out.
+    if (authLoading) return () => { cancelled = true }
+
+    if (!userId) {
       try { window.localStorage.setItem(PENDING_JOIN_KEY, code) } catch {}
       setStatus('redirecting')
       navigate('/auth?invited=1', { replace: true })
       return () => { cancelled = true }
     }
 
+    // Token refreshes re-run this effect; redeem only once.
+    if (redeemedRef.current) return () => { cancelled = true }
+    redeemedRef.current = true
+
     setStatus('redeeming')
     redeemInviteCode(code)
       .then(async (res) => {
         try { window.localStorage.removeItem(PENDING_JOIN_KEY) } catch {}
         if (refreshConnections) await refreshConnections().catch(() => {})
-        if (cancelled) return
+        if (!mountedRef.current) return
 
         setStatus('done')
         const targetUrl = res?.circle_id
@@ -65,14 +74,14 @@ export default function JoinLanding() {
       })
       .catch((err) => {
         console.error('[JoinLanding] redeemInviteCode failed', err)
-        if (cancelled) return
+        if (!mountedRef.current) return
         setErrorMsg(err.message || 'Could not redeem invite')
         setStatus('error')
         window.setTimeout(() => navigate('/feed', { replace: true }), 2500)
       })
 
     return () => { cancelled = true }
-  }, [code, session, navigate, refreshConnections])
+  }, [code, userId, authLoading, navigate, refreshConnections])
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 'var(--safe-top) 24px var(--safe-bottom)' }}>

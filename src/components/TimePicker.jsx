@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { normalizeTime } from '../lib/events.js';
 
 const clr = {
   bg: 'var(--bg, #F0F0F5)',
@@ -96,8 +97,9 @@ function Wheel({ items, value, onChange }) {
 }
 
 export default function TimePicker({ value, onChange }) {
-  // Parse value strictly from 24h map (e.g. 14:30)
-  const [h, m] = (value || "12:00").split(':');
+  // Value is 24-hour 'HH:mm'. Legacy '07:30 PM' strings are normalized so
+  // they don't read as AM (audit M13).
+  const [h, m] = (normalizeTime(value) || "12:00").split(':');
   let hour24 = parseInt(h, 10);
   // Default parsing handler
   if (isNaN(hour24)) hour24 = 12;

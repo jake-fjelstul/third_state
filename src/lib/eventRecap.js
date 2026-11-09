@@ -35,6 +35,22 @@ function mapReactionRow(row) {
   }
 }
 
+// event-photos is a private bucket (audit M15): attendees see photos through
+// short-lived signed URLs instead of permanent public links.
+const SIGNED_URL_TTL = 60 * 60
+
+async function withSignedUrls(photos) {
+  const paths = photos.map(p => p.storagePath).filter(Boolean)
+  if (paths.length === 0) return photos
+  const { data, error } = await supabase.storage.from('event-photos').createSignedUrls(paths, SIGNED_URL_TTL)
+  if (error) {
+    console.error('[eventRecap] createSignedUrls failed', error)
+    return photos
+  }
+  const byPath = new Map((data || []).map(d => [d.path, d.signedUrl]))
+  return photos.map(p => (byPath.get(p.storagePath) ? { ...p, url: byPath.get(p.storagePath) } : p))
+}
+
 export async function listEventPhotos(eventId) {
   if (!eventId) return []
   const { data, error } = await supabase
@@ -43,7 +59,7 @@ export async function listEventPhotos(eventId) {
     .eq('event_id', eventId)
     .order('created_at', { ascending: false })
   if (error) throw error
-  return (data || []).map(mapPhotoRow)
+  return withSignedUrls((data || []).map(mapPhotoRow))
 }
 
 export async function uploadEventPhoto({ eventId, userId, file }) {
@@ -58,6 +74,7 @@ export async function uploadEventPhoto({ eventId, userId, file }) {
     .upload(path, blob, { contentType: 'image/jpeg', upsert: false })
   if (storageErr) throw storageErr
 
+  // Stored for reference only; display always uses a signed URL.
   const { data: urlData } = supabase.storage.from('event-photos').getPublicUrl(path)
   const publicUrl = urlData.publicUrl
 
@@ -73,7 +90,8 @@ export async function uploadEventPhoto({ eventId, userId, file }) {
     .single()
 
   if (dbErr) throw dbErr
-  return mapPhotoRow(dbData)
+  const [signed] = await withSignedUrls([mapPhotoRow(dbData)])
+  return signed
 }
 
 export async function deleteEventPhoto({ photoId, storagePath }) {

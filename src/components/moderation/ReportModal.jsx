@@ -93,7 +93,7 @@ export default function ReportModal({
           maxHeight: '90dvh',
           overflowY: 'auto',
           boxSizing: 'border-box',
-          animation: 'slideUp 0.25s ease-out forwards',
+          animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
         }}
       >
         <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>

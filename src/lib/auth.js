@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { PUBLIC_APP_URL } from './invites.js'
 
 function isMissingColumnError(error, columnName) {
   return error?.code === 'PGRST204' && String(error?.message || '').includes(`'${columnName}'`)
@@ -10,7 +11,8 @@ export async function signUp({ email, password, name, age, city, latitude, longi
     password,
     options: {
       data: { name, age, city, latitude, longitude },
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
+      // Links in emails must open for real: never capacitor://localhost.
+      emailRedirectTo: `${PUBLIC_APP_URL}/auth/callback`,
     },
   })
   if (error) throw error
@@ -69,10 +71,31 @@ async function sha256Hex(input) {
 
 export async function signInWithApple({ redirectTo } = {}) {
   let isNative = false
+  let platform = 'web'
   try {
     const { Capacitor } = await import('@capacitor/core')
     isNative = Capacitor.isNativePlatform()
+    platform = Capacitor.getPlatform()
   } catch {}
+
+  // The native Apple sheet only exists on iOS. Android uses Supabase's web
+  // OAuth in an in-app browser and comes back via thirdspace://auth/callback.
+  if (platform === 'android') {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: redirectTo ?? 'thirdspace://auth/callback',
+        scopes: 'name email',
+        skipBrowserRedirect: true,
+      },
+    })
+    if (error) throw error
+    if (data?.url) {
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url: data.url })
+    }
+    return data
+  }
 
   if (isNative) {
     const { SignInWithApple } = await import('@capacitor-community/apple-sign-in')
@@ -125,6 +148,12 @@ export async function signInWithApple({ redirectTo } = {}) {
   return data
 }
 
+/** Set a new password for the user in a password-recovery session. */
+export async function updatePassword(password) {
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) throw error
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut()
   if (error) throw error
@@ -138,7 +167,7 @@ export async function deleteMyAccount() {
 
 export async function resetPassword(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/auth?reset=1`,
+    redirectTo: `${PUBLIC_APP_URL}/reset-password`,
   })
   if (error) throw error
 }
@@ -188,13 +217,12 @@ export function isProfileSessionFatalError(error) {
  * Load profile by id; returns null if no row (no PGRST116).
  */
 export async function getProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
+  // Only your own full row is readable (settings, battery, exact location);
+  // other people's profiles come from public_profiles (audit M8).
+  const { data, error } = await supabase.rpc('get_my_profile')
   if (error) throw error
-  return data
+  const row = Array.isArray(data) ? data[0] : data
+  return row && row.id === userId ? row : null
 }
 
 /**
@@ -206,8 +234,12 @@ export async function fetchProfileForUser(user) {
   if (existing) return existing
 
   const row = profileRowFromAuthUser(user)
-  const { data, error } = await supabase.from('profiles').insert(row).select().single()
-  if (!error) return data
+  const { error } = await supabase.from('profiles').insert(row)
+  if (!error) {
+    const created = await getProfile(user.id)
+    if (created) return created
+    throw new Error('Profile was created but could not be loaded')
+  }
   if (error.code === '23505') {
     const again = await getProfile(user.id)
     if (again) return again
@@ -218,14 +250,12 @@ export async function fetchProfileForUser(user) {
 export async function updateProfile(userId, patch) {
   const payload = { ...patch, updated_at: new Date().toISOString() }
   const runUpdate = async (updatePatch) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .update(updatePatch)
       .eq('id', userId)
-      .select()
-      .single()
     if (error) throw error
-    return data
+    return await getProfile(userId)
   }
 
   let currentPatch = { ...payload }

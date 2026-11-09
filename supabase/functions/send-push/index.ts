@@ -79,6 +79,81 @@ async function getProviderToken(): Promise<string> {
   return cachedJwt
 }
 
+// ---- FCM HTTP v1 (Android) ---------------------------------------------
+// Inactive until FCM_SERVICE_ACCOUNT (the Firebase service-account JSON) is
+// set in Supabase secrets. Never commit that file.
+
+let fcmToken: string | null = null
+let fcmTokenExp = 0
+
+async function getFcmAccessToken(sa: { client_email: string; private_key: string; token_uri?: string }): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  if (fcmToken && now < fcmTokenExp - 60) return fcmToken
+  const enc = new TextEncoder()
+  const header = b64url(enc.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))
+  const claim = b64url(enc.encode(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: sa.token_uri || 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  })))
+  const pem = sa.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')
+  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0))
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+  const sig = new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(`${header}.${claim}`)))
+  const assertion = `${header}.${claim}.${b64url(sig)}`
+  const res = await fetch(sa.token_uri || 'https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(`FCM auth failed: ${JSON.stringify(data)}`)
+  fcmToken = data.access_token
+  fcmTokenExp = now + (data.expires_in || 3600)
+  return fcmToken!
+}
+
+async function sendFcm(
+  token: string,
+  msg: { title?: string; body: string; threadId?: string; data?: Record<string, unknown> },
+): Promise<SendResult> {
+  const raw = Deno.env.get('FCM_SERVICE_ACCOUNT')
+  if (!raw) return { ok: false, reason: 'FcmNotConfigured', status: 0 }
+  const sa = JSON.parse(raw)
+  const access = await getFcmAccessToken(sa)
+  // FCM data values must be strings.
+  const data: Record<string, string> = {}
+  for (const [k, v] of Object.entries(msg.data || {})) if (v !== null && v !== undefined) data[k] = String(v)
+  const isMessage = data.type === 'message'
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${access}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      message: {
+        token,
+        notification: { title: msg.title || 'Third Space', body: msg.body },
+        data,
+        android: {
+          priority: 'high',
+          notification: {
+            channel_id: isMessage ? 'messages' : 'activity',
+            tag: msg.threadId || undefined,
+            sound: 'default',
+          },
+        },
+      },
+    }),
+  })
+  if (res.ok) return { ok: true, reason: '', status: 200 }
+  const text = await res.text()
+  let reason = ''
+  try { reason = JSON.parse(text)?.error?.details?.[0]?.errorCode || JSON.parse(text)?.error?.status || '' } catch { /* ignore */ }
+  console.error('[send-push] FCM rejected', res.status, reason, text)
+  return { ok: false, reason, status: res.status }
+}
+
 // ---- handler ------------------------------------------------------------
 
 Deno.serve(async (req) => {
@@ -112,7 +187,7 @@ Deno.serve(async (req) => {
 
   const { data: tokens, error } = await supabase
     .from('device_tokens')
-    .select('id, token, environment')
+    .select('id, token, environment, platform')
     .eq('user_id', userId)
 
   if (error) {
@@ -125,7 +200,8 @@ Deno.serve(async (req) => {
       { headers: { 'content-type': 'application/json' } })
   }
 
-  const jwt = await getProviderToken()
+  const hasIos = tokens.some(t => (t.platform || 'ios') === 'ios')
+  const jwt = hasIos ? await getProviderToken() : ''
   const payload = JSON.stringify({
     aps: {
       alert: title ? { title, body: message } : { body: message },
@@ -141,6 +217,16 @@ Deno.serve(async (req) => {
   const corrected: { id: string; environment: string }[] = []
 
   await Promise.all(tokens.map(async (t) => {
+    if (t.platform === 'android') {
+      try {
+        const r = await sendFcm(t.token, { title, body: message, threadId, data })
+        if (r.ok) { sent++; return }
+        if (r.status === 404 || r.reason === 'UNREGISTERED' || r.reason === 'INVALID_ARGUMENT') dead.push(t.id)
+      } catch (err) {
+        console.error('[send-push] FCM request failed', err)
+      }
+      return
+    }
     const primary = (t.environment === 'production' ? 'production' : 'sandbox') as 'production' | 'sandbox'
     const other   = primary === 'production' ? 'sandbox' : 'production'
 

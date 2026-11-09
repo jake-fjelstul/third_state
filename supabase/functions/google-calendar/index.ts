@@ -6,6 +6,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// ---------------------------------------------------------------------------
+// Signed OAuth state (audit C7). The callback runs without a JWT, so the user
+// id must come from a value only this function could have produced.
+// ---------------------------------------------------------------------------
+const STATE_TTL_MS = 10 * 60 * 1000
+const DEFAULT_WEB_REDIRECT = 'https://third-space-app.com/schedule?calendar_ok=1'
+const NATIVE_REDIRECT = 'com.thirdspace.social://calendar-callback?ok=1'
+
+function b64url(bytes: Uint8Array): string {
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function b64urlDecode(s: string): Uint8Array {
+  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4))
+  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/') + pad)
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0))
+}
+
+async function hmacKey(): Promise<CryptoKey> {
+  const secret = Deno.env.get('OAUTH_STATE_SECRET')
+  if (!secret) throw new Error('OAUTH_STATE_SECRET is not set')
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
+}
+
+async function signState(payload: Record<string, unknown>): Promise<string> {
+  const body = new TextEncoder().encode(JSON.stringify(payload))
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await hmacKey(), body))
+  return `${b64url(body)}.${b64url(sig)}`
+}
+
+// deno-lint-ignore no-explicit-any
+async function verifyState(state: string): Promise<any | null> {
+  const [bodyPart, sigPart] = state.split('.')
+  if (!bodyPart || !sigPart) return null
+  const body = b64urlDecode(bodyPart)
+  const ok = await crypto.subtle.verify('HMAC', await hmacKey(), b64urlDecode(sigPart), body)
+  if (!ok) return null
+  const data = JSON.parse(new TextDecoder().decode(body))
+  if (typeof data.exp !== 'number' || data.exp < Date.now()) return null
+  return data
+}
+
+// Only send the browser back to our own app.
+function safeWebRedirect(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw) return DEFAULT_WEB_REDIRECT
+  try {
+    const u = new URL(raw)
+    const host = u.hostname
+    const allowed =
+      (u.protocol === 'https:' && (host === 'third-space-app.com' || host === 'www.third-space-app.com')) ||
+      (u.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1'))
+    return allowed ? u.toString() : DEFAULT_WEB_REDIRECT
+  } catch {
+    return DEFAULT_WEB_REDIRECT
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -17,7 +76,7 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
   const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID') || ''
-  const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_OAUTH_CLIENT_ID') || ''
+  const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || ''
 
   const redirectUri = `${supabaseUrl}/functions/v1/google-calendar/callback`
 
@@ -35,18 +94,13 @@ serve(async (req) => {
     }
 
     try {
-      let stateData: any = {}
-      try {
-        stateData = JSON.parse(atob(stateRaw))
-      } catch {
-        stateData = JSON.parse(stateRaw)
+      const stateData = await verifyState(stateRaw).catch(() => null)
+      if (!stateData?.uid) {
+        return new Response('Invalid or expired state. Please try connecting again.', { status: 400, headers: corsHeaders })
       }
-
-      const { userId, platform, webRedirectUrl } = stateData
-
-      if (!userId) {
-        return new Response('Invalid state (missing user id)', { status: 400, headers: corsHeaders })
-      }
+      const userId: string = stateData.uid
+      const platform: string = stateData.platform
+      const webRedirectUrl = safeWebRedirect(stateData.ret)
 
       // Exchange authorization code for tokens
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -90,14 +144,12 @@ serve(async (req) => {
 
       // Determine redirect location
       if (platform === 'native') {
-        return Response.redirect('com.thirdspace.social://calendar-callback?ok=1', 302)
-      } else {
-        const dest = webRedirectUrl || 'https://third-space-app.com/calendar/callback?ok=1'
-        return Response.redirect(dest, 302)
+        return Response.redirect(NATIVE_REDIRECT, 302)
       }
+      return Response.redirect(webRedirectUrl, 302)
     } catch (err: any) {
       console.error('[google-calendar-callback] Exception:', err)
-      return new Response(`Callback failed: ${err.message}`, { status: 500, headers: corsHeaders })
+      return new Response('Callback failed', { status: 500, headers: corsHeaders })
     }
   }
 
@@ -132,16 +184,23 @@ serve(async (req) => {
 
   // Action 1: START
   if (action === 'start') {
-    const platform = body.platform || 'web'
-    const webRedirectUrl = body.webRedirectUrl || ''
-    const stateObj = { userId: user.id, platform, webRedirectUrl }
-    const state = btoa(JSON.stringify(stateObj))
+    const platform = body.platform === 'native' ? 'native' : 'web'
+    const state = await signState({
+      uid: user.id,
+      platform,
+      ret: safeWebRedirect(body.webRedirectUrl),
+      nonce: crypto.randomUUID(),
+      exp: Date.now() + STATE_TTL_MS,
+    })
 
     const authUrlParams = new URLSearchParams({
       response_type: 'code',
       client_id: googleClientId,
       redirect_uri: redirectUri,
-      scope: 'https://www.googleapis.com/auth/calendar.events',
+      // calendar.events: add Third Space plans to the user's calendar.
+      // calendar.freebusy: busy blocks only (never titles) for availability.
+      scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy',
+      include_granted_scopes: 'true',
       access_type: 'offline',
       prompt: 'consent',
       state,
@@ -153,6 +212,75 @@ serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
+  }
+
+  // Action 5: FREEBUSY — busy blocks for a connection who opted in (item 2).
+  // Returns only { start, end } pairs, never event titles.
+  if (action === 'freebusy') {
+    const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), {
+      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+    const targetId = String(body.targetId || '')
+    const timeMin = new Date(body.from || Date.now())
+    const timeMax = new Date(body.to || Date.now() + 14 * 86400000)
+    if (!targetId || isNaN(timeMin.getTime()) || isNaN(timeMax.getTime())) return json({ error: 'Bad request' }, 400)
+    if (timeMax.getTime() - timeMin.getTime() > 31 * 86400000) return json({ error: 'Range too large' }, 400)
+
+    if (targetId !== user.id) {
+      const { data: conn } = await supabaseAdmin.from('connections').select('user_id')
+        .eq('user_id', user.id).eq('connected_user_id', targetId).maybeSingle()
+      if (!conn) return json({ busy: [], source: 'none' })
+      const { data: blocked } = await supabaseAdmin.from('blocks').select('blocker_id')
+        .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${targetId}),and(blocker_id.eq.${targetId},blocked_id.eq.${user.id})`)
+        .limit(1)
+      if (blocked && blocked.length) return json({ busy: [], source: 'none' })
+    }
+
+    const { data: prof } = await supabaseAdmin.from('profiles')
+      .select('share_calendar_busy, privacy').eq('id', targetId).maybeSingle()
+    const showAvailability = prof?.privacy?.showAvailability !== false
+    if (!prof?.share_calendar_busy || !showAvailability) return json({ busy: [], source: 'none' })
+
+    const { data: row } = await supabaseAdmin.from('google_calendar_tokens')
+      .select('*').eq('user_id', targetId).maybeSingle()
+    if (!row) return json({ busy: [], source: 'none' })
+    if (!String(row.scope || '').includes('calendar.freebusy')) {
+      return json({ busy: [], source: 'none', needsReconnect: targetId === user.id })
+    }
+
+    let accessToken = row.access_token
+    const expiresAtMs = row.expires_at ? new Date(row.expires_at).getTime() : 0
+    if (!accessToken || expiresAtMs <= Date.now() + 60000) {
+      const r = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: googleClientId, client_secret: googleClientSecret,
+          refresh_token: row.refresh_token, grant_type: 'refresh_token',
+        }),
+      })
+      const d = await r.json()
+      if (!r.ok || d.error) return json({ busy: [], source: 'none', needsReconnect: targetId === user.id })
+      accessToken = d.access_token
+      await supabaseAdmin.from('google_calendar_tokens').update({
+        access_token: accessToken,
+        expires_at: new Date(Date.now() + (d.expires_in || 3600) * 1000).toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', targetId)
+    }
+
+    const fb = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString(), items: [{ id: 'primary' }] }),
+    })
+    if (!fb.ok) {
+      console.error('[google-calendar-freebusy] Google error', fb.status, await fb.text())
+      return json({ busy: [], source: 'none' })
+    }
+    const fbData = await fb.json()
+    const busy = (fbData?.calendars?.primary?.busy || []).map((b: { start: string; end: string }) => ({ start: b.start, end: b.end }))
+    return json({ busy, source: 'google' })
   }
 
   // Action 3: TOKEN

@@ -6,7 +6,16 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import Memories from './Memories.jsx'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
-import { Briefcase, PartyPopper, Activity, Users, MessageCircle } from 'lucide-react'
+import { Briefcase, PartyPopper, Activity, Users, MessageCircle, GripVertical } from 'lucide-react'
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { updateProfile } from '../lib/auth'
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
 
 const clr = {
   bg: 'var(--bg)',
@@ -91,6 +100,24 @@ function ActivityBadge({ score }) {
       {tier.label}
     </span>
   )
+}
+
+/* One ranked row. In edit mode it's draggable by its handle (long-press on
+   touch, so normal scrolling still works). */
+function SortableCircleRow({ id, disabled, children }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id, disabled })
+  return children({
+    setNodeRef,
+    handleProps: { ref: setActivatorNodeRef, ...attributes, ...listeners },
+    style: {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      position: 'relative',
+      zIndex: isDragging ? 5 : 'auto',
+    },
+    isDragging,
+  })
 }
 
 function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
@@ -546,7 +573,7 @@ function NetworkGraph({ filter, connections = [], circles = [], joinedCircles = 
             <g
               key={m.id}
               transform={`translate(${m.x}, ${m.y})`}
-              style={{ cursor: 'pointer', animation: 'slideUp 0.15s ease' }}
+              style={{ cursor: 'pointer', animation: 'tsFadeIn 0.2s ease-out both' }}
               onClick={(e) => {
                 e.stopPropagation()
                 onSelectNode?.({ id: `person-${m.personId}`, type: 'person', personId: m.personId, label: m.name, avatar: m.avatar })
@@ -573,17 +600,44 @@ function NetworkGraph({ filter, connections = [], circles = [], joinedCircles = 
 export default function Circles() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion, blockedUserIds } = useAppContext()
+  const { currentUser, joinedCircles, joinCircle, startDM, chatState, connections, circleMembershipVersion, blockedUserIds, refreshProfile } = useAppContext()
+  const kbHeight = useKeyboardHeight()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const validTabs = ['circles', 'connections', 'memories', 'network']
   const tabFromUrl = searchParams.get('tab')
   const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'circles'
   const setActiveTab = (tab) => setSearchParams({ tab }, { replace: true })
-  const [circleOrder, setCircleOrder] = useState(joinedCircles)
+  // Saved order first, then any newly joined circles at the end (item 11).
+  const [localOrder, setLocalOrder] = useState(null)
+  const circleOrder = useMemo(() => {
+    const saved = localOrder || currentUser?.circleOrder || []
+    const joined = new Set(joinedCircles)
+    const kept = saved.filter(id => joined.has(id))
+    const keptSet = new Set(kept)
+    return [...kept, ...joinedCircles.filter(id => !keptSet.has(id))]
+  }, [localOrder, currentUser?.circleOrder, joinedCircles])
   const [isEditMode, setIsEditMode] = useState(false)
-  const [draggingId, setDraggingId] = useState(null)
-  const [dragOverId, setDragOverId] = useState(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const handleDragStart = () => {
+    import('@capacitor/haptics')
+      .then(({ Haptics, ImpactStyle }) => Haptics.impact({ style: ImpactStyle.Light }))
+      .catch(() => {})
+  }
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return
+    const next = arrayMove(circleOrder, circleOrder.indexOf(active.id), circleOrder.indexOf(over.id))
+    setLocalOrder(next)
+    if (currentUser?.id) {
+      updateProfile(currentUser.id, { circle_order: next })
+        .then(() => refreshProfile?.())
+        .catch(err => console.error('[Circles] saving circle order failed', err))
+    }
+  }
 
   const [networkFilter, setNetworkFilter] = useState('all')
   const [selectedNode, setSelectedNode] = useState(null)
@@ -659,14 +713,6 @@ export default function Circles() {
   }, [rankedConnections, connectionSearch, connectionFilter])
 
   useEffect(() => {
-    setCircleOrder(prev => {
-      const newArray = [...prev]
-      joinedCircles.forEach(id => { if (!newArray.includes(id)) newArray.push(id) })
-      return newArray.filter(id => joinedCircles.includes(id))
-    })
-  }, [joinedCircles])
-
-  useEffect(() => {
     const style = document.createElement('style')
     style.innerHTML = `
       @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -689,12 +735,25 @@ export default function Circles() {
     )
   }, [discoverSearch, joinedCircles, circles])
 
+  if (circlesError && circles.length === 0) {
+    // A failed load used to look exactly like "no circles" (L6).
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>
+        <p style={{ margin: '0 0 12px' }}>Couldn&apos;t load circles.</p>
+        <button type="button" onClick={() => window.location.reload()} style={{
+          minHeight: 44, padding: '10px 18px', borderRadius: 999, border: 'none',
+          backgroundColor: clr.indigo, color: '#fff', fontWeight: 700, cursor: 'pointer',
+        }}>Try again</button>
+      </div>
+    )
+  }
+
   if (circlesLoading && circles.length === 0) {
     return <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>Loading circles…</div>
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, paddingBottom: 110, fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
+    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, paddingBottom: 110 + kbHeight, fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, padding: '16px 20px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif", textAlign: 'center' }}>
         Circles
       </h1>
@@ -725,7 +784,7 @@ export default function Circles() {
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
         {activeTab === 'circles' && (
-          <div style={{ animation: 'slideUp 0.15s ease' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: 0 }}>Ranked Activity</h2>
               {joinedCircles.length > 0 && (
@@ -740,31 +799,20 @@ export default function Circles() {
                 Join some circles from the feed to see your rankings.
               </p>
             ) : (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              <SortableContext items={orderedCircleObjects.map(c => c.id)} strategy={verticalListSortingStrategy}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
                 {orderedCircleObjects.map((circle, rankIndex) => (
-                  <div key={circle.id} draggable={isEditMode}
+                  <SortableCircleRow key={circle.id} id={circle.id} disabled={!isEditMode}>
+                  {({ setNodeRef, handleProps, style: dragStyle, isDragging }) => (
+                  <div ref={setNodeRef}
                     onClick={() => { if (!isEditMode) navigate(`/circles/${circle.id}`) }}
-                    onDragStart={() => setDraggingId(circle.id)}
-                    onDragOver={e => { e.preventDefault(); setDragOverId(circle.id) }}
-                    onDrop={() => {
-                      if (!draggingId || draggingId === circle.id) return
-                      const newOrder = [...circleOrder]
-                      const fromIdx = newOrder.indexOf(draggingId)
-                      const toIdx = newOrder.indexOf(circle.id)
-                      newOrder.splice(fromIdx, 1)
-                      newOrder.splice(toIdx, 0, draggingId)
-                      setCircleOrder(newOrder)
-                      setDraggingId(null)
-                      setDragOverId(null)
-                    }}
-                    onDragEnd={() => { setDraggingId(null); setDragOverId(null) }}
                     style={{
+                      ...dragStyle,
                       backgroundColor: clr.white, borderRadius: 20, padding: 16, display: 'flex', alignItems: 'center', gap: 12,
-                      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                      opacity: draggingId === circle.id ? 0.4 : 1,
-                      border: dragOverId === circle.id ? `2px solid ${clr.indigo}` : '2px solid transparent',
-                      transition: 'border 0.15s ease, opacity 0.15s ease',
-                      cursor: isEditMode ? 'grab' : 'pointer',
+                      boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.18)' : '0 2px 12px rgba(0,0,0,0.06)',
+                      border: isDragging ? `2px solid ${clr.indigo}` : '2px solid transparent',
+                      cursor: isEditMode ? 'default' : 'pointer',
                     }}
                   >
                     <div style={{
@@ -796,15 +844,26 @@ export default function Circles() {
                       </p>
                     </div>
                     {isEditMode ? (
-                      <div style={{ padding: '4px 8px', color: clr.textLight, cursor: 'grab', flexShrink: 0 }}>⠿</div>
+                      <button type="button" {...handleProps} aria-label={`Reorder ${circle.name}`} style={{
+                        width: 44, height: 44, margin: '-8px -8px -8px 0', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'none', border: 'none', color: clr.textLight,
+                        cursor: 'grab', touchAction: 'none',
+                      }}>
+                        <GripVertical size={20} />
+                      </button>
                     ) : (
                       <svg width="16" height="16" fill="none" stroke={clr.textLight} strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
                         <path d="M9 18l6-6-6-6" />
                       </svg>
                     )}
                   </div>
+                  )}
+                  </SortableCircleRow>
                 ))}
               </div>
+              </SortableContext>
+              </DndContext>
             )}
 
             <h2 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 16px' }}>Discover More</h2>
@@ -822,7 +881,7 @@ export default function Circles() {
         )}
 
         {activeTab === 'connections' && (
-          <div style={{ animation: 'slideUp 0.15s ease' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
 
 
             <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -910,13 +969,13 @@ export default function Circles() {
         )}
 
         {activeTab === 'memories' && (
-          <div style={{ animation: 'slideUp 0.15s ease' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
             <Memories />
           </div>
         )}
 
         {activeTab === 'network' && (
-          <div style={{ animation: 'slideUp 0.15s ease' }}>
+          <div style={{ animation: 'tsTabIn 0.2s ease-out both' }}>
             {joinedCircles.length === 0 && connections.length === 0 ? (
               <p style={{ fontSize: 15, color: clr.textMid, textAlign: 'center', padding: '60px 20px', backgroundColor: clr.white, borderRadius: 24 }}>
                 Join some circles or make connections to see your network graph 🕸️
@@ -942,7 +1001,7 @@ export default function Circles() {
 
                 {selectedNode && (
                   <div style={{
-                    position: 'fixed', bottom: 85, left: 0, right: 0, zIndex: 100, padding: '0 16px', animation: 'slideUp 0.2s ease',
+                    position: 'fixed', bottom: 85, left: 0, right: 0, zIndex: 100, padding: '0 16px', animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
                     display: 'flex', justifyContent: 'center'
                   }}>
                     <div style={{

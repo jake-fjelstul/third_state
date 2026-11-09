@@ -48,25 +48,12 @@ export default function GamePlay() {
 
   const handleMove = async (arg) => {
     if (!isMyTurn) return
-    const mod = typeMeta.module
-    const nextState = mod.applyMove(game.state, arg, myToken)
-    if (!nextState) return
-    
-    // Compute declared winner for client-validated games
-    let declaredWinner = null
-    if (game.type === 'chess') {
-      declaredWinner = mod.winner(nextState)
-    } else if (game.type === 'checkers') {
-      const opp = myToken === 'x' ? 'o' : 'x'
-      if (mod.noMovesFor(nextState, opp) && !mod.winner(nextState)) {
-        declaredWinner = myToken
-      } else {
-        declaredWinner = mod.winner(nextState)
-      }
-    }
+    // Check locally first so illegal taps don't hit the network; the server
+    // re-validates with the same rules and decides the winner.
+    if (!typeMeta.module.applyMove(game.state, arg, myToken)) return
 
     try {
-      await makeGameMove({ gameId, newState: nextState, declaredWinner })
+      await makeGameMove({ gameId, move: arg })
     } catch (err) {
       console.error(err)
       setToast('Something changed — refreshing…')
@@ -102,17 +89,26 @@ export default function GamePlay() {
     statusText = isMyTurn ? 'Your turn' : `${game.currentTurn === 'x' ? game.playerX.name : game.playerO.name}'s turn`
   }
 
+  const avatarRing = (token) => ({
+    padding: 3, borderRadius: '50%',
+    border: `3px solid ${game.currentTurn === token && game.status === 'in_progress' ? clr.indigo : 'transparent'}`,
+    transition: 'border-color 0.3s ease',
+  })
+
+  // Layout: header, players, board, actions in one flex column that fits the
+  // space above the tab bar. The board shrinks to whatever height is left, so
+  // Resign is never pushed off-screen (item 13).
   return (
     <div style={{
       position: 'relative',
-      height: 'calc(100vh - 80px - env(safe-area-inset-bottom))', backgroundColor: clr.bg,
+      height: 'calc(100dvh - 80px - env(safe-area-inset-bottom))',
+      backgroundColor: clr.bg,
       display: 'flex', flexDirection: 'column',
       fontFamily: "'DM Sans','Inter',sans-serif",
-      overflow: 'hidden',
     }}>
       {/* Top Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: 'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px', borderBottom: `1px solid ${clr.border}` }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: 'max(12px, calc(env(safe-area-inset-top) + 8px)) 16px 10px', borderBottom: `1px solid ${clr.border}`, flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
             <path d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
@@ -120,70 +116,63 @@ export default function GamePlay() {
         <div style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 700, color: clr.textDark }}>
           {typeMeta.label}
         </div>
-        <div style={{ width: 32 }} /> {/* spacer */}
+        <div style={{ width: 44 }} />
       </div>
 
       {/* Players Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-evenly', alignItems: 'center', padding: '16px 20px' }}>
-        {/* Player X */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            padding: 4, borderRadius: '50%',
-            border: `3px solid ${game.currentTurn === 'x' && game.status === 'in_progress' ? clr.indigo : 'transparent'}`,
-            transition: 'border-color 0.3s ease'
-          }}>
-            <img src={avatarFor(game.playerX)} alt="X" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-evenly', alignItems: 'center', padding: '10px 16px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <div style={avatarRing('x')}>
+            <img src={avatarFor(game.playerX)} alt="X" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: clr.textDark }}>{game.playerX.name?.split(' ')[0]}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: clr.textDark }}>{game.playerX.name?.split(' ')[0]}</span>
         </div>
-        
-        <span style={{ fontSize: 16, fontWeight: 800, color: clr.textMid }}>VS</span>
-
-        {/* Player O */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            padding: 4, borderRadius: '50%',
-            border: `3px solid ${game.currentTurn === 'o' && game.status === 'in_progress' ? clr.indigo : 'transparent'}`,
-            transition: 'border-color 0.3s ease'
-          }}>
-             <img src={avatarFor(game.playerO)} alt="O" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: clr.textMid }}>VS</span>
+          <p style={{ margin: '4px 0 0', fontSize: 15, color: clr.textDark, fontWeight: 700 }}>{statusText}</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <div style={avatarRing('o')}>
+            <img src={avatarFor(game.playerO)} alt="O" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: clr.textDark }}>{game.playerO.name?.split(' ')[0]}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: clr.textDark }}>{game.playerO.name?.split(' ')[0]}</span>
         </div>
       </div>
 
-      {/* Board */}
-      <div style={{ flex: 1, padding: '0 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <GameBoard 
-          gameType={game.type}
-          state={game.state}
-          myToken={myToken}
-          myTurn={isMyTurn}
-          onMove={handleMove}
-        />
-        <p style={{ textAlign: 'center', marginTop: 32, fontSize: 18, color: clr.textDark, fontWeight: 700 }}>
-          {statusText}
-        </p>
+      {/* Board: takes the leftover height; square boards size to min(width, height) */}
+      <div style={{
+        flex: 1, minHeight: 0, padding: '4px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        containerType: 'size',
+      }}>
+        <div style={{ width: 'min(100cqw, 100cqh)', maxWidth: 480 }}>
+          <GameBoard
+            gameType={game.type}
+            state={game.state}
+            myToken={myToken}
+            myTurn={isMyTurn}
+            onMove={handleMove}
+          />
+        </div>
       </div>
 
-      {/* Footer Buttons */}
-      <div style={{ padding: '16px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <button 
+      {/* Actions */}
+      <div style={{ padding: '10px 16px 12px', display: 'flex', gap: 10, flexShrink: 0 }}>
+        <button
           onClick={() => navigate(`/chat/${game.chatId}`)}
           style={{
-            padding: '14px', borderRadius: 16, border: `1.5px solid ${clr.border}`,
-            background: 'transparent', color: clr.textDark, fontSize: 16, fontWeight: 700, cursor: 'pointer'
+            flex: 1, minHeight: 48, padding: '12px', borderRadius: 16, border: `1.5px solid ${clr.border}`,
+            background: 'transparent', color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer'
           }}
         >
           Back to chat
         </button>
-        
         {game.status === 'in_progress' && (
-          <button 
+          <button
             onClick={handleResign}
             style={{
-              padding: '14px', borderRadius: 16, border: 'none',
-              background: '#FEE2E2', color: '#DC2626', fontSize: 16, fontWeight: 700, cursor: 'pointer'
+              flex: 1, minHeight: 48, padding: '12px', borderRadius: 16, border: 'none',
+              background: '#FEE2E2', color: '#DC2626', fontSize: 15, fontWeight: 700, cursor: 'pointer'
             }}
           >
             Resign

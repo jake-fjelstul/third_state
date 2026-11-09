@@ -1,3 +1,4 @@
+import { toLocalDateString } from './events.js'
 import { supabase } from './supabase'
 import { Capacitor } from '@capacitor/core'
 
@@ -47,7 +48,11 @@ async function getAccessToken() {
   if (error || !data?.access_token) {
     cachedAccessToken = null
     cachedTokenExpiry = 0
-    if (error?.status === 401 || data?.error === 'invalid_grant' || data?.error === 'Not connected') {
+    // FunctionsHttpError keeps the HTTP status on error.context (audit M14).
+    const status = error?.context?.status ?? error?.status
+    let errBody = data
+    if (error?.context?.json) { try { errBody = await error.context.clone().json() } catch { /* not json */ } }
+    if (status === 401 || errBody?.error === 'invalid_grant' || errBody?.error === 'Not connected') {
       setStoredCalendarToken(null)
       throw new Error('Calendar session expired. Please reconnect Google Calendar.')
     }
@@ -166,7 +171,7 @@ function parseEventStart(event) {
   if (event?.dateObj) return new Date(event.dateObj)
   if (event?.start?.dateTime) return new Date(event.start.dateTime)
   if (event?.start?.date) return new Date(event.start.date)
-  const date = event?.date || new Date().toISOString().slice(0, 10)
+  const date = event?.date || toLocalDateString(new Date())
   const time = event?.time || '09:00'
   return new Date(`${date}T${time}`)
 }

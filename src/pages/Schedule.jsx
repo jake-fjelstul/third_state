@@ -106,7 +106,7 @@ function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails }) {
                 <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
               <span style={{ fontSize: 13, color: clr.textMid }}>
-                {meetup.date} • {meetup.time}
+                {meetup.dateLabel || meetup.date} • {meetup.timeLabel || meetup.time}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -588,7 +588,7 @@ export default function Schedule() {
                       {eventsThisHour.map((event) => (
                         <div key={event.id} onClick={() => openEventDetail(event)} style={{ backgroundColor: event.source === 'google' ? '#EFF6FF' : clr.indigoLt, borderLeft: `3px solid ${event.source === 'google' ? '#3B82F6' : clr.indigo}`, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: clr.textDark }}>
                           {event.title}
-                          <div style={{ fontSize: 11, fontWeight: 400, color: clr.textMid, marginTop: 2 }}>{event.time}</div>
+                          <div style={{ fontSize: 11, fontWeight: 400, color: clr.textMid, marginTop: 2 }}>{event.timeLabel || event.time}</div>
                         </div>
                       ))}
                     </div>
@@ -670,7 +670,7 @@ export default function Schedule() {
                         {event.title}
                       </p>
                       <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>
-                        {event.dateObj ? formatTime(event.dateObj) : event.time}
+                        {event.dateObj ? formatTime(event.dateObj) : (event.timeLabel || event.time)}
                         {event.location ? ` · ${event.location}` : ''}
                       </p>
                     </div>
@@ -744,7 +744,7 @@ export default function Schedule() {
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain',
-            animation: formClosing ? 'slideDown 0.3s ease forwards' : 'slideUp 0.3s ease forwards',
+            animation: formClosing ? 'tsSheetDown 0.24s ease-in forwards' : 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) forwards',
           }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
               <h2 style={{ fontSize:22, fontWeight:800, color: clr.textDark, margin:0 }}>Propose a Meetup</h2>

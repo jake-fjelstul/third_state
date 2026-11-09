@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'admin']),
+  // Build output, native copies of the bundle, Vite's dep cache and the Deno
+  // edge functions are not app source.
+  globalIgnores(['dist', 'admin', 'ios', 'android', '.vite', 'node_modules', 'supabase/functions/**/*.ts']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -23,7 +25,20 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Errors are reserved for real bugs (rules-of-hooks, undefined names).
+      // Dead code and React Compiler advice are warnings to clean up over time.
+      // `motion` is only used as <motion.div>, which this rule can't see.
+      'no-unused-vars': ['warn', { varsIgnorePattern: '^([A-Z_]|motion$)', argsIgnorePattern: '^_', caughtErrors: 'none' }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/static-components': 'warn',
+      'react-refresh/only-export-components': 'warn',
     },
+  },
+  {
+    files: ['scripts/**/*.{js,mjs}', '*.config.js'],
+    languageOptions: { globals: globals.node },
   },
 ])

@@ -413,4 +413,7 @@ verify_jwt = false
 [functions.send-push]
 verify_jwt = false
 
+[functions.game-move]
+# Validates the user JWT itself via auth.getUser.
+verify_jwt = false
 

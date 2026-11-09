@@ -146,3 +146,34 @@ body {
   100% { transform: scale(1);   opacity: 1; }
 }
 
+
+/* ── Shared motion (Phase 3) ─────────────────────────────────────────── */
+@keyframes tsSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes tsSheetDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@keyframes tsFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tsTabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes tsShimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
+
+.ts-sheet-up { animation: tsSheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.ts-fade-in { animation: tsFadeIn 0.2s ease both; }
+.ts-skeleton {
+  background-color: var(--border);
+  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: tsShimmer 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-sheet-up, .ts-fade-in, .ts-skeleton { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Press feedback on every button that doesn't already position itself with a
+   transform (a transform here would fight the inline one). */
+button { transition: transform 0.1s ease; -webkit-tap-highlight-color: transparent; }
+button:active:not(:disabled):not([style*="transform"]) { transform: scale(0.97); }

@@ -84,7 +84,7 @@ export function buildIndex(ctx = {}) {
       kind: 'event',
       id: String(e.id),
       title: e.title || 'Untitled Event',
-      subtitle: `${e.date || ''} ${e.time || ''} · ${e.location || e.circleName || ''}`.trim(),
+      subtitle: `${e.dateLabel || e.date || ''} ${e.timeLabel || e.time || ''} · ${e.location || e.circleName || ''}`.trim(),
       keywords: [e.circleName, e.location, e.category].filter(Boolean),
       path: `/events/${e.id}`,
       data: e,
