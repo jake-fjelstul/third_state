@@ -15,37 +15,66 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
-  --bg: #F0F0F5;
+  /* ── Design language v2 (design-review/3-design-language.png) ──
+     Neutrals carry the UI. --indigo is kept as a name for compatibility but
+     now means "ink": primary buttons, active states, links. The one warm
+     accent (--accent, "Ember") is used sparingly: your message bubbles,
+     unread dots, the battery ring, a single key action. */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+
+  --ink: #0B0B0C;
+  --on-ink: #FFFFFF;          /* text/icons on an ink-filled button */
+  --accent: #FF5A36;
+  --on-accent: #FFFFFF;
+  --accent-soft: #FFEDE8;
+  --surface: #FFFFFF;
+  --surface-2: #F4F4F6;
+  --surface-3: #EBEBEE;
+  --good: #1FA855;
+  --warn: #E8A317;
+  --bad: #E5484D;
+
+  /* Tallest a bottom sheet may be: never under the status bar / Dynamic Island */
+  --sheet-max: calc(100dvh - env(safe-area-inset-top) - 28px);
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+
+  /* Legacy names, remapped */
+  --bg: #FFFFFF;
   --white: #FFFFFF;
-  --indigo: #5B5FEF;
-  --indigoLt: #EEEEFF;
-  --textDark: #1A1A2E;
-  --textMid: #6B7280;
-  --textLight: #9CA3AF;
-  --border: #E8E8EE;
-  --green: #22C55E;
+  --indigo: #0B0B0C;
+  --indigoLt: #F4F4F6;
+  --textDark: #0B0B0C;
+  --textMid: #5E5E66;
+  --textLight: #9C9CA4;
+  --border: #E7E7EA;
+  --green: #1FA855;
   --modal-suggest-bg: rgba(245, 158, 11, 0.1);
   --modal-suggest-border: rgba(217, 119, 6, 0.35);
   --modal-suggest-chip-bg: rgba(254, 243, 199, 0.95);
   --modal-suggest-chip-text: #B45309;
   --channel-bar-pad-left: 16px;
-  --toast-bg: #1A1A2E;
+  --toast-bg: #0B0B0C;
   --toast-text: #FFFFFF;
 
   /* Create wheel — light theme: pale tints, dark text */
-  --wheel-circle-a: #C7CBF5;  --wheel-circle-b: #A9AEEE;
-  --wheel-event-a:  #A9DED5;  --wheel-event-b:  #86CDC1;
-  --wheel-lfg-a:    #F0DBA8;  --wheel-lfg-b:    #E5C883;
-  --wheel-coffee-a: #F0C2CB;  --wheel-coffee-b: #E5A3B0;
-  --wheel-ink:      #1A1A2E;
-  --wheel-ink-soft: rgba(26,26,46,0.66);
-  --wheel-icon-circle: #3E3D96;
-  --wheel-icon-event:  #0F5A50;
-  --wheel-icon-lfg:    #8A6410;
-  --wheel-icon-coffee: #8C3A4E;
+  /* Create wheel: one neutral surface for every slice (no color per feature) */
+  --wheel-circle-a: #F4F4F6;  --wheel-circle-b: #EBEBEE;
+  --wheel-event-a:  #F4F4F6;  --wheel-event-b:  #EBEBEE;
+  --wheel-lfg-a:    #F4F4F6;  --wheel-lfg-b:    #EBEBEE;
+  --wheel-coffee-a: #F4F4F6;  --wheel-coffee-b: #EBEBEE;
+  --wheel-ink:      #0B0B0C;
+  --wheel-ink-soft: #5E5E66;
+  --wheel-icon-circle: #0B0B0C;
+  --wheel-icon-event:  #0B0B0C;
+  --wheel-icon-lfg:    #0B0B0C;
+  --wheel-icon-coffee: #0B0B0C;
 
-  /* Discovery button */
-  --discover-a: #5B5FEF;  --discover-b: #7B6FFF;
+  /* Discovery button: flat ink now (both stops equal = no gradient) */
+  --discover-a: #0B0B0C;  --discover-b: #0B0B0C;
   --discover-ink: #FFFFFF;
   --discover-edge: rgba(255,255,255,0.22);
 
@@ -53,7 +82,7 @@
   --lfg-card-a: #FBF0D6;  --lfg-card-b: #F5E4BC;
   --lfg-edge:   rgba(138,100,16,0.28);
   --lfg-accent: #8A6410;
-  --lfg-title:  #1A1A2E;
+  --lfg-title:  #0B0B0C;
   --lfg-sub:    rgba(88,64,10,0.78);
   --lfg-pill-bg:  #8A6410;
   --lfg-pill-ink: #FBF0D6;
@@ -67,35 +96,43 @@
 }
 
 html.dark {
-  --bg: #111115;
-  --white: #1C1C24;
-  --indigo: #7B6FFF;
-  --indigoLt: #27273A;
-  --textDark: #F3F4F6;
-  --textMid: #9CA3AF;
-  --textLight: #6B7280;
-  --border: #2D2D3D;
-  --green: #22C55E;
+  /* True black like Instagram; surfaces step up in neutral gray. */
+  --ink: #F5F5F7;
+  --on-ink: #000000;
+  --accent-soft: #3A1C14;
+  --surface: #000000;
+  --surface-2: #121214;
+  --surface-3: #1C1C1F;
+
+  --bg: #000000;
+  --white: #121214;
+  --indigo: #F5F5F7;
+  --indigoLt: #1C1C1F;
+  --textDark: #F5F5F7;
+  --textMid: #A1A1A8;
+  --textLight: #6C6C74;
+  --border: #26262B;
+  --green: #1FA855;
   --modal-suggest-bg: rgba(245, 158, 11, 0.12);
   --modal-suggest-border: rgba(251, 191, 36, 0.45);
   --modal-suggest-chip-bg: rgba(245, 158, 11, 0.22);
   --modal-suggest-chip-text: #FCD34D;
-  --toast-bg: #2D2D3D;
-  --toast-text: #F3F4F6;
+  --toast-bg: #F5F5F7;
+  --toast-text: #0B0B0C;
 
-  --wheel-circle-a: #3E3D96;  --wheel-circle-b: #2A2963;
-  --wheel-event-a:  #12655B;  --wheel-event-b:  #0C443D;
-  --wheel-lfg-a:    #8A6410;  --wheel-lfg-b:    #5E430B;
-  --wheel-coffee-a: #8C3A4E;  --wheel-coffee-b: #5F2634;
-  --wheel-ink:      #FFFFFF;
-  --wheel-ink-soft: rgba(255,255,255,0.72);
-  --wheel-icon-circle: #C7D2FE;
-  --wheel-icon-event:  #99F6E4;
-  --wheel-icon-lfg:    #FDE68A;
-  --wheel-icon-coffee: #FECDD3;
+  --wheel-circle-a: #1C1C1F;  --wheel-circle-b: #121214;
+  --wheel-event-a:  #1C1C1F;  --wheel-event-b:  #121214;
+  --wheel-lfg-a:    #1C1C1F;  --wheel-lfg-b:    #121214;
+  --wheel-coffee-a: #1C1C1F;  --wheel-coffee-b: #121214;
+  --wheel-ink:      #F5F5F7;
+  --wheel-ink-soft: #A1A1A8;
+  --wheel-icon-circle: #F5F5F7;
+  --wheel-icon-event:  #F5F5F7;
+  --wheel-icon-lfg:    #F5F5F7;
+  --wheel-icon-coffee: #F5F5F7;
 
-  --discover-a: #3E3D96;  --discover-b: #25254F;
-  --discover-ink: #FFFFFF;
+  --discover-a: #F5F5F7;  --discover-b: #F5F5F7;
+  --discover-ink: #000000;
   --discover-edge: rgba(199,210,254,0.18);
 
   --lfg-card-a: #3A2E14;  --lfg-card-b: #241C0C;
@@ -117,7 +154,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font);
   background-color: var(--bg);
   color: var(--textDark);
   -webkit-font-smoothing: antialiased;
@@ -154,6 +191,16 @@ body {
 /* Opacity only: a transform here would trap position:fixed sheets inside. */
 @keyframes tsTabIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tsShimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
+
+/* In dark mode a sheet sits on the same gray as the fields inside it, so
+   fields, chips and segmented controls step up one more level there. */
+html.dark [data-sheet],
+html.dark .ts-sheet-up,
+html.dark [style*="tsSheetUp"] {
+  --surface-2: #1F1F23;
+  --surface-3: #2B2B30;
+  --indigoLt: #2B2B30;
+}
 
 .ts-sheet-up { animation: tsSheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }
 .ts-fade-in { animation: tsFadeIn 0.2s ease both; }

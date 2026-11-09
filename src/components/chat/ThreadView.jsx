@@ -16,7 +16,8 @@ import QuestionPrompt from './QuestionPrompt.jsx'
 import QuestionMessageCard from './QuestionMessageCard.jsx'
 import AskQuestionComposer from './AskQuestionComposer.jsx'
 import ReportModal from '../moderation/ReportModal.jsx'
-import { BarChart2, Gamepad2, HelpCircle, XCircle, Flag } from 'lucide-react'
+import { ArrowUp, BarChart2, Gamepad2, HelpCircle, XCircle, Flag } from 'lucide-react'
+import { Avatar, NavBar } from '../ui/ds.jsx'
 
 /*
  * The one chat thread used everywhere: DMs, group chats and circle chats
@@ -34,7 +35,7 @@ export const clr = {
   textLight:  'var(--textLight)',
   border:     'var(--border)',
   green:      'var(--green)',
-  activeRow:  '#EEF0FF',
+  activeRow:  'var(--indigoLt)',
 }
 
 const REACTION_EMOJIS = ['❤️', '👍', '👎', '😂', '😮', '😢']
@@ -81,7 +82,7 @@ export function UserAvatar({ src, name, online }) {
           position: 'absolute', bottom: 2, right: 2,
           width: 12, height: 12, borderRadius: '50%',
           backgroundColor: clr.green,
-          border: '2px solid #F0F0F5',
+          border: '2px solid var(--bg)',
         }}/>
       )}
     </div>
@@ -104,6 +105,24 @@ export function normChat(chat) {
 }
  
 /* ── Full thread view ── */
+/* Sender label above a message in group chats; tap to open their profile. */
+function SenderName({ msg }) {
+  const navigate = useNavigate()
+  const id = msg.senderId || msg.sender_id
+  return (
+    <button
+      type="button"
+      onClick={() => { if (id) navigate(`/user/${id}`) }}
+      style={{
+        background: 'none', border: 'none', padding: '4px 4px 3px', margin: '-4px 0 0', cursor: 'pointer',
+        fontSize: 12, fontWeight: 600, color: 'var(--textMid)', fontFamily: 'inherit',
+      }}
+    >
+      {msg.senderName || msg.sender}
+    </button>
+  )
+}
+
 export default function ThreadView({ chat, baseId, channelId, onBack }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -480,32 +499,31 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
         height: kbHeight > 0 ? `calc(100dvh - ${kbHeight}px)` : '100dvh',
         transition: 'height 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
         backgroundColor: clr.bg,
-        fontFamily: "'DM Sans','Inter',sans-serif",
+        fontFamily: 'inherit',
       }}
     >
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: 'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px',
-        backgroundColor: clr.bg,
-        borderBottom: `1px solid ${clr.border}`,
-        flexShrink: 0,
-      }}>
-        <button onClick={onBack} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
-          <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        {isGroup
-          ? <GroupAvatar name={name} />
-          : <UserAvatar src={avatar} name={name} online={online} />
-        }
-        <div style={{ flex:1 }}>
-          <p style={{ fontSize:16, fontWeight:700, color: clr.textDark, margin:0 }}>{name}</p>
-          <p style={{ fontSize:12, color: online ? clr.green : clr.textLight, margin:0 }}>
-            {isGroup ? `${chat.memberCount ?? chat.members?.length ?? ''} members` : online ? 'Active now' : 'Offline'}
-          </p>
-        </div>
+      <div style={{ paddingTop: 'env(safe-area-inset-top)', background: 'var(--bg)', flexShrink: 0 }}>
+        <NavBar onBack={onBack}>
+          {/* Tap the name: a person's profile, or the circle's page */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!isGroup && chat.personId) navigate(`/user/${chat.personId}`)
+              else if (chat.circleId) navigate(`/circles/${chat.circleId}`)
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, minHeight: 44,
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Avatar src={avatar} name={name} size={30} square={isGroup} />
+            <div style={{ minWidth: 0, textAlign: 'left' }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+              {isGroup && <div style={{ fontSize: 12, color: clr.textLight }}>{chat.memberCount ?? chat.members?.length ?? ''} members</div>}
+            </div>
+          </button>
+        </NavBar>
       </div>
 
       {!isDm && channelsLoaded && channels.length > 0 && (
@@ -527,7 +545,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                 style={{
                   padding: '6px 12px', borderRadius: 10, border: 'none',
                   backgroundColor: isActive ? clr.indigo : 'transparent',
-                  color: isActive ? '#FFFFFF' : clr.textMid,
+                  color: isActive ? 'var(--on-ink)' : clr.textMid,
                   fontSize: 13, fontWeight: isActive ? 700 : 600,
                   cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                   fontFamily: 'inherit',
@@ -615,7 +633,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                   )}
                   <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                     {!isMe && isGroup && (
-                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                      <SenderName msg={msg} />
                     )}
                     <PollMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
                   </div>
@@ -634,7 +652,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                   )}
                   <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                     {!isMe && isGroup && (
-                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                      <SenderName msg={msg} />
                     )}
                     <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
                   </div>
@@ -653,7 +671,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                   )}
                   <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                     {!isMe && isGroup && (
-                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                      <SenderName msg={msg} />
                     )}
                     <QuestionMessageCard clr={clr} payload={msg.payload} viewerId={currentUser?.id} />
                   </div>
@@ -688,7 +706,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                   )}
                   <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                     {!isMe && isGroup && (
-                      <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                      <SenderName msg={msg} />
                     )}
                     <CoffeeInviteMessageCard message={msg} viewerId={currentUser?.id} clr={clr} />
                   </div>
@@ -706,7 +724,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                 )}
                 <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                   {!isMe && isGroup && (
-                    <span style={{ fontSize:11, color: clr.textLight, marginBottom:3, marginLeft:4 }}>{msg.senderName || msg.sender}</span>
+                    <SenderName msg={msg} />
                   )}
                   <div
                     onTouchStart={(e) => startLongPress(msg, e)}
@@ -715,13 +733,13 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
                     onTouchCancel={handleTouchEnd}
                     onContextMenu={(e) => { e.preventDefault(); setActionMsg(msg) }}
                     style={{
-                      maxWidth: '72%',
-                      padding: '11px 14px',
-                      borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                      backgroundColor: isMe ? clr.indigo : clr.indigoLt,
-                      color: isMe ? '#FFFFFF' : clr.textDark,
-                      fontSize: 14, lineHeight: 1.5,
-                      boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
+                      maxWidth: '74%',
+                      padding: '8px 13px',
+                      borderRadius: 19,
+                      backgroundColor: isMe ? 'var(--accent)' : 'var(--surface-3)',
+                      color: isMe ? 'var(--on-accent)' : clr.textDark,
+                      fontSize: 16, lineHeight: 1.32,
+                      overflowWrap: 'anywhere',
                       WebkitTouchCallout: 'none',
                       WebkitUserSelect: 'none',
                       userSelect: 'none',
@@ -780,10 +798,10 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
 
       {/* Input bar */}
       <form onSubmit={handleSend} style={{
-        padding: kbHeight > 0 ? '12px 16px' : '12px 16px calc(12px + env(safe-area-inset-bottom))',
+        padding: kbHeight > 0 ? '8px 12px' : '8px 12px calc(8px + env(safe-area-inset-bottom))',
         backgroundColor: clr.bg,
-        borderTop: `1px solid ${clr.border}`,
-        display: 'flex', alignItems: 'flex-end', gap: 10,
+        borderTop: '0.5px solid var(--border)',
+        display: 'flex', alignItems: 'flex-end', gap: 8,
         flexShrink: 0,
       }}>
         {chat.type !== 'dm' && (
@@ -791,8 +809,8 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
             type="button"
             onClick={() => setShowPollComposer(true)}
             style={{
-              width: 42, height: 42, borderRadius: '50%', border: `1.5px solid ${clr.border}`,
-              backgroundColor: clr.white,
+              width: 36, height: 36, borderRadius: '50%', border: 'none',
+              backgroundColor: 'var(--surface-2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', flexShrink: 0, fontSize: 22, lineHeight: 1,
               color: clr.textMid, fontFamily: 'inherit',
@@ -808,8 +826,8 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
               type="button"
               onClick={() => setShowPlusPicker(prev => !prev)}
               style={{
-                width: 42, height: 42, borderRadius: '50%', border: `1.5px solid ${clr.border}`,
-                backgroundColor: clr.white,
+                width: 36, height: 36, borderRadius: '50%', border: 'none',
+                backgroundColor: 'var(--surface-2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', flexShrink: 0, fontSize: 22, lineHeight: 1,
                 color: clr.textMid, fontFamily: 'inherit',
@@ -912,28 +930,26 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isDm ? 'Type a message...' : `Message #${activeChannelName}…`}
+          placeholder={isDm ? 'Message' : `Message #${activeChannelName}`}
           style={{
-            flex:1, padding:'12px 16px', borderRadius:20,
-            border:`1.5px solid ${clr.border}`,
+            flex:1, padding:'8px 14px', borderRadius:19,
+            border:'1px solid var(--border)',
             backgroundColor: clr.bg,
-            fontSize:14, color: clr.textDark,
+            fontSize:16, color: clr.textDark,
             outline:'none', fontFamily:'inherit',
             resize:'none', lineHeight:'20px',
             boxSizing:'border-box', overflowY:'hidden',
           }}
         />
-        <button type="submit" style={{
-          width:42, height:42, borderRadius:'50%', border:'none',
-          background:`linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
+        <button type="submit" aria-label="Send" disabled={!input.trim()} style={{
+          width:36, height:36, borderRadius:'50%', border:'none',
+          background: input.trim() ? 'var(--accent)' : 'var(--surface-3)',
+          color: input.trim() ? 'var(--on-accent)' : 'var(--textLight)',
           display:'flex', alignItems:'center', justifyContent:'center',
-          cursor:'pointer', flexShrink:0,
-          boxShadow:'0 4px 12px rgba(91,95,239,0.35)',
+          cursor: input.trim() ? 'pointer' : 'default', flexShrink:0,
+          transition: 'background-color 0.15s ease',
         }}>
-          <svg width="18" height="18" fill="none" stroke="#FFFFFF" strokeWidth="2.2" viewBox="0 0 24 24">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
+          <ArrowUp size={20} strokeWidth={2.6} />
         </button>
       </form>
 

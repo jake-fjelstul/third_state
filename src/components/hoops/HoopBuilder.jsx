@@ -66,7 +66,7 @@ export default function HoopBuilder({ hoops, onChange }) {
       )}
 
       {hoops.map((h, i) => (
-        <div key={h.id} style={{ backgroundColor: clr.white, borderRadius: 20, padding: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.04)', border: `1px solid ${clr.border}`, position: 'relative' }}>
+        <div key={h.id} style={{ backgroundColor: clr.white, borderRadius: 20, padding: 20, boxShadow: '0 0 0 1px var(--border)', border: `1px solid ${clr.border}`, position: 'relative' }}>
           <button 
             type="button"
             onClick={() => handleRemove(h.id)}

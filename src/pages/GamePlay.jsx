@@ -1,3 +1,4 @@
+import { ChevronLeft } from 'lucide-react'
 import { PageSkeleton } from '../components/ui/Skeleton.jsx'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -84,7 +85,7 @@ export default function GamePlay() {
   let statusText = ''
   if (game.status === 'completed') {
     if (game.winner === 'draw') statusText = 'Draw'
-    else if (game.winner === myToken) statusText = 'You won! 🏆'
+    else if (game.winner === myToken) statusText = 'You won'
     else statusText = `${game.winner === 'x' ? game.playerX.name : game.playerO.name} won`
   } else {
     statusText = isMyTurn ? 'Your turn' : `${game.currentTurn === 'x' ? game.playerX.name : game.playerO.name}'s turn`
@@ -92,7 +93,7 @@ export default function GamePlay() {
 
   const avatarRing = (token) => ({
     padding: 3, borderRadius: '50%',
-    border: `3px solid ${game.currentTurn === token && game.status === 'in_progress' ? clr.indigo : 'transparent'}`,
+    border: `3px solid ${game.currentTurn === token && game.status === 'in_progress' ? 'var(--accent)' : 'transparent'}`,
     transition: 'border-color 0.3s ease',
   })
 
@@ -102,17 +103,15 @@ export default function GamePlay() {
   return (
     <div style={{
       position: 'relative',
-      height: '100dvh',
+      height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none',
       backgroundColor: clr.bg,
       display: 'flex', flexDirection: 'column',
-      fontFamily: "'DM Sans','Inter',sans-serif",
+      fontFamily: 'inherit',
     }}>
       {/* Top Bar */}
       <div style={{ display: 'flex', alignItems: 'center', padding: 'max(12px, calc(env(safe-area-inset-top) + 8px)) 16px 10px', borderBottom: `1px solid ${clr.border}`, flexShrink: 0 }}>
         <button onClick={() => navigate(-1)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
+          <ChevronLeft size={28} strokeWidth={2.2} color="var(--textDark)" />
         </button>
         <div style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 700, color: clr.textDark }}>
           {typeMeta.label}
@@ -185,7 +184,7 @@ export default function GamePlay() {
       {game.status === 'completed' && (
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundColor: 'rgba(15,15,30,0.85)',
+          backgroundColor: 'rgba(0,0,0,0.78)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           gap: 24, zIndex: 10, backdropFilter: 'blur(4px)'
         }}>
@@ -197,9 +196,9 @@ export default function GamePlay() {
               onClick={handleRematch}
               style={{
                 padding: '14px 28px', borderRadius: 16, border: 'none',
-                background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(91,95,239,0.3)'
+                background: 'var(--accent)',
+                color: 'var(--on-accent)', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+                boxShadow: 'none'
               }}
             >
               Rematch

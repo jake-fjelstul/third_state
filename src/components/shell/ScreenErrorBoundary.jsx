@@ -37,7 +37,7 @@ export default class ScreenErrorBoundary extends Component {
           )}
           <button type="button" onClick={() => this.setState({ error: null })} style={{
             minHeight: 44, padding: '10px 18px', borderRadius: 12, border: 'none',
-            background: 'var(--indigo)', color: '#fff', fontWeight: 600, cursor: 'pointer',
+            background: 'var(--indigo)', color: 'var(--on-ink)', fontWeight: 600, cursor: 'pointer',
           }}>Try again</button>
         </div>
       </div>

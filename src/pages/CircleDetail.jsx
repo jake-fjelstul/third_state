@@ -1,3 +1,6 @@
+import { Button, NavBar, Tabs } from '../components/ui/ds.jsx'
+import { ChevronLeft, MoreHorizontal } from 'lucide-react'
+import { canGoBack } from '../lib/tabActive.js'
 import { PageSkeleton } from '../components/ui/Skeleton.jsx'
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
@@ -52,6 +55,12 @@ const VIBE_ICONS = {
   'All Levels': Star,
   'Casual': Coffee,
   'Professional': Briefcase,
+}
+
+const heroBtn = {
+  width: 38, height: 38, borderRadius: '50%', border: 'none', cursor: 'pointer',
+  background: 'rgba(0,0,0,0.32)', color: '#fff', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
 }
 
 export default function CircleDetail() {
@@ -214,8 +223,9 @@ export default function CircleDetail() {
   }
   if (!circle) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: clr.textMid, fontFamily: "'DM Sans',sans-serif" }}>
-        Circle not found.
+      <div style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <NavBar onBack={() => (canGoBack() ? navigate(-1) : navigate('/circles'))} title="Circle" />
+        <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>This circle doesn't exist or you don't have access.</div>
       </div>
     )
   }
@@ -224,48 +234,29 @@ export default function CircleDetail() {
     <div style={{
       minHeight: '100vh',
       backgroundColor: clr.bg,
-      fontFamily: "'DM Sans','Inter',sans-serif",
+      fontFamily: 'inherit',
       paddingBottom: 100,
     }}>
 
-      {/* ── Hero banner ── */}
+      {/* ── Hero (design v2): full-bleed cover, round controls over it ── */}
       <div style={{
-        background: cover.kind === 'gradient' ? cover.value : undefined,
-        paddingBottom: 72,
-        position: 'relative',
-        overflow: 'visible',
-        zIndex: 3,
+        position: 'relative', height: 'calc(230px + env(safe-area-inset-top))',
+        background: cover.kind === 'gradient' ? cover.value : 'var(--surface-3)',
       }}>
         {cover.kind === 'image' && (
-          <>
-            <img src={cover.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(15,23,42,0.15) 40%, rgba(15,23,42,0.6) 100%)' }} />
-          </>
+          <img src={cover.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
-        {/* Top bar */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0) 40%)' }} />
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 20px 0',
-          position: 'relative',
-          zIndex: 20,
+          position: 'absolute', left: 12, right: 12, top: 'calc(env(safe-area-inset-top) + 6px)',
+          display: 'flex', justifyContent: 'space-between', zIndex: 20,
         }}>
-          <button type="button" onClick={() => navigate(-1)} style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-          }}>
-            <svg width="22" height="22" fill="none" stroke="#FFFFFF" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path d="M19 12H5M12 5l-7 7 7 7" />
-            </svg>
+          <button type="button" aria-label="Back" onClick={() => (canGoBack() ? navigate(-1) : navigate('/circles'))} style={heroBtn}>
+            <ChevronLeft size={24} strokeWidth={2.2} />
           </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {circle.name} <CircleIcon circle={circle} size={16} color="#FFFFFF" />
-          </span>
-          <div style={{ position: 'relative', zIndex: 21 }}>
-            <button type="button" onClick={() => setShowDropdown(!showDropdown)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-              <svg width="20" height="20" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="12" cy="5" r="1" fill="#FFFFFF" />
-                <circle cx="12" cy="12" r="1" fill="#FFFFFF" />
-                <circle cx="12" cy="19" r="1" fill="#FFFFFF" />
-              </svg>
+          <div style={{ position: 'relative' }}>
+            <button type="button" aria-label="More" onClick={() => setShowDropdown(!showDropdown)} style={heroBtn}>
+              <MoreHorizontal size={22} />
             </button>
             {showDropdown && (
               <div style={{
@@ -333,179 +324,43 @@ export default function CircleDetail() {
             )}
           </div>
         </div>
+      </div>
 
-        {isOrganizer && (
-          <button type="button" onClick={() => setShowCoverUploader(true)} style={{ position: 'absolute', top: 66, right: 20, zIndex: 3, border: 'none', borderRadius: 999, padding: '8px 12px', background: 'rgba(15,23,42,0.45)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Camera size={14} color="#FFFFFF" /> Change cover
-          </button>
-        )}
-
-        {/* Circle icon */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24, marginBottom: 20, position: 'relative', zIndex: 2 }}>
-          <div style={{
-            width: 90, height: 90, borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.18)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <div style={{
-              width: 68, height: 68, borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.22)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <CircleIcon circle={circle} size={32} color="#FFFFFF" />
-            </div>
-          </div>
-        </div>
-
-        {/* Circle name + status */}
-        <div style={{ textAlign: 'center', padding: '0 20px', position: 'relative', zIndex: 2 }}>
-          <h1 style={{
-            fontSize: 28, fontWeight: 800, color: '#FFFFFF',
-            margin: '0 0 12px 0', letterSpacing: '-0.02em',
-            fontFamily: "'DM Serif Display','Georgia',serif",
-          }}>
-            {circle.name}
-          </h1>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center',
-            backgroundColor: clr.teal,
-            borderRadius: 999, padding: '5px 16px',
-            fontSize: 11, fontWeight: 700, color: '#FFFFFF',
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-          }}>
-            Active
-          </div>
-        </div>
-
-        {/* Join button — floats over the bottom of the hero */}
-        <div style={{
-          position: 'absolute', bottom: -22,
-          left: 0, right: 0,
-          display: 'flex', justifyContent: 'center',
-          zIndex: 6,
-        }}>
+      {/* ── Title, meta, actions ── */}
+      <div style={{ padding: '18px 20px 14px' }}>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--textDark)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {circle.name}
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: 15, color: 'var(--textMid)' }}>
+          {(circle.members ? circle.members.length : (circle.memberCount || 0))} members
+          {circle.interestTag ? ` · ${circle.interestTag}` : ''}
+          {isPrivate ? ' · Private' : ' · Open circle'}
+        </p>
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           {isJoined ? (
-            <button
-              type="button"
-              onClick={() => setActiveTab('chat')}
-              style={{
-                padding: '12px 40px',
-                borderRadius: 999,
-                border: 'none',
-                background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                color: '#FFF',
-                fontSize: 16, fontWeight: 800,
-                cursor: 'pointer',
-                boxShadow: '0 6px 24px rgba(91,95,239,0.3)',
-              }}
-            >
-              Open Chat
-            </button>
+            <>
+              <Button block icon={<MessageCircle size={18} strokeWidth={2.2} />} onClick={() => setActiveTab('chat')}>Chat</Button>
+              <Button block variant="secondary" onClick={() => setShowInviteModal(true)}>Invite</Button>
+            </>
           ) : pendingApp ? (
-            <button
-              type="button"
-              disabled
-              style={{
-                padding: '12px 40px', borderRadius: 999, border: 'none',
-                backgroundColor: clr.white, color: clr.textMid,
-                fontSize: 16, fontWeight: 700, cursor: 'not-allowed',
-                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}
-            >
-              <Hourglass size={16} color={clr.textMid} /> Pending Review
-            </button>
+            <Button block variant="secondary" disabled icon={<Hourglass size={16} />}>Request sent</Button>
           ) : acceptsApplications ? (
-            <button
-              type="button"
-              onClick={handleRequestJoin}
-              disabled={joinBusy}
-              style={{
-                padding: '12px 40px', borderRadius: 999, border: 'none',
-                backgroundColor: clr.white, color: clr.indigo,
-                fontSize: 16, fontWeight: 700,
-                cursor: joinBusy ? 'wait' : 'pointer',
-                opacity: joinBusy ? 0.7 : 1,
-                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}
-            >
-              {joinBusy ? 'Sending…' : <><Dribbble size={16} color={clr.indigo} /> Apply to Join</>}
-            </button>
+            <Button block onClick={handleRequestJoin} disabled={joinBusy}>{joinBusy ? 'Sending…' : 'Apply to join'}</Button>
           ) : isPrivate ? (
-            <div
-              style={{
-                padding: '10px 24px', borderRadius: 999, border: 'none',
-                backgroundColor: clr.white, textAlign: 'center',
-                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>
-                Invite only
-              </div>
-              <div style={{ fontSize: 11, color: clr.textMid, marginTop: 2 }}>
-                You'll need an invite link or QR code from a member.
-              </div>
+            <div style={{ fontSize: 14, color: 'var(--textMid)', lineHeight: 1.45 }}>
+              <strong style={{ color: 'var(--textDark)' }}>Invite only.</strong> You'll need an invite link or QR code from a member.
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={handleJoin}
-              disabled={joinBusy}
-              style={{
-                padding: '12px 40px', borderRadius: 999, border: 'none',
-                backgroundColor: clr.white, color: clr.indigo,
-                fontSize: 16, fontWeight: 700,
-                cursor: joinBusy ? 'wait' : 'pointer',
-                opacity: joinBusy ? 0.7 : 1,
-                boxShadow: '0 6px 24px rgba(0,0,0,0.15)',
-              }}
-            >
-              {joinBusy ? 'Joining…' : 'Join Circle'}
-            </button>
+            <Button block onClick={handleJoin} disabled={joinBusy}>{joinBusy ? 'Joining…' : 'Join circle'}</Button>
           )}
         </div>
       </div>
 
-      {/* ── Tabs ── */}
-      <div
-        style={{
-          backgroundColor: clr.white,
-          borderBottom: `1px solid ${clr.border}`,
-          marginTop: 0, paddingTop: 24,
-          display: 'flex',
-          position: 'relative',
-          zIndex: 2,
-        }}
-      >
-        <div style={{ display: 'flex', width: '100%' }}>
-          {dynamicTabs.map((tab) => {
-            const active = activeTab === tab.id
-            const fontSize = dynamicTabs.length <= 4 ? 15 : 13
-            return (
-              <button key={tab.id} type="button"
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: '12px 4px',
-                  textAlign: 'center',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize, fontWeight: active ? 700 : 500,
-                  color: active ? clr.indigo : clr.textMid,
-                  borderBottom: active ? `2.5px solid ${clr.indigo}` : '2.5px solid transparent',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <Tabs
+        tabs={dynamicTabs.map(t => ({ id: t.id, label: t.label }))}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* ── Tab content ── */}
       <div style={{ padding: '20px 16px', margin: '0 auto' }}>
@@ -518,7 +373,7 @@ export default function CircleDetail() {
             {hasHoops && (
               <div style={{
                 backgroundColor: clr.white, borderRadius: 20,
-                padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                padding: '20px', boxShadow: '0 0 0 1px var(--border)',
               }}>
                 <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 12px 0' }}>Entry Requirements</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -550,16 +405,16 @@ export default function CircleDetail() {
             {/* Description */}
             <div style={{
               backgroundColor: clr.white, borderRadius: 20,
-              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              padding: '20px', boxShadow: '0 0 0 1px var(--border)',
             }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 12px 0' }}>Description</h3>
               <p style={{ fontSize: 15, color: clr.textMid, lineHeight: 1.7, margin: 0 }}>{circle.description}</p>
             </div>
 
-            {/* Circle Vibe */}
-            <div style={{
+            {/* Circle Vibe (hidden when there isn't one) */}
+            {(circle.vibes?.length || circle.vibe?.trim()) ? <div style={{
               backgroundColor: clr.white, borderRadius: 20,
-              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              padding: '20px', boxShadow: '0 0 0 1px var(--border)',
             }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 14px 0' }}>Circle Vibe</h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -578,12 +433,12 @@ export default function CircleDetail() {
                   )
                 })}
               </div>
-            </div>
+            </div> : null}
 
             {/* Organizer */}
             <div style={{
               backgroundColor: clr.white, borderRadius: 20,
-              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              padding: '20px', boxShadow: '0 0 0 1px var(--border)',
             }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 14px 0' }}>Organizer</h3>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -601,7 +456,7 @@ export default function CircleDetail() {
                       border: `2px solid ${clr.white}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <svg width="9" height="9" fill="none" stroke="#FFFFFF" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <svg width="9" height="9" fill="none" stroke="var(--on-ink)" strokeWidth="2.5" viewBox="0 0 24 24">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                     </div>
@@ -654,7 +509,7 @@ export default function CircleDetail() {
                 <div key={label} style={{
                   backgroundColor: clr.white, borderRadius: 20,
                   padding: '18px 12px', textAlign: 'center',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                  boxShadow: '0 0 0 1px var(--border)',
                 }}>
                   <p style={{ fontSize: 28, fontWeight: 800, color: clr.indigo, margin: '0 0 4px 0' }}>{value}</p>
                   <p style={{ fontSize: 11, color: clr.textMid, margin: 0, letterSpacing: '0.08em', fontWeight: 600 }}>{label}</p>
@@ -699,7 +554,7 @@ export default function CircleDetail() {
               {/* Members List */}
               <div style={{
                 backgroundColor: clr.white, borderRadius: 20,
-                padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                padding: '20px', boxShadow: '0 0 0 1px var(--border)',
               }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {(circle.members || []).filter(member => !blockedUserIds?.includes(member.id)).map((member) => (
@@ -745,7 +600,7 @@ export default function CircleDetail() {
                 return (
                   <div key={event.id} onClick={() => openEventDetail(event)} style={{
                     backgroundColor: clr.white, borderRadius: 20,
-                    padding: '18px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                    padding: '18px', boxShadow: '0 0 0 1px var(--border)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
                     cursor: 'pointer',
                   }}>
@@ -792,8 +647,8 @@ export default function CircleDetail() {
                     ) : (
                       <button type="button" onClick={(e) => { e.stopPropagation(); openEventDetail(event); }} style={{
                         padding: '9px 18px', borderRadius: 999, border: 'none',
-                        background: `linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
-                        color: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        background: `var(--indigo)`,
+                        color: 'var(--on-ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                         flexShrink: 0,
                       }}>
                         Details
@@ -812,7 +667,7 @@ export default function CircleDetail() {
             {/* Application Settings Panel */}
             <div style={{
               backgroundColor: clr.white, borderRadius: 20,
-              padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              padding: '20px', boxShadow: '0 0 0 1px var(--border)',
             }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: '0 0 16px 0' }}>
                 Application Settings
@@ -835,7 +690,7 @@ export default function CircleDetail() {
                   }}
                   style={{
                     width: 50, height: 28, borderRadius: 999,
-                    backgroundColor: editAppsEnabled ? clr.indigo : clr.border,
+                    backgroundColor: editAppsEnabled ? 'var(--good)' : 'var(--surface-3)',
                     position: 'relative', cursor: 'pointer', transition: 'background-color 0.3s ease',
                   }}
                 >
@@ -906,7 +761,7 @@ export default function CircleDetail() {
                 style={{
                   marginTop: 16, width: '100%', padding: '12px', borderRadius: 999, border: 'none',
                   backgroundColor: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) ? clr.indigo : clr.border,
-                  color: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) ? '#FFFFFF' : clr.textMid,
+                  color: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) ? 'var(--on-ink)' : clr.textMid,
                   fontSize: 15, fontWeight: 700,
                   cursor: (hoopsDirty || editAppsEnabled !== !!circle.applicationsEnabled) && !hoopsSaving ? 'pointer' : 'not-allowed',
                   opacity: hoopsSaving ? 0.7 : 1,
@@ -1001,7 +856,7 @@ export default function CircleDetail() {
                         style={{
                           padding: '8px 16px', borderRadius: 999, border: 'none',
                           backgroundColor: alreadyMember ? clr.bg : clr.indigo,
-                          color: alreadyMember ? clr.textMid : '#FFF',
+                          color: alreadyMember ? clr.textMid : 'var(--on-ink)',
                           fontSize: 13, fontWeight: 700, cursor: alreadyMember ? 'default' : 'pointer',
                         }}
                       >

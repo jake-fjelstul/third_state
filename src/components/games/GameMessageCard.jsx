@@ -23,13 +23,13 @@ export default function GameMessageCard({ payload, viewerId }) {
     return (
       <div style={{
         backgroundColor: clr.white, border: `1.5px solid ${clr.border}`, borderRadius: 16,
-        padding: 16, maxWidth: 280, minWidth: 200, boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
+        padding: 16, maxWidth: 280, minWidth: 200, boxShadow: '0 0 0 1px var(--border)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: clr.textDark }}>{title}</span>
-          <span style={{ fontSize: 12, color: clr.textMid, backgroundColor: '#F0F0F5', padding: '2px 8px', borderRadius: 12 }}>Loading</span>
+          <span style={{ fontSize: 12, color: clr.textMid, backgroundColor: 'var(--surface-2)', padding: '2px 8px', borderRadius: 12 }}>Loading</span>
         </div>
-        <div style={{ height: 120, backgroundColor: '#F0F0F5', borderRadius: 12, marginBottom: 16 }} />
+        <div style={{ height: 120, backgroundColor: 'var(--surface-2)', borderRadius: 12, marginBottom: 16 }} />
       </div>
     )
   }
@@ -39,19 +39,19 @@ export default function GameMessageCard({ payload, viewerId }) {
   
   let statusText = 'Unknown'
   let statusColor = clr.textMid
-  let statusBg = '#F0F0F5'
+  let statusBg = 'var(--surface-2)'
 
   if (game.status === 'completed') {
     if (game.winner === myToken) {
       statusText = 'You won 🏆'
-      statusColor = '#059669' // Green
-      statusBg = '#D1FAE5'
+      statusColor = 'var(--good)'
+      statusBg = 'var(--surface-2)'
     } else if (game.winner === 'draw') {
       statusText = 'Draw'
     } else {
       statusText = 'Lost'
-      statusColor = '#DC2626' // Red
-      statusBg = '#FEE2E2'
+      statusColor = 'var(--bad)'
+      statusBg = 'var(--surface-2)'
     }
   } else {
     if (isMyTurn) {
@@ -66,7 +66,7 @@ export default function GameMessageCard({ payload, viewerId }) {
   return (
     <div style={{
       backgroundColor: clr.white, border: `1.5px solid ${clr.border}`, borderRadius: 16,
-      padding: 16, maxWidth: 280, minWidth: 240, boxShadow: '0 2px 12px rgba(0,0,0,0.06)'
+      padding: 16, maxWidth: 280, minWidth: 240, boxShadow: '0 0 0 1px var(--border)'
     }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -86,8 +86,8 @@ export default function GameMessageCard({ payload, viewerId }) {
         onClick={() => navigate(`/game/${gameId}`)}
         style={{
           width: '100%', padding: '10px 0', borderRadius: 12, border: 'none',
-          background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-          color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          background: `var(--indigo)`,
+          color: 'var(--on-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
           marginTop: 8
         }}
       >

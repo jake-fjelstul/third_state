@@ -7,12 +7,12 @@ export default function TextMessage({ message, clr, muted }) {
         padding: '10px 14px',
         borderRadius: 18,
         background: isUser
-          ? `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`
+          ? `var(--indigo)`
           : clr.white,
         color: isUser ? '#FFF' : (muted ? clr.textMid : clr.textDark),
         fontSize: 14, lineHeight: 1.4,
         fontStyle: muted ? 'italic' : 'normal',
-        boxShadow: isUser ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
+        boxShadow: isUser ? 'none' : '0 0 0 1px var(--border)',
       }}>
         {message.text}
         {message.alternative && (

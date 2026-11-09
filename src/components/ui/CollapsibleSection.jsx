@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-export default function CollapsibleSection({ title, defaultOpen = true, titleFontSize = 18, children }) {
+// Design v2: a small gray group label (iOS grouped style) that also collapses.
+export default function CollapsibleSection({ title, defaultOpen = true, titleFontSize, children }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (
@@ -16,20 +17,23 @@ export default function CollapsibleSection({ title, defaultOpen = true, titleFon
           justifyContent: 'space-between',
           background: 'none',
           border: 'none',
-          padding: '0 4px',
-          marginBottom: 12,
+          padding: '0 16px',
+          marginBottom: 8,
+          minHeight: 32,
           cursor: 'pointer',
           textAlign: 'left',
         }}
       >
-        <h2 style={{ fontSize: titleFontSize, fontWeight: 700, color: 'var(--textDark)', margin: 0 }}>
+        <h2 style={titleFontSize
+          ? { fontSize: titleFontSize, fontWeight: 700, color: 'var(--textDark)', margin: 0, letterSpacing: '-0.01em' }
+          : { fontSize: 13, fontWeight: 600, color: 'var(--textMid)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           {title}
         </h2>
         <svg
-          width="18"
-          height="18"
+          width="16"
+          height="16"
           fill="none"
-          stroke="var(--textDark)"
+          stroke="var(--textLight)"
           strokeWidth="2.5"
           viewBox="0 0 24 24"
           style={{

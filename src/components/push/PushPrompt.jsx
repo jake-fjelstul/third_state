@@ -118,7 +118,7 @@ export default function PushPrompt() {
         </p>
         <button type="button" onClick={turnOn} disabled={busy} style={{
           width: '100%', padding: '15px 0', borderRadius: 999, border: 'none',
-          background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)', color: '#fff',
+          background: 'var(--indigo)', color: 'var(--on-ink)',
           fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: 10, minHeight: 44,
         }}>
           {busy ? 'One sec…' : 'Turn on notifications'}

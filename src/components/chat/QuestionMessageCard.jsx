@@ -11,13 +11,13 @@ export default function QuestionMessageCard({ clr, payload, viewerId }) {
       maxWidth: 300, width: '100%', padding: 14, borderRadius: 16,
       backgroundColor: clr?.white || '#FFFFFF',
       border: `1px solid ${clr?.border || '#E5E7EB'}`,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
       {/* Question Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <HelpCircle size={14} color={clr?.indigo || '#5B5FEF'} />
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: clr?.indigo || '#5B5FEF' }}>
+        <HelpCircle size={14} color={clr?.indigo || 'var(--indigo)'} />
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: clr?.indigo || 'var(--indigo)' }}>
           {variant === 'spontaneous' ? 'Connection Question' : 'Daily Question'}
         </span>
       </div>
@@ -47,14 +47,14 @@ export default function QuestionMessageCard({ clr, payload, viewerId }) {
                 ) : (
                   <div style={{
                     width: 22, height: 22, borderRadius: '50%',
-                    backgroundColor: isMe ? clr?.indigo || '#5B5FEF' : '#D1D5DB',
-                    color: '#FFFFFF', fontSize: 11, fontWeight: 700,
+                    backgroundColor: isMe ? clr?.indigo || 'var(--indigo)' : '#D1D5DB',
+                    color: 'var(--on-ink)', fontSize: 11, fontWeight: 700,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     {initials}
                   </div>
                 )}
-                <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? clr?.indigo || '#5B5FEF' : clr?.textDark || '#1F2937' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? clr?.indigo || 'var(--indigo)' : clr?.textDark || '#1F2937' }}>
                   {displayName}
                 </span>
               </div>

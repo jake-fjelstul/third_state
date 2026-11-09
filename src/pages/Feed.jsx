@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
@@ -14,7 +14,11 @@ import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
-import { Calendar, Camera, Dribbble, Zap, MapPin, Clock, Timer } from 'lucide-react'
+import { Calendar, Camera, Dribbble, Zap, MapPin, Clock, Timer, Plus, Check, ChevronRight, Gamepad2, Users, Coffee, UserPlus, MessageCircle, Bell, UserRound, Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { matchActions } from '../lib/searchActions.js'
+import SoloGameModal from '../components/games/SoloGameModal.jsx'
+import { Avatar, Chip, SectionHeader as DsSectionHeader } from '../components/ui/ds.jsx'
+import { publishMyStatus, consumeOpenStatus, OPEN_STATUS_EVENT } from '../lib/statusBus.js'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -28,11 +32,12 @@ import AssistantModal from '../components/assistant/AssistantModal.jsx'
 import { checkContent } from '../lib/contentFilter.js'
 import {
   LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost,
-  listMyLfgPosts, listJoinedLfgPosts, getLfgJoiners,
+  listMyLfgPosts, listJoinedLfgPosts, listActiveLfgPosts, getLfgJoiners,
   leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews,
 } from '../lib/lfg'
 import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
+import CircleRow from '../components/ui/CircleRow.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -54,14 +59,14 @@ const TABS = [
 ]
 
 const CIRCLE_COLORS = [
-  { bg: '#EEF0FF', accent: '#5B5FEF' },
+  { bg: 'var(--indigoLt)', accent: 'var(--indigo)' },
   { bg: '#FEF3C7', accent: '#D97706' },
   { bg: '#D1FAE5', accent: '#059669' },
   { bg: '#FFE4E6', accent: '#E11D48' },
 ]
 
 const EVENT_GRADIENTS = [
-  'linear-gradient(135deg,#5B5FEF,#818CF8)',
+  'var(--indigo)',
   'linear-gradient(135deg,#0D9488,#34D399)',
   'linear-gradient(135deg,#D97706,#FCD34D)',
   'linear-gradient(135deg,#E11D48,#FB7185)',
@@ -76,7 +81,7 @@ function PersonCard({ person }) {
       flexShrink: 0, width: 170,
       backgroundColor: clr.white,
       borderRadius: 20, padding: '16px 14px',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
       cursor: 'pointer'
     }}>
@@ -133,74 +138,8 @@ function PersonCard({ person }) {
 }
 
 /* ── Circle card ── */
-function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
-  const accent = CIRCLE_COLORS[idx % CIRCLE_COLORS.length]
-  const isPrivate = circle.type === 'private'
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        backgroundColor: clr.white, borderRadius: 20,
-        padding: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-        transition: 'transform 0.15s ease',
-      }}
-      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-    >
-      <div style={{
-        width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-        backgroundColor: accent.bg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <CircleIcon circle={circle} size={24} color={accent.accent} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-          <span style={{
-            fontSize: 15, fontWeight: 700, color: clr.textDark,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-          }}>
-            {circle.name}
-          </span>
-          {isPrivate && (
-            <svg width="12" height="12" fill="none" stroke={clr.textLight} strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontSize: 11, fontWeight: 600, color: accent.accent,
-            backgroundColor: accent.bg, padding: '2px 8px', borderRadius: 999
-          }}>
-            {circle.interestTag}
-          </span>
-          <span style={{ fontSize: 11, color: clr.textLight }}>
-            {circle.memberCount ?? (circle.members || []).length ?? 0} members
-          </span>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={e => {
-          e.stopPropagation()
-          if (isJoined) return
-          if (requiresApplication(circle)) { onClick?.(); return }
-          onJoin()
-        }}
-        style={{
-          flexShrink: 0, padding: '8px 14px', borderRadius: 999,
-          border: isJoined ? 'none' : `1.5px solid ${clr.indigo}`,
-          backgroundColor: isJoined ? clr.indigoLt : clr.white,
-          color: clr.indigo, fontSize: 12, fontWeight: 700,
-          cursor: isJoined ? 'default' : 'pointer',
-        }}
-      >
-        {isJoined ? '✓' : requiresApplication(circle) ? 'Apply' : 'Join'}
-      </button>
-    </div>
-  )
+function CircleCard({ circle, isJoined, onJoin, onClick }) {
+  return <CircleRow circle={circle} isJoined={isJoined} onJoin={onJoin} onClick={onClick} />
 }
 
 /* ── Event card ── */
@@ -211,7 +150,7 @@ function EventCard({ event, idx, isRsvpd, onViewDetails }) {
       flexShrink: 0, width: 220,
       backgroundColor: clr.white,
       borderRadius: 20, overflow: 'hidden',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
       cursor: 'pointer',
     }}>
       {/* Gradient header */}
@@ -269,10 +208,10 @@ function EventCard({ event, idx, isRsvpd, onViewDetails }) {
         )}
         <button type="button" onClick={(e) => { e.stopPropagation(); onViewDetails?.(event); }} style={{
           width: '100%', padding: '9px 0', borderRadius: 999, border: 'none',
-          background: rsvpd ? clr.indigoLt : `linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
-          color: rsvpd ? clr.indigo : '#FFFFFF',
+          background: rsvpd ? clr.indigoLt : `var(--indigo)`,
+          color: rsvpd ? clr.indigo : 'var(--on-ink)',
           fontSize: 13, fontWeight: 700, cursor: 'pointer',
-          boxShadow: rsvpd ? 'none' : '0 4px 12px rgba(91,95,239,0.3)',
+          boxShadow: rsvpd ? 'none' : 'none',
           transition: 'all 0.2s ease',
         }}>
           {rsvpd ? '✓ Going' : 'Details'}
@@ -295,7 +234,7 @@ function HScrollRow({ children }) {
 
 /* ── Up Next Card ── */
 function UpNextCard({ meetup, idx, onViewDetails }) {
-  const accents = ['#5B5FEF', '#0D9488', '#F59E0B', '#E11D48']
+  const accents = ['var(--indigo)', '#0D9488', '#F59E0B', '#E11D48']
   const accent = accents[idx % accents.length]
 
   const getUrgency = (dateStr) => {
@@ -327,7 +266,7 @@ function UpNextCard({ meetup, idx, onViewDetails }) {
         backgroundColor: clr.white,
         borderRadius: 16,
         padding: '12px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        boxShadow: '0 0 0 1px var(--border)',
         cursor: 'pointer',
         borderTop: `3px solid ${accent}`,
         transition: 'transform 0.15s ease',
@@ -526,17 +465,17 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   // The sheet rides above the keyboard so search results stay visible.
   const bottomSheetStyle = {
     position: 'fixed', inset: 0, zIndex: 300,
-    backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', alignItems: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end',
     justifyContent: 'center', overflow: 'hidden',
     paddingBottom: kbHeight,
     transition: 'padding-bottom 0.25s ease',
   }
   const sheetContentStyle = {
-    width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
+    width: '100%', maxWidth: 560, boxSizing: 'border-box',
     backgroundColor: clr.white,
-    borderRadius: '24px 24px 0 0',
-    padding: kbHeight > 0 ? '24px 20px 16px' : '24px 20px calc(48px + env(safe-area-inset-bottom))',
-    maxHeight: `calc(100dvh - 16px - ${kbHeight}px)`,
+    borderRadius: '20px 20px 0 0',
+    padding: kbHeight > 0 ? '8px 20px 16px' : '8px 20px calc(24px + env(safe-area-inset-bottom))',
+    maxHeight: `calc(100dvh - env(safe-area-inset-top) - 28px - ${kbHeight}px)`,
     overflowY: 'auto',
     overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
@@ -544,16 +483,17 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
     animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
   }
 
-  const Handle = () => <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}><div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} /></div>
+  // Sheet chrome (design v2): grabber, left title, round close button.
+  const Handle = () => <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><div style={{ width: 36, height: 5, backgroundColor: 'var(--surface-3)', borderRadius: 3 }} /></div>
   const Header = ({ title }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-      <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: clr.textDark }}>{title}</h3>
-      <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}><svg width="24" height="24" fill="none" stroke={clr.textMid} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+      <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: clr.textDark }}>{title}</h3>
+      <button type="button" aria-label="Close" onClick={onClose} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface-2)', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" fill="none" stroke={clr.textMid} strokeWidth="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
     </div>
   )
 
-  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 16, border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 16, color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 16 }
-  const submitStyle = { width: '100%', padding: '16px 0', borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(91,95,239,0.3)', marginTop: 8 }
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '13px 14px', borderRadius: 14, border: 'none', backgroundColor: 'var(--surface-2)', fontSize: 16, color: clr.textDark, outline: 'none', fontFamily: 'inherit', marginBottom: 14 }
+  const submitStyle = { width: '100%', height: 50, borderRadius: 14, border: 'none', background: 'var(--ink)', color: 'var(--on-ink)', fontSize: 17, fontWeight: 600, cursor: 'pointer', marginTop: 8 }
 
   const content = () => {
     if (show === 'circle') return (
@@ -724,7 +664,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           </div>
           <div onClick={() => { setApplicationsEnabled(!applicationsEnabled); if (!applicationsEnabled && circleHoops.length === 0) setCircleHoops([]) }} style={{
             width: 50, height: 28, borderRadius: 999,
-            backgroundColor: applicationsEnabled ? clr.indigo : clr.border,
+            backgroundColor: applicationsEnabled ? 'var(--good)' : 'var(--surface-3)',
             position: 'relative', cursor: 'pointer', transition: 'background-color 0.3s ease',
           }}>
             <div style={{
@@ -810,7 +750,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
         {/* Cover Photo Picker */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Cover Photo</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Cover Photo</label>
           <label style={{
             display: 'block', position: 'relative', width: '100%', aspectRatio: '16/9',
             borderRadius: 16, border: `1.5px dashed ${clr.border}`, backgroundColor: clr.bg,
@@ -852,7 +792,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Date</label>
             <input required name="eDate" type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
               ...inputStyle,
               marginBottom: 0,
@@ -865,13 +805,13 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Start Time</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Start Time</label>
           <TimePicker value={eventTime} onChange={setEventTime} />
           <input type="hidden" name="eTime" value={eventTime} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Duration</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Duration</label>
           <select value={eventDuration} onChange={e => setEventDuration(Number(e.target.value))} style={inputStyle}>
             {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -879,7 +819,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
         {/* Repeats Select */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Repeats</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Repeats</label>
           <select value={recurrenceRule} onChange={e => setRecurrenceRule(e.target.value)} style={inputStyle}>
             <option value="none">None</option>
             <option value="weekly">Weekly</option>
@@ -890,7 +830,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
         {recurrenceRule !== 'none' && (
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Repeat until</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Repeat until</label>
             <input
               type="date"
               value={recurrenceEndDate}
@@ -911,7 +851,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         )}
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Location</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Location</label>
           <LocationAutocomplete
             value={eventLocation}
             onChange={setEventLocation}
@@ -926,142 +866,101 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         <button type="submit" style={submitStyle}>Create Event →</button>
       </form>
     )
-    if (show === 'lfg') return (
+    if (show === 'lfg') {
+      // Sheet pieces (design v2): quiet labels, neutral chips, segmented controls.
+      const label = { display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }
+      const group = { marginBottom: 18 }
+      const Segmented = ({ value, onChange, options }) => (
+        <div role="radiogroup" style={{ display: 'flex', gap: 2, padding: 2, borderRadius: 12, background: 'var(--surface-2)' }}>
+          {options.map(o => {
+            const on = o.value === value
+            return (
+              <button key={o.value} type="button" role="radio" aria-checked={on} onClick={() => onChange(o.value)} style={{
+                flex: 1, height: 36, borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 15, fontWeight: 600,
+                background: on ? 'var(--white)' : 'transparent',
+                color: on ? clr.textDark : clr.textMid,
+                boxShadow: on ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+              }}>{o.label}</button>
+            )
+          })}
+        </div>
+      )
+      return (
       <form onSubmit={handleLfgSubmit}>
-        <Handle /><Header title="Looking For Group" />
+        <Handle /><Header title="I'm free" />
 
-        {/* 1. Activity text input */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            What do you want to do?
-          </label>
+        <div style={group}>
           <input
             required
             value={lfgActivity}
             onChange={e => setLfgActivity(e.target.value)}
-            placeholder="What do you want to do? (Grab coffee, shoot hoops...)"
-            style={inputStyle}
+            placeholder="What are you up for?"
+            aria-label="What are you up for?"
+            style={{ ...inputStyle, marginBottom: 10 }}
           />
-        </div>
-
-        {/* 2. Suggestion chips */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            Suggestions for now
-          </label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {suggestionsForNow().map(s => (
-              <button
-                key={s.label}
-                type="button"
-                onClick={() => pickSuggestion(s)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 999,
-                  border: lfgActivity === s.label ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
-                  backgroundColor: lfgActivity === s.label ? clr.indigoLt : clr.bg,
-                  color: lfgActivity === s.label ? clr.indigo : clr.textMid,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {s.label}
-              </button>
+          <div className="noscrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px' }}>
+            {suggestionsForNow().map(sg => (
+              <Chip key={sg.label} selected={lfgActivity === sg.label} onClick={() => pickSuggestion(sg)}>{sg.label}</Chip>
             ))}
           </div>
         </div>
 
-        {/* 3. Nearby Venue recommendations from suggestion tap */}
         {lfgVenuesLoading && (
-          <div style={{ fontSize: 13, color: clr.textMid, marginBottom: 16, fontStyle: 'italic' }}>
-            Finding places nearby…
-          </div>
+          <div style={{ ...group, fontSize: 14, color: clr.textMid }}>Finding places nearby…</div>
         )}
         {!lfgVenuesLoading && lfgVenues.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              Suggested Nearby Places
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {lfgVenues.map((v, idx) => (
-                <button
-                  key={`${v.name}-${idx}`}
-                  type="button"
-                  onClick={() => setLfgLocation({ name: v.name, address: v.address, lat: v.lat, lng: v.lng })}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    border: lfgLocation?.name === v.name ? `1.5px solid ${clr.indigo}` : `1px solid ${clr.border}`,
-                    backgroundColor: lfgLocation?.name === v.name ? clr.indigoLt : clr.white,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  <div style={{ fontSize: 14, fontWeight: 700, color: clr.textDark }}>{v.name}</div>
-                  {v.address && (
-                    <div style={{ fontSize: 12, color: clr.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {v.address}
+          <div style={group}>
+            <span style={label}>Nearby</span>
+            <div style={{ borderRadius: 14, background: 'var(--surface-2)', overflow: 'hidden' }}>
+              {lfgVenues.map((v, idx) => {
+                const on = lfgLocation?.name === v.name
+                return (
+                  <button
+                    key={`${v.name}-${idx}`}
+                    type="button"
+                    onClick={() => setLfgLocation({ name: v.name, address: v.address, lat: v.lat, lng: v.lng })}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                      padding: '11px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                      borderTop: idx ? '0.5px solid var(--border)' : 'none',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: clr.textDark }}>{v.name}</div>
+                      {v.address && (
+                        <div style={{ fontSize: 13, color: clr.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.address}</div>
+                      )}
                     </div>
-                  )}
-                </button>
-              ))}
+                    {on && <Check size={18} strokeWidth={2.6} color="var(--accent)" />}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
 
-        {/* 4. Time chips from LFG_WINDOWS */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            When
-          </label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={group}>
+          <span style={label}>When</span>
+          <div className="noscrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px' }}>
             {LFG_WINDOWS.map(w => (
-              <button
-                key={w.id}
-                type="button"
-                onClick={() => setLfgWindow(w.id)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 999,
-                  border: lfgWindow === w.id ? `1.5px solid ${clr.amber}` : `1.5px solid ${clr.border}`,
-                  backgroundColor: lfgWindow === w.id ? '#FEF3C7' : clr.bg,
-                  color: lfgWindow === w.id ? '#D97706' : clr.textMid,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {w.label}
-              </button>
+              <Chip key={w.id} selected={lfgWindow === w.id} onClick={() => setLfgWindow(w.id)}>{w.label}</Chip>
             ))}
           </div>
-        </div>
-
-        {/* 5. Custom datetime input if window === 'custom' */}
-        {lfgWindow === 'custom' && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              Start Time
-            </label>
+          {lfgWindow === 'custom' && (
             <input
               type="datetime-local"
               value={lfgCustomStart}
               onChange={e => setLfgCustomStart(e.target.value)}
-              onClick={(e) => { try { e.target.showPicker() } catch { } }}
-              style={inputStyle}
+              onClick={(e) => { try { e.target.showPicker() } catch { /* not supported */ } }}
+              aria-label="Start time"
+              style={{ ...inputStyle, margin: '10px 0 0' }}
             />
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* 6. Where / LocationAutocomplete */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Where</label>
+        <div style={group}>
+          <span style={label}>Where (optional)</span>
           <LocationAutocomplete
             value={lfgLocation}
             onChange={setLfgLocation}
@@ -1070,106 +969,61 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           />
         </div>
 
-        {/* 7. Visibility segmented control */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            Visibility
-          </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <label style={{
-              flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
-              padding: 14, borderRadius: 16,
-              border: lfgVisibility === 'everyone' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
-              background: lfgVisibility === 'everyone' ? clr.indigoLt : 'transparent',
-              cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
-            }}>
-              <input type="radio" name="lfgVis" checked={lfgVisibility === 'everyone'} onChange={() => { setLfgVisibility('everyone'); setLfgAudience('all') }} style={{ accentColor: clr.indigo }} /> Everyone
-            </label>
-            <label style={{
-              flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
-              padding: 14, borderRadius: 16,
-              border: lfgVisibility === 'friends' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
-              background: lfgVisibility === 'friends' ? clr.indigoLt : 'transparent',
-              cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
-            }}>
-              <input type="radio" name="lfgVis" checked={lfgVisibility === 'friends'} onChange={() => setLfgVisibility('friends')} style={{ accentColor: clr.indigo }} /> Friends only
-            </label>
-          </div>
+        <div style={group}>
+          <span style={label}>Who can see this</span>
+          <Segmented
+            value={lfgVisibility}
+            onChange={(v) => { setLfgVisibility(v); if (v === 'everyone') setLfgAudience('all') }}
+            options={[{ value: 'everyone', label: 'Everyone' }, { value: 'friends', label: 'Friends only' }]}
+          />
         </div>
 
-        {/* 8. Notification settings */}
         {lfgVisibility === 'everyone' ? (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark }}>
-              <input
-                type="checkbox"
-                checked={lfgNotify}
-                onChange={e => setLfgNotify(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: clr.indigo }}
-              />
-              Notify my connections
-            </label>
+          <div style={{ ...group, display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
+            <span style={{ fontSize: 16, color: clr.textDark }}>Notify my connections</span>
+            <button type="button" role="switch" aria-checked={lfgNotify} aria-label="Notify my connections" onClick={() => setLfgNotify(!lfgNotify)} style={{
+              width: 50, height: 30, borderRadius: 999, border: 'none', flexShrink: 0, cursor: 'pointer', position: 'relative',
+              backgroundColor: lfgNotify ? 'var(--good)' : 'var(--surface-3)', transition: 'background-color 0.2s ease',
+            }}>
+              <span style={{
+                position: 'absolute', top: 3, left: lfgNotify ? 23 : 3, width: 24, height: 24, borderRadius: '50%',
+                backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s ease',
+              }} />
+            </button>
           </div>
         ) : (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              Who gets notified
-            </label>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-              <label style={{
-                flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
-                padding: 14, borderRadius: 16,
-                border: lfgAudience === 'all' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
-                background: lfgAudience === 'all' ? clr.indigoLt : 'transparent',
-                cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
-              }}>
-                <input type="radio" name="lfgAud" checked={lfgAudience === 'all'} onChange={() => setLfgAudience('all')} style={{ accentColor: clr.indigo }} /> All connections
-              </label>
-              <label style={{
-                flex: 1, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8,
-                padding: 14, borderRadius: 16,
-                border: lfgAudience === 'choose' ? `1.5px solid ${clr.indigo}` : `1.5px solid ${clr.border}`,
-                background: lfgAudience === 'choose' ? clr.indigoLt : 'transparent',
-                cursor: 'pointer', fontSize: 14, fontWeight: 600, color: clr.textDark
-              }}>
-                <input type="radio" name="lfgAud" checked={lfgAudience === 'choose'} onChange={() => setLfgAudience('choose')} style={{ accentColor: clr.indigo }} /> Choose people
-              </label>
-            </div>
+          <div style={group}>
+            <span style={label}>Who gets notified</span>
+            <Segmented
+              value={lfgAudience}
+              onChange={setLfgAudience}
+              options={[{ value: 'all', label: 'All connections' }, { value: 'choose', label: 'Choose people' }]}
+            />
             {lfgAudience === 'choose' && (
-              <LfgRecipientPicker
-                connections={connections}
-                selectedIds={lfgInviteeIds}
-                onChange={setLfgInviteeIds}
-                clr={clr}
-              />
+              <div style={{ marginTop: 10 }}>
+                <LfgRecipientPicker
+                  connections={connections}
+                  selectedIds={lfgInviteeIds}
+                  onChange={setLfgInviteeIds}
+                  clr={clr}
+                />
+              </div>
             )}
           </div>
         )}
 
-        {/* 9. Error display */}
         {lfgError && (
-          <div style={{ padding: '10px 14px', borderRadius: 12, backgroundColor: '#FEE2E2', color: '#DC2626', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+          <div role="alert" style={{ padding: '10px 14px', borderRadius: 12, backgroundColor: 'var(--accent-soft)', color: 'var(--bad)', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
             {lfgError}
           </div>
         )}
 
-        {/* 10. Submit button */}
-        <button
-          type="submit"
-          disabled={lfgSubmitting}
-          style={{
-            ...submitStyle,
-            background: `linear-gradient(135deg, #F59E0B, #FCD34D)`,
-            color: '#FFF',
-            boxShadow: '0 6px 20px rgba(245,158,11,0.3)',
-            opacity: lfgSubmitting ? 0.7 : 1,
-            cursor: lfgSubmitting ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {lfgSubmitting ? 'Posting…' : 'Post LFG →'}
+        <button type="submit" disabled={lfgSubmitting} style={{ ...submitStyle, opacity: lfgSubmitting ? 0.6 : 1, cursor: lfgSubmitting ? 'default' : 'pointer' }}>
+          {lfgSubmitting ? 'Posting…' : 'Post status'}
         </button>
       </form>
-    )
+      )
+    }
     if (show === 'coffee') {
       const results = coffeeSearch.trim() ? connections.filter(p => !blockedUserIds?.includes(p.id) && p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
       return (
@@ -1255,7 +1109,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               </div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Date</label>
                   <input required type="date" value={coffeeDate} onChange={e => setCoffeeDate(e.target.value)} onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
                     ...inputStyle,
                     marginBottom: 0,
@@ -1268,13 +1122,13 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Time</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Time</label>
                 <TimePicker value={coffeeTime} onChange={setCoffeeTime} />
                 <input type="hidden" name="cTime" value={coffeeTime} />
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Where</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Where</label>
                 <LocationAutocomplete
                   value={coffeeLocation}
                   onChange={setCoffeeLocation}
@@ -1295,6 +1149,183 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 }
 
 /* ── Battery Helpers & Components ── */
+/* ── Search results (design v2): one list, grouped, with direct actions ── */
+const ACTION_ICONS = { game: Gamepad2, circle: Users, event: Calendar, coffee: Coffee, status: Zap, people: UserPlus, chat: MessageCircle, photo: Camera, bell: Bell, user: UserRound, settings: SettingsIcon }
+
+function SearchResults({ query, results, actions, joinedCircles, onJoinCircle, onOpenPerson, onOpenCircle, onOpenEvent, onAction, onAsk }) {
+  const groupLabel = { margin: '18px 0 4px', fontSize: 13, fontWeight: 600, color: 'var(--textMid)' }
+  const row = {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', minHeight: 56,
+    background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: 'var(--textDark)',
+  }
+  const title = { fontSize: 16, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  const sub = { fontSize: 14, color: 'var(--textMid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  const iconTile = (Icon) => (
+    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <Icon size={20} strokeWidth={1.9} />
+    </div>
+  )
+  const nothing = results.people.length === 0 && results.circles.length === 0 && results.events.length === 0 && actions.length === 0
+  return (
+    <div style={{ animation: 'tsTabIn 0.2s ease-out', paddingBottom: 24 }}>
+      {actions.length > 0 && (
+        <section>
+          <p style={groupLabel}>Actions</p>
+          {actions.map(a => (
+            <button key={a.id} type="button" style={row} onClick={() => onAction(a)}>
+              {iconTile(ACTION_ICONS[a.icon] || Zap)}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={title}>{a.label}</div>
+                {a.hint && <div style={sub}>{a.hint}</div>}
+              </div>
+              <ChevronRight size={18} color="var(--textLight)" />
+            </button>
+          ))}
+        </section>
+      )}
+
+      {results.people.length > 0 && (
+        <section>
+          <p style={groupLabel}>People</p>
+          {results.people.slice(0, 8).map(p => (
+            <button key={p.id} type="button" style={row} onClick={() => onOpenPerson(p)}>
+              <Avatar person={p} size={44} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={title}>{p.name}</div>
+                <div style={sub}>{p.bio || (p.interests || []).slice(0, 3).join(' · ') || p.city || ''}</div>
+              </div>
+              <ChevronRight size={18} color="var(--textLight)" />
+            </button>
+          ))}
+        </section>
+      )}
+
+      {results.circles.length > 0 && (
+        <section>
+          <p style={groupLabel}>Circles</p>
+          {results.circles.slice(0, 8).map(c => (
+            <CircleRow key={c.id} circle={c} isJoined={joinedCircles.includes(c.id)} onJoin={() => onJoinCircle(c.id)} onClick={() => onOpenCircle(c)} />
+          ))}
+        </section>
+      )}
+
+      {results.events.length > 0 && (
+        <section>
+          <p style={groupLabel}>Events</p>
+          {results.events.slice(0, 8).map(e => (
+            <button key={e.id} type="button" style={row} onClick={() => onOpenEvent(e)}>
+              <DateBlock d={e.dateObj} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={title}>{e.title}</div>
+                <div style={sub}>{[e.timeLabel, e.location || e.circleName].filter(Boolean).join(' · ')}</div>
+              </div>
+              <ChevronRight size={18} color="var(--textLight)" />
+            </button>
+          ))}
+        </section>
+      )}
+
+      {nothing && (
+        <p style={{ margin: '28px 0 8px', textAlign: 'center', fontSize: 15, color: 'var(--textMid)' }}>
+          Nothing matched “{query.trim()}”.
+        </p>
+      )}
+
+      <section>
+        <p style={groupLabel}>More</p>
+        <button type="button" style={row} onClick={onAsk}>
+          {iconTile(Sparkles)}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={title}>Ask the assistant</div>
+            <div style={sub}>“{query.trim()}”</div>
+          </div>
+          <ChevronRight size={18} color="var(--textLight)" />
+        </button>
+      </section>
+    </div>
+  )
+}
+
+/* ── Home sections (design v2) ── */
+
+function DateBlock({ d }) {
+  return (
+    <div style={{
+      width: 46, height: 50, borderRadius: 12, background: 'var(--surface-2)', flexShrink: 0,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        {d ? d.toLocaleDateString([], { month: 'short' }) : ''}
+      </div>
+      <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1 }}>{d ? d.getDate() : ''}</div>
+    </div>
+  )
+}
+
+function FreeNowRow({ me, mine, others, onOpen }) {
+  const myPost = mine[0] || null
+  const item = (key, avatar, label, sub, onClick) => (
+    <button key={key} type="button" onClick={onClick} style={{
+      width: 72, flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+      fontFamily: 'inherit', color: 'var(--textDark)', textAlign: 'center',
+    }}>
+      <div style={{ width: 66, height: 66, margin: '0 auto' }}>{avatar}</div>
+      <div style={{ fontSize: 12, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--textLight)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+    </button>
+  )
+  return (
+    <section data-tour="freenow" style={{ margin: '0 -16px', flexShrink: 0 }}>
+      <DsSectionHeader title="Free now" style={{ margin: '8px 0 10px' }} />
+      <div className="noscrollbar" style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 16px 4px' }}>
+        {myPost && item('me',
+          <Avatar person={me} size={56} ring />,
+          'You',
+          `${myPost.activity} · ${timeLeftLabel(myPost.expiresAt)}`,
+          () => onOpen({ ...myPost, mine: true }))}
+        {others.map(p => item(p.id,
+          <Avatar src={p.authorAvatar} name={p.authorName} size={56} ring />,
+          (p.authorName || '').split(' ')[0] || 'Someone',
+          `${p.activity} · ${timeLeftLabel(p.expiresAt)}`,
+          () => onOpen({ ...p, mine: false }),
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function UpNextHero({ meetup, isRsvpd, onOpen }) {
+  const cover = meetup.coverImageUrl
+  const going = isRsvpd?.(meetup.id)
+  const when = meetup.dateObj
+    ? `${meetup.dateObj.toLocaleDateString([], { weekday: 'short' })} · ${meetup.timeLabel}`.toUpperCase()
+    : ''
+  return (
+    <button type="button" onClick={() => onOpen(meetup)} style={{
+      width: '100%', padding: 0, border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', overflow: 'hidden',
+      background: 'var(--white)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: 'var(--textDark)',
+      marginBottom: 4,
+    }}>
+      <div style={{
+        height: 136, position: 'relative',
+        background: cover ? `center/cover no-repeat url("${cover}")` : 'var(--surface-3)',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,0.6))' }} />
+        <div style={{ position: 'absolute', left: 14, right: 14, bottom: 12, color: '#fff' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.9, letterSpacing: '0.03em' }}>{when}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meetup.title}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px' }}>
+        <span style={{ fontSize: 14, color: 'var(--textMid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {meetup.location || meetup.circleName || ' '}
+        </span>
+        {going && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 14, fontWeight: 600, color: 'var(--good)', flexShrink: 0 }}><Check size={16} strokeWidth={2.6} /> Going</span>}
+      </div>
+    </button>
+  )
+}
+
 /* ── Main Feed ── */
 export default function Feed() {
   const navigate = useNavigate()
@@ -1316,8 +1347,10 @@ export default function Feed() {
   const [searchQuery, setSearchQuery] = useState('')
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [assistantPrompt, setAssistantPrompt] = useState(null) // null = closed, string = open
+  const [soloGame, setSoloGame] = useState(null) // game type opened from a search action
 
   const [myLfg, setMyLfg] = useState([])
+  const [activeLfg, setActiveLfg] = useState([])
   const [joinedLfg, setJoinedLfg] = useState([])
   const [lfgPreviews, setLfgPreviews] = useState({})
   const [lfgSheetPost, setLfgSheetPost] = useState(null)
@@ -1327,12 +1360,14 @@ export default function Feed() {
   const refreshLfg = useCallback(async () => {
     if (!currentUser?.id) return
     try {
-      const [mine, joined] = await Promise.all([
+      const [mine, joined, active] = await Promise.all([
         listMyLfgPosts(currentUser.id),
         listJoinedLfgPosts(currentUser.id),
+        listActiveLfgPosts().catch(() => []),
       ])
       setMyLfg(mine)
       setJoinedLfg(joined)
+      setActiveLfg(active)
       const ids = [...mine, ...joined].map(p => p.id)
       setLfgPreviews(await getLfgJoinPreviews(ids))
     } catch (err) {
@@ -1341,6 +1376,19 @@ export default function Feed() {
   }, [currentUser?.id])
 
   useEffect(() => { refreshLfg() }, [refreshLfg])
+
+  // Top-bar "+" button: publish my live status, and open the right sheet on request.
+  useEffect(() => { publishMyStatus(myLfg[0] || null) }, [myLfg])
+  const openStatusRef = useRef(null)
+  useEffect(() => {
+    const handle = () => {
+      if (!consumeOpenStatus()) return
+      openStatusRef.current?.()
+    }
+    window.addEventListener(OPEN_STATUS_EVENT, handle)
+    handle() // a request made from another tab, just before we became visible
+    return () => window.removeEventListener(OPEN_STATUS_EVENT, handle)
+  }, [])
 
   const openLfgSheet = async (post) => {
     setLfgSheetPost(post)
@@ -1455,6 +1503,41 @@ export default function Feed() {
     return () => document.head.removeChild(style)
   }, [])
 
+  // Everyone else who is free right now: posts I joined first, one ring per person.
+  const freeNowOthers = useMemo(() => {
+    const seen = new Set()
+    return [...joinedLfg, ...activeLfg].filter(p => {
+      if (!p.userId || p.userId === currentUser?.id || blockedUserIds?.includes(p.userId)) return false
+      if (seen.has(p.userId)) return false
+      seen.add(p.userId)
+      return true
+    })
+  }, [joinedLfg, activeLfg, currentUser?.id, blockedUserIds])
+
+  // The "+" in the top bar: my live status if I have one, else the create sheet.
+  useEffect(() => {
+    openStatusRef.current = () => {
+      if (myLfg[0]) { openLfgSheet({ ...myLfg[0], mine: true }); return }
+      if (currentUser?.privacy?.isPrivateProfile) showToast('Free now is for public profiles.')
+      else setShowCreateModal('lfg')
+    }
+  })
+
+  // First screen = search + Free now + wheel, nothing else. The wheel block is
+  // as tall as the space between where it starts and the tab bar.
+  const firstScreenRef = useRef(null)
+  const [firstScreenTop, setFirstScreenTop] = useState(null)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = firstScreenRef.current
+      if (!el || el.offsetParent === null) return // hidden tab
+      setFirstScreenTop(Math.round(el.getBoundingClientRect().top + window.scrollY))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  })
+
   // People search runs on the server so it isn't limited to who's loaded (M3).
   const [serverPeople, setServerPeople] = useState([])
   useEffect(() => {
@@ -1489,49 +1572,11 @@ export default function Feed() {
     return 'Good evening'
   }
 
-  const askAssistantRow = (
-    <button
-      type="button"
-      onClick={() => { const q = searchQuery.trim(); if (q) { setAssistantPrompt(q); setSearchQuery('') } }}
-      style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '14px 16px', borderRadius: 16, cursor: 'pointer',
-        border: `1.5px solid ${clr.indigo}`,
-        backgroundColor: clr.white, textAlign: 'left',
-        fontFamily: 'inherit', marginBottom: 4,
-      }}
-    >
-      <span style={{ fontSize: 18, lineHeight: 1 }}>✦</span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Ask about "{searchQuery}"
-        </span>
-        <span style={{ display: 'block', fontSize: 12, color: clr.textMid, marginTop: 2 }}>
-          Get help finding or creating something
-        </span>
-      </span>
-      <svg width="16" height="16" fill="none" stroke={clr.indigo} strokeWidth="2.5" viewBox="0 0 24 24">
-        <path d="M9 18l6-6-6-6" />
-      </svg>
-    </button>
-  )
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: "'DM Sans','Inter',sans-serif", paddingBottom: 110 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: 'inherit', paddingBottom: 110 }}>
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
         {!completeness.isComplete && <ProfileCompletionCard completeness={completeness} />}
-        {/* ── Greeting ── */}
-        <div style={{ padding: '14px 0 14px' }}>
-          <h1 style={{
-            fontSize: 26, fontWeight: 800, color: clr.textDark,
-            margin: 0, letterSpacing: '-0.02em',
-            fontFamily: "'DM Serif Display','Georgia',serif",
-            paddingLeft: 4,
-          }}>
-            {getGreeting()}, {firstName}
-          </h1>
-        </div>
 
         {/* ── Search Bar ── */}
         <div>
@@ -1539,199 +1584,109 @@ export default function Feed() {
             clr={clr}
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search or ask anything..."
-            onSubmit={(text) => { if (text) setAssistantPrompt(text) }}
+            placeholder="Search people, circles, events"
+            onSubmit={() => {}}
           />
         </div>
 
         {/* ── View Controller ── */}
         {searchResults ? (
-          <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
-            {searchResults.people.length === 0 && searchResults.circles.length === 0 && searchResults.events.length === 0 ? (
-              <div style={{ padding: '8px 0' }}>
-                {askAssistantRow}
-                <div style={{ padding: '28px 20px 20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, margin: '0 0 6px 0' }}>
-                    Nothing matched "{searchQuery}"
-                  </p>
-                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
-                    Try asking instead — the assistant can search more broadly or create something new.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                {searchResults.people.length > 0 && (
-                  <section><SectionHeader title="People" /><HScrollRow>{searchResults.people.map(p => <PersonCard key={p.id} person={p} />)}</HScrollRow></section>
-                )}
-                {searchResults.circles.length > 0 && (
-                  <section><SectionHeader title="Circles" /><div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{searchResults.circles.map((c, idx) => <CircleCard key={c.id} circle={c} idx={idx} isJoined={joinedCircles.includes(c.id)} onJoin={() => joinCircle(c.id)} onClick={() => navigate(`/circles/${c.id}`)} />)}</div></section>
-                )}
-                {searchResults.events.length > 0 && (
-                  <section><SectionHeader title="Events" /><HScrollRow>{searchResults.events.map((e, idx) => <EventCard key={e.id} event={e} idx={idx} isRsvpd={isRsvpd} onViewDetails={openEventDetail} />)}</HScrollRow></section>
-                )}
-              </div>
-            )}
-          </div>
+          <SearchResults
+            query={searchQuery}
+            results={searchResults}
+            actions={matchActions(searchQuery)}
+            joinedCircles={joinedCircles}
+            onJoinCircle={joinCircle}
+            onOpenPerson={(p) => navigate(`/user/${p.id}`)}
+            onOpenCircle={(c) => navigate(`/circles/${c.id}`)}
+            onOpenEvent={openEventDetail}
+            onAction={(action) => {
+              setSearchQuery('')
+              action.run({
+                navigate,
+                openCreate: (kind) => {
+                  if (kind === 'lfg' && currentUser?.privacy?.isPrivateProfile) showToast('LFG posts are restricted to public profiles.')
+                  else if (kind === 'lfg') openStatusRef.current?.()
+                  else setShowCreateModal(kind)
+                },
+                openSolo: (gameType) => setSoloGame(gameType),
+                openDiscovery: () => setShowDiscovery(true),
+              })
+            }}
+            onAsk={() => { const q = searchQuery.trim(); if (q) { setAssistantPrompt(q); setSearchQuery('') } }}
+          />
         ) : (
           <>
-            <section style={{ marginBottom: 28 }}>
-              <div style={{ height: 24, marginBottom: 14 }}></div>
-              <CreateWheel onAction={(id) => {
-                if (id === 'lfg' && currentUser?.privacy?.isPrivateProfile) {
-                  showToast('LFG posts are restricted to public profiles.')
-                } else {
-                  setShowCreateModal(id)
-                }
-              }} />
-            </section>
-
-            <section style={{ marginBottom: 24 }}>
-              <div style={{ height: 24, marginBottom: 14 }}></div>
-              <button type="button" onClick={() => setShowDiscovery(true)} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                style={{ width: '100%', borderRadius: 24, border: '1px solid var(--discover-edge)', background: 'linear-gradient(135deg, var(--discover-a) 0%, var(--discover-b) 100%)', padding: '24px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 6px 20px rgba(62,61,150,0.28)', transition: 'transform 0.2s ease' }}
-              >
-                <div style={{ textAlign: 'left' }}>
-                  <p style={{ fontSize: 20, fontWeight: 800, color: '#FFFFFF', margin: '0 0 4px 0' }}>Meet Someone New</p>
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0 }}>Swipe through people, circles & events</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                  {people.filter(p => !blockedUserIds?.includes(p.id)).slice(0, 3).map((p, i) => <img key={p.id} src={avatarFor(p)} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid rgba(255,255,255,0.6)', marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i, position: 'relative' }} />)}
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }}><svg width="16" height="16" fill="none" stroke="#FFFFFF" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></div>
-                </div>
-              </button>
-            </section>
-
-            {(myLfg.length > 0 || joinedLfg.length > 0) && (
-              <section style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingLeft: 4 }}>
-                  <span style={{
-                    width: 7, height: 7, borderRadius: '50%', backgroundColor: 'var(--lfg-accent)',
-                    animation: 'lfgPulse 2s ease-in-out infinite', flexShrink: 0,
+            {/* First screen: search (above), Free now when anyone is free, and
+                the create wheel sized to whatever height is left. Everything
+                else starts below the fold. */}
+            <div ref={firstScreenRef} style={{
+              height: firstScreenTop == null
+                ? 'calc(100dvh - 200px)'
+                : `calc(100dvh - ${firstScreenTop}px - 64px - env(safe-area-inset-bottom))`,
+              minHeight: 280, display: 'flex', flexDirection: 'column',
+            }}>
+              {(myLfg.length > 0 || freeNowOthers.length > 0) && (
+                <FreeNowRow
+                  me={currentUser}
+                  mine={myLfg}
+                  others={freeNowOthers}
+                  onOpen={openLfgSheet}
+                />
+              )}
+              <div style={{
+                flex: 1, minHeight: 0, containerType: 'size', padding: '12px 0 16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{ width: 'min(100cqw, 100cqh, 380px)' }}>
+                  <CreateWheel onAction={(id) => {
+                    if (id === 'lfg' && currentUser?.privacy?.isPrivateProfile) {
+                      showToast('LFG posts are restricted to public profiles.')
+                    } else {
+                      setShowCreateModal(id)
+                    }
                   }} />
-                  <h2 style={{
-                    margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--lfg-accent)',
-                    textTransform: 'uppercase', letterSpacing: '0.08em',
-                  }}>
-                    Happening now
-                  </h2>
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[...myLfg.map(p => ({ ...p, mine: true })), ...joinedLfg.map(p => ({ ...p, mine: false }))].map(post => {
-                    const joiners = lfgPreviews[post.id] || []
-                    return (
-                      <button
-                        key={post.id}
-                        type="button"
-                        onClick={() => openLfgSheet(post)}
-                        style={{
-                          width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-                          background: 'linear-gradient(135deg, var(--lfg-card-a) 0%, var(--lfg-card-b) 100%)',
-                          border: '1px solid var(--lfg-edge)',
-                          borderRadius: 18, padding: '14px 16px',
-                          display: 'flex', alignItems: 'center', gap: 12,
-                          boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-                        }}
-                      >
-                        <div style={{
-                          width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-                          backgroundColor: 'var(--lfg-icon-bg)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="var(--lfg-accent)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
-                          </svg>
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--lfg-title)',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>
-                            {post.activity}
-                          </p>
-                          <p style={{
-                            margin: '3px 0 0', fontSize: 12, color: 'var(--lfg-sub)',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>
-                            {post.mine ? 'Your post' : `${(post.authorName || '').split(' ')[0]}'s post`}
-                            {post.placeName ? ` · ${post.placeName}` : ''}
-                          </p>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                          <span style={{
-                            fontSize: 11, fontWeight: 800, color: 'var(--lfg-pill-ink)',
-                            backgroundColor: 'var(--lfg-pill-bg)', padding: '3px 9px', borderRadius: 999,
-                          }}>
-                            {timeLeftLabel(post.expiresAt)}
-                          </span>
-                          {joiners.length > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              {joiners.slice(0, 3).map((j, i) => (
-                                <img
-                                  key={j.id}
-                                  src={avatarFor(j)}
-                                  alt=""
-                                  style={{
-                                    width: 20, height: 20, borderRadius: '50%', objectFit: 'cover',
-                                    border: '1.5px solid var(--lfg-card-b)',
-                                    marginLeft: i === 0 ? 0 : -7, zIndex: 3 - i, position: 'relative',
-                                  }}
-                                />
-                              ))}
-                              {joiners.length > 3 && (
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--lfg-sub)', marginLeft: 5 }}>
-                                  +{joiners.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
-
-
-
-
+              </div>
+            </div>
 
             {upcomingMeetups.length > 0 && (
-              <section style={{ marginTop: 8, marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="14" height="14" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
+              <section>
+                <DsSectionHeader title="Up next" action="Schedule" onAction={() => navigate('/schedule')} style={{ padding: '0 4px' }} />
+                <UpNextHero meetup={upcomingMeetups[0]} isRsvpd={isRsvpd} onOpen={openEventDetail} />
+                {upcomingMeetups.slice(1).map(m => (
+                  <button key={m.id} type="button" onClick={() => openEventDetail(m)} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 4px',
+                    background: 'none', border: 'none', borderTop: '0.5px solid var(--border)', cursor: 'pointer',
+                    textAlign: 'left', fontFamily: 'inherit', color: 'var(--textDark)',
+                  }}>
+                    <DateBlock d={m.dateObj} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                      <div style={{ fontSize: 14, color: 'var(--textMid)' }}>{m.timeLabel}{m.location ? ` · ${m.location}` : ''}</div>
                     </div>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>
-                      Up Next
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/schedule')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: clr.indigo, padding: '4px 0' }}
-                  >
-                    See all →
+                    <ChevronRight size={18} color="var(--textLight)" />
                   </button>
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {upcomingMeetups.map((meetup, idx) => (
-                    <UpNextCard key={meetup.id} meetup={meetup} idx={idx} onViewDetails={openEventDetail} />
-                  ))}
-                </div>
+                ))}
               </section>
             )}
+
+            <button type="button" onClick={() => setShowDiscovery(true)} style={{
+              width: '100%', margin: '20px 0 8px', padding: '14px 16px', borderRadius: 'var(--r-lg)',
+              border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit', textAlign: 'left', color: 'var(--textDark)',
+            }}>
+              <div style={{ display: 'flex' }}>
+                {people.filter(p => !blockedUserIds?.includes(p.id)).slice(0, 3).map((p, i) => (
+                  <div key={p.id} style={{ marginLeft: i ? -10 : 0, borderRadius: '50%', boxShadow: '0 0 0 2px var(--white)' }}><Avatar person={p} size={32} /></div>
+                ))}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>Meet someone new</div>
+                <div style={{ fontSize: 14, color: 'var(--textMid)' }}>Swipe through people, circles and events</div>
+              </div>
+              <ChevronRight size={18} color="var(--textLight)" />
+            </button>
           </>
         )}
       </div>
@@ -1748,6 +1703,7 @@ export default function Feed() {
       {toastMsg && <div style={{ position: 'fixed', bottom: 100, left: '50%', zIndex: 400, transform: 'translateX(-50%)', background: 'var(--toast-bg)', color: 'var(--toast-text)', padding: '12px 24px', borderRadius: 999, fontSize: 14, fontWeight: 600, animation: 'fadeToast 2.5s ease forwards', whiteSpace: 'nowrap' }}>{toastMsg}</div>}
 
       {/* ── Assistant Modal ── */}
+      {soloGame && <SoloGameModal gameType={soloGame} onClose={() => setSoloGame(null)} />}
       {assistantPrompt !== null && (
         <AssistantModal
           initialPrompt={assistantPrompt}
@@ -1784,7 +1740,7 @@ export default function Feed() {
               backgroundColor: clr.white,
               borderRadius: '24px 24px 0 0',
               padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
-              maxHeight: 'calc(100dvh - 16px)',
+              maxHeight: 'var(--sheet-max)',
               overflowY: 'auto',
               animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
             }}

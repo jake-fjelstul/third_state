@@ -17,8 +17,11 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { updateProfile } from '../lib/auth'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
+import { LargeTitle, Tabs } from '../components/ui/ds.jsx'
+import { resolveCircleCover } from '../lib/circleCover'
 import { readCache, writeCache } from '../lib/localCache.js'
 import { useRefreshOnTabReturn } from '../lib/tabActive.js'
+import CircleRow from '../components/ui/CircleRow.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -32,7 +35,7 @@ const clr = {
 }
 
 const CIRCLE_COLORS = [
-  { bg: '#EEF0FF', accent: '#5B5FEF' },
+  { bg: 'var(--indigoLt)', accent: 'var(--indigo)' },
   { bg: '#FEF3C7', accent: '#D97706' },
   { bg: '#D1FAE5', accent: '#059669' },
   { bg: '#FFE4E6', accent: '#E11D48' },
@@ -80,7 +83,7 @@ function getInteractionScore(person, chatState, circles, joinedCircles) {
 }
 
 function getConnectionTier(score) {
-  if (score >= 80) return { label: 'Close', bg: '#EEF0FF', color: '#5B5FEF', dot: '#5B5FEF' }
+  if (score >= 80) return { label: 'Close', bg: 'var(--indigoLt)', color: 'var(--indigo)', dot: 'var(--indigo)' }
   if (score >= 40) return { label: 'Regular', bg: '#D1FAE5', color: '#059669', dot: '#10B981' }
   if (score >= 15) return { label: 'Familiar', bg: '#FEF3C7', color: '#D97706', dot: '#F59E0B' }
   return { label: 'New', bg: '#F3F4F6', color: '#6B7280', dot: '#9CA3AF' }
@@ -88,7 +91,7 @@ function getConnectionTier(score) {
 
 function ActivityBadge({ score }) {
   const tier = score >= 70 ?
-    { label: 'Core', bg: '#EEF0FF', color: '#5B5FEF' } :
+    { label: 'Core', bg: 'var(--indigoLt)', color: 'var(--indigo)' } :
     score >= 40 ?
       { label: 'Active', bg: '#D1FAE5', color: '#059669' } :
       { label: 'Casual', bg: '#F3F4F6', color: '#6B7280' }
@@ -123,74 +126,8 @@ function SortableCircleRow({ id, disabled, children }) {
   })
 }
 
-function CircleCard({ circle, idx, isJoined, onJoin, onClick }) {
-  const accent = CIRCLE_COLORS[idx % CIRCLE_COLORS.length]
-  const isPrivate = circle.type === 'private'
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        backgroundColor: clr.white, borderRadius: 20,
-        padding: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-        transition: 'transform 0.15s ease',
-      }}
-      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-    >
-      <div style={{
-        width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-        backgroundColor: accent.bg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <CircleIcon circle={circle} size={24} color={accent.accent} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-          <span style={{
-            fontSize: 15, fontWeight: 700, color: clr.textDark,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-          }}>
-            {circle.name}
-          </span>
-          {isPrivate && (
-            <svg width="12" height="12" fill="none" stroke={clr.textLight} strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontSize: 11, fontWeight: 600, color: accent.accent,
-            backgroundColor: accent.bg, padding: '2px 8px', borderRadius: 999
-          }}>
-            {circle.interestTag}
-          </span>
-          <span style={{ fontSize: 11, color: clr.textLight }}>
-            {circle.memberCount ?? (circle.members || []).length ?? 0} members
-          </span>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={e => {
-          e.stopPropagation()
-          if (isJoined) return
-          if (requiresApplication(circle)) { onClick?.(); return }
-          onJoin()
-        }}
-        style={{
-          flexShrink: 0, padding: '8px 14px', borderRadius: 999,
-          border: isJoined ? 'none' : `1.5px solid ${clr.indigo}`,
-          backgroundColor: isJoined ? clr.indigoLt : clr.white,
-          color: clr.indigo, fontSize: 12, fontWeight: 700,
-          cursor: isJoined ? 'default' : 'pointer',
-        }}
-      >
-        {isJoined ? '✓' : requiresApplication(circle) ? 'Apply' : 'Join'}
-      </button>
-    </div>
-  )
+function CircleCard({ circle, isJoined, onJoin, onClick }) {
+  return <CircleRow circle={circle} isJoined={isJoined} onJoin={onJoin} onClick={onClick} />
 }
 
 function useDarkMode() {
@@ -212,9 +149,9 @@ function NetworkGraph({ filter, connections = [], circles = [], joinedCircles = 
   const { blockedUserIds } = useAppContext()
 
   const colors = isDark ? {
-    bg: '#0F0F1A', card: '#1A1A2E', ring: '#2A2A3E', edge: '#818CF8', youBorder: '#5B5FEF', glow1: 'rgba(129,140,248,0.2)', glow2: 'rgba(129,140,248,0.1)', circleNodeBg: '#1E1E3F', circleNodeBorder: '#818CF8', personNodeBg: '#1E1E2E', personNodeBorder: '#2A2A4E', labelYou: '#F0F0FF', labelOther: '#9CA3AF', tooltipBg: '#252540',
+    bg: '#000000', card: '#121214', ring: '#26262B', edge: 'var(--indigo)', youBorder: 'var(--indigo)', glow1: 'rgba(129,140,248,0.2)', glow2: 'rgba(129,140,248,0.1)', circleNodeBg: '#1E1E3F', circleNodeBorder: 'var(--indigo)', personNodeBg: '#1E1E2E', personNodeBorder: '#2A2A4E', labelYou: '#F0F0FF', labelOther: '#9CA3AF', tooltipBg: '#252540',
   } : {
-    bg: '#F0F0F5', card: '#FFFFFF', ring: '#E8E8EE', edge: '#5B5FEF', youBorder: '#5B5FEF', glow1: 'rgba(91,95,239,0.15)', glow2: 'rgba(91,95,239,0.08)', circleNodeBg: '#EEF0FF', circleNodeBorder: '#5B5FEF', personNodeBg: '#FFFFFF', personNodeBorder: '#E8E8EE', labelYou: '#1A1A2E', labelOther: '#6B7280', tooltipBg: '#FFFFFF',
+    bg: '#F4F4F6', card: '#FFFFFF', ring: '#E7E7EA', edge: 'var(--indigo)', youBorder: 'var(--indigo)', glow1: 'none', glow2: 'none', circleNodeBg: 'var(--indigoLt)', circleNodeBorder: 'var(--indigo)', personNodeBg: '#FFFFFF', personNodeBorder: '#E8E8EE', labelYou: '#1A1A2E', labelOther: '#6B7280', tooltipBg: '#FFFFFF',
   }
 
   const cx = 280, cy = 280
@@ -752,7 +689,7 @@ export default function Circles() {
         <p style={{ margin: '0 0 12px' }}>Couldn&apos;t load circles.</p>
         <button type="button" onClick={() => window.location.reload()} style={{
           minHeight: 44, padding: '10px 18px', borderRadius: 999, border: 'none',
-          backgroundColor: clr.indigo, color: '#fff', fontWeight: 700, cursor: 'pointer',
+          backgroundColor: clr.indigo, color: 'var(--on-ink)', fontWeight: 700, cursor: 'pointer',
         }}>Try again</button>
       </div>
     )
@@ -763,43 +700,28 @@ export default function Circles() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, paddingBottom: 110 + kbHeight, fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, padding: '16px 20px 0', letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif", textAlign: 'center' }}>
-        Circles
-      </h1>
-      <div style={{ padding: '16px 16px 0' }}>
-        {/* ── Tabs ── */}
-        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', borderBottom: `2px solid ${clr.border}`, marginBottom: 20, gap: 0 }}>
-          {[
-            { id: 'circles',     label: 'Circles' },
-            { id: 'connections', label: 'Connections' },
-            { id: 'memories',    label: 'Memories' },
-            { id: 'network',     label: 'Network' }
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-              padding: '0 0 12px 0', textAlign: 'center',
-              whiteSpace: 'nowrap',
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 14, fontWeight: 700, position: 'relative',
-              color: activeTab === tab.id ? clr.indigo : clr.textLight,
-            }}>
-              {tab.label}
-              {activeTab === tab.id && (
-                <div style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, borderRadius: '3px 3px 0 0', backgroundColor: clr.indigo }} />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, paddingBottom: 110 + kbHeight, fontFamily: 'inherit' }}>
+      <LargeTitle>Circles</LargeTitle>
+      <Tabs
+        tabs={[
+          { id: 'circles', label: 'My circles' },
+          { id: 'connections', label: 'Connections' },
+          { id: 'memories', label: 'Memories' },
+          { id: 'network', label: 'Network' },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+        style={{ marginBottom: 16 }}
+      />
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
         {activeTab === 'circles' && (
           <div style={{ animation: 'tsTabIn 0.2s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: clr.textDark, margin: 0 }}>Ranked Activity</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: clr.textDark, margin: 0 }}>Your circles</h2>
               {joinedCircles.length > 0 && (
-                <button onClick={() => setIsEditMode(!isEditMode)} style={{ background: 'none', border: 'none', color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                  {isEditMode ? 'Done' : 'Edit Order'}
+                <button onClick={() => setIsEditMode(!isEditMode)} style={{ background: 'none', border: 'none', color: 'var(--textMid)', fontSize: 15, fontWeight: 500, cursor: 'pointer', padding: '6px 0' }}>
+                  {isEditMode ? 'Done' : 'Edit order'}
                 </button>
               )}
             </div>
@@ -820,7 +742,7 @@ export default function Circles() {
                     style={{
                       ...dragStyle,
                       backgroundColor: clr.white, borderRadius: 20, padding: 16, display: 'flex', alignItems: 'center', gap: 12,
-                      boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.18)' : '0 2px 12px rgba(0,0,0,0.06)',
+                      boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.18)' : '0 0 0 1px var(--border)',
                       border: isDragging ? `2px solid ${clr.indigo}` : '2px solid transparent',
                       cursor: isEditMode ? 'default' : 'pointer',
                     }}
@@ -831,26 +753,21 @@ export default function Circles() {
                     }}>
                       {rankIndex + 1}
                     </div>
-                    <div style={{
-                      width: 48, height: 48, borderRadius: 14, flexShrink: 0, backgroundColor: CIRCLE_COLORS[rankIndex % 4].bg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <CircleIcon circle={circle} size={24} color={clr.indigo} />
-                    </div>
+                    {(() => {
+                      const cover = resolveCircleCover(circle)
+                      return (
+                        <div style={{
+                          width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                          background: cover.kind === 'image' ? `center/cover no-repeat url("${cover.url}")` : cover.value,
+                        }} />
+                      )
+                    })()}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {circle.name}
-                        </span>
-                        <ActivityBadge score={Math.min(getMemberCount(circle) * 5, 100)} />
+                      <div style={{ fontSize: 16, fontWeight: 600, color: clr.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {circle.name}
                       </div>
-                      <div style={{ marginBottom: 6 }}>
-                        <div style={{ height: 4, borderRadius: 999, backgroundColor: clr.border, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${Math.min(getMemberCount(circle) * 5, 100)}%`, borderRadius: 999, background: `linear-gradient(90deg, ${clr.indigo}, #A78BFA)`, transition: 'width 0.6s ease' }} />
-                        </div>
-                      </div>
-                      <p style={{ fontSize: 12, color: clr.textLight, margin: 0 }}>
-                        {circle.memberCount ?? (circle.members || []).length ?? 0} members · {(circle.events || []).length ?? 0} events
+                      <p style={{ fontSize: 14, color: clr.textMid, margin: '2px 0 0' }}>
+                        {circle.memberCount ?? (circle.members || []).length ?? 0} members
                       </p>
                     </div>
                     {isEditMode ? (
@@ -904,9 +821,9 @@ export default function Circles() {
                 <button key={f} onClick={() => setConnectionFilter(f)} style={{
                   padding: '8px 16px', borderRadius: 999, border: 'none',
                   backgroundColor: connectionFilter === f ? clr.indigo : clr.white,
-                  color: connectionFilter === f ? '#FFFFFF' : clr.textMid,
+                  color: connectionFilter === f ? 'var(--on-ink)' : clr.textMid,
                   fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-                  boxShadow: connectionFilter === f ? '0 4px 12px rgba(91,95,239,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
+                  boxShadow: connectionFilter === f ? 'none' : '0 0 0 1px var(--border)',
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}>
                   {f === 'all' ? 'All' : f === 'professional' ? <><Briefcase size={14} color="currentColor" /> Professional</> : f === 'social' ? <><PartyPopper size={14} color="currentColor" /> Social</> : <><Activity size={14} color="currentColor" /> Activity</>}
@@ -927,7 +844,7 @@ export default function Circles() {
                   const hasDM = Object.values(chatState ?? {}).some(c => c.type === 'dm' && c.personId === person.id)
 
                   return (
-                    <div key={person.id} onClick={() => navigate(`/user/${person.id}`)} style={{ backgroundColor: clr.white, borderRadius: 20, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.05)', cursor: 'pointer' }}>
+                    <div key={person.id} onClick={() => navigate(`/user/${person.id}`)} style={{ backgroundColor: clr.white, borderRadius: 20, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 0 0 1px var(--border)', cursor: 'pointer' }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, width: 20, textAlign: 'center', flexShrink: 0 }}>
                         {idx + 1}
                       </span>
@@ -949,7 +866,7 @@ export default function Circles() {
                         </div>
                         <div style={{ marginBottom: 5 }}>
                           <div style={{ height: 3, borderRadius: 999, backgroundColor: clr.bg, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${Math.min(person.score, 100)}%`, borderRadius: 999, background: `linear-gradient(90deg, ${tier.dot}, #A78BFA)`, transition: 'width 0.8s ease' }} />
+                            <div style={{ height: '100%', width: `${Math.min(person.score, 100)}%`, borderRadius: 999, background: `var(--indigo)`, transition: 'width 0.8s ease' }} />
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -965,8 +882,8 @@ export default function Circles() {
                           )}
                         </div>
                       </div>
-                      <button type="button" onClick={async (e) => { e.stopPropagation(); try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) } catch (err) { console.error('[Circles] startDM failed', err) } }} style={{ flexShrink: 0, width: 38, height: 38, borderRadius: '50%', border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 3px 10px rgba(91,95,239,0.3)' }}>
-                        <svg width="16" height="16" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
+                      <button type="button" onClick={async (e) => { e.stopPropagation(); try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) } catch (err) { console.error('[Circles] startDM failed', err) } }} style={{ flexShrink: 0, width: 38, height: 38, borderRadius: '50%', border: 'none', background: `var(--indigo)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'none' }}>
+                        <svg width="16" height="16" fill="none" stroke="var(--on-ink)" strokeWidth="2" viewBox="0 0 24 24">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                         </svg>
                       </button>
@@ -997,9 +914,9 @@ export default function Circles() {
                     <button key={f} onClick={() => setNetworkFilter(f)} style={{
                       padding: '8px 16px', borderRadius: 999, border: 'none',
                       backgroundColor: networkFilter === f ? clr.indigo : clr.white,
-                      color: networkFilter === f ? '#FFFFFF' : clr.textMid,
+                      color: networkFilter === f ? 'var(--on-ink)' : clr.textMid,
                       fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-                      boxShadow: networkFilter === f ? '0 4px 12px rgba(91,95,239,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
+                      boxShadow: networkFilter === f ? 'none' : '0 0 0 1px var(--border)',
                       display: 'inline-flex', alignItems: 'center', gap: 6,
                     }}>
                       {f === 'all' ? 'All' : f === 'professional' ? <><Briefcase size={14} color="currentColor" /> Professional</> : f === 'social' ? <><PartyPopper size={14} color="currentColor" /> Social</> : <><Activity size={14} color="currentColor" /> Activity</>}
@@ -1029,7 +946,7 @@ export default function Circles() {
                             <p style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{selectedNode.label}</p>
                             <ActivityBadge score={Math.min(getMemberCount(circles.find(c => c.id === selectedNode.circleId)) * 5, 100)} />
                           </div>
-                          <button onClick={() => navigate(`/circles/${selectedNode.circleId}`)} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg,${clr.indigo},#7B6FFF)`, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>View →</button>
+                          <button onClick={() => navigate(`/circles/${selectedNode.circleId}`)} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `var(--indigo)`, color: 'var(--on-ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>View →</button>
                         </div>
                       ) : selectedNode.type === 'person' ? (
                         <div onClick={() => navigate(`/user/${selectedNode.personId}`)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
@@ -1038,7 +955,7 @@ export default function Circles() {
                             <p style={{ fontSize: 16, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{selectedNode.label}</p>
                             <p style={{ fontSize: 12, color: clr.textLight, margin: 0 }}>In your network</p>
                           </div>
-                          <button onClick={async (e) => { e.stopPropagation(); const person = connections.find(p => p.id === selectedNode.personId) || people.find(p => p.id === selectedNode.personId); if (person) { try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) } catch (err) { console.error('[Circles] startDM failed', err) } } }} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `linear-gradient(135deg,${clr.indigo},#7B6FFF)`, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Message →</button>
+                          <button onClick={async (e) => { e.stopPropagation(); const person = connections.find(p => p.id === selectedNode.personId) || people.find(p => p.id === selectedNode.personId); if (person) { try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) } catch (err) { console.error('[Circles] startDM failed', err) } } }} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: `var(--indigo)`, color: 'var(--on-ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Message →</button>
                         </div>
                       ) : null}
 

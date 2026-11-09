@@ -11,7 +11,7 @@ export default function HelpMessage({ clr }) {
   return (
     <div style={{
       backgroundColor: clr.white, borderRadius: 18, padding: 14,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      boxShadow: '0 0 0 1px var(--border)',
     }}>
       <p style={{ margin: '0 0 10px', fontSize: 13, color: clr.textDark, fontWeight: 700 }}>
         Hey! I can help you find people, circles, events — or create new ones.

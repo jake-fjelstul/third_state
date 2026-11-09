@@ -35,7 +35,7 @@ function Fallback() {
 }
 
 /* One pushed screen. Owns its own x; drives the layer beneath it. */
-function StackLayer({ loc, routes, zIndex, isTop, underKey, getEl, onSwipeBack, selfHeaded, registerEl }) {
+function StackLayer({ loc, routes, zIndex, isTop, underKey, getEl, onSwipeBack, selfHeaded, locked, registerEl }) {
   const reduced = useReducedMotion()
   const width = typeof window !== 'undefined' ? window.innerWidth : 390
   const x = useMotionValue(reduced ? 0 : width)
@@ -140,7 +140,9 @@ function StackLayer({ loc, routes, zIndex, isTop, underKey, getEl, onSwipeBack, 
           x,
           position: 'fixed', inset: 0, zIndex,
           backgroundColor: 'var(--bg)',
-          overflowY: 'auto', overflowX: 'hidden',
+          // Fixed-height screens (chat thread, games) handle their own
+          // scrolling; letting the layer scroll too made them rubber-band.
+          overflowY: locked ? 'hidden' : 'auto', overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
           boxShadow: '-10px 0 30px rgba(0,0,0,0.12)',
           paddingTop: selfHeaded ? 0 : 'env(safe-area-inset-top)',
@@ -159,7 +161,7 @@ function StackLayer({ loc, routes, zIndex, isTop, underKey, getEl, onSwipeBack, 
   )
 }
 
-export default function AppShell({ tabElements, pushedRoutes, selfHeadedPrefixes = [], topNav, bottomNav, extras }) {
+export default function AppShell({ tabElements, pushedRoutes, selfHeadedPrefixes = [], lockedPrefixes = [], topNav, bottomNav, extras }) {
   const location = useLocation()
   const navType = useNavigationType()
   const navigate = useNavigate()
@@ -258,6 +260,7 @@ export default function AppShell({ tabElements, pushedRoutes, selfHeadedPrefixes
               getEl={getEl}
               onSwipeBack={onSwipeBack}
               selfHeaded={selfHeadedPrefixes.some(p => loc.pathname.startsWith(p))}
+              locked={lockedPrefixes.some(p => loc.pathname.startsWith(p))}
               registerEl={registerEl}
             />
           )

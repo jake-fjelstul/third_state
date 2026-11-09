@@ -65,6 +65,7 @@ export default function BatteryWidget() {
         onClick={toggle}
         aria-label={`Social battery ${points}, ${level.word}`}
         aria-expanded={open}
+        data-tour="battery"
         style={{
           width: 44, height: 44, padding: 0, border: 'none', background: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
@@ -74,7 +75,7 @@ export default function BatteryWidget() {
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ position: 'absolute' }}>
           <circle cx={SIZE / 2} cy={SIZE / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={STROKE} />
           <circle
-            cx={SIZE / 2} cy={SIZE / 2} r={r} fill="none" stroke="var(--indigo)" strokeWidth={STROKE}
+            cx={SIZE / 2} cy={SIZE / 2} r={r} fill="none" stroke="var(--accent)" strokeWidth={STROKE}
             strokeLinecap="round" strokeDasharray={`${(c * points) / 100} ${c}`}
             transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
             style={{ transition: reduced ? 'none' : 'stroke-dasharray 0.5s ease' }}
@@ -121,7 +122,7 @@ export default function BatteryWidget() {
                   {Array.from({ length: 5 }, (_, i) => (
                     <div key={i} style={{
                       flex: 1, height: 6, borderRadius: 3,
-                      backgroundColor: i < filled ? 'var(--indigo)' : 'var(--border)',
+                      backgroundColor: i < filled ? 'var(--accent)' : 'var(--surface-3)',
                     }} />
                   ))}
                 </div>
@@ -137,7 +138,7 @@ export default function BatteryWidget() {
                     <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
                       <span style={{
                         width: 34, fontWeight: 700, fontSize: 14,
-                        color: h.points >= 0 ? '#16A34A' : 'var(--textLight)',
+                        color: h.points >= 0 ? 'var(--good)' : 'var(--textLight)',
                       }}>
                         {h.points >= 0 ? `+${h.points}` : `−${Math.abs(h.points)}`}
                       </span>

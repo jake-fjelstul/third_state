@@ -164,10 +164,10 @@ export default function OnboardingFlow({ onDone }) {
     setList(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
 
   const chip = (selected) => ({
-    padding: '10px 16px', borderRadius: 999, minHeight: 44,
-    border: `1.5px solid ${selected ? clr.indigo : clr.border}`,
-    backgroundColor: selected ? clr.indigoLt : clr.white,
-    color: selected ? clr.indigo : clr.textDark,
+    padding: '0 16px', borderRadius: 999, height: 40,
+    border: 'none',
+    backgroundColor: selected ? 'var(--ink)' : 'var(--surface-2)',
+    color: selected ? 'var(--on-ink)' : clr.textDark,
     fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
   })
   const input = {
@@ -198,7 +198,7 @@ export default function OnboardingFlow({ onDone }) {
       position: 'fixed', inset: 0, zIndex: 500, backgroundColor: clr.bg,
       display: 'flex', flexDirection: 'column',
       padding: 'max(16px, env(safe-area-inset-top)) 0 0',
-      fontFamily: "'DM Sans','Inter',sans-serif",
+      fontFamily: 'inherit',
     }}>
       {/* Progress */}
       <div style={{ padding: '8px 20px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -215,7 +215,7 @@ export default function OnboardingFlow({ onDone }) {
                 initial={false}
                 animate={{ width: i <= step ? '100%' : '0%' }}
                 transition={{ duration: reduced ? 0 : 0.3 }}
-                style={{ height: '100%', backgroundColor: clr.indigo }}
+                style={{ height: '100%', backgroundColor: 'var(--ink)' }}
               />
             </div>
           ))}
@@ -295,7 +295,7 @@ export default function OnboardingFlow({ onDone }) {
 
             {step === 4 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ backgroundColor: clr.white, borderRadius: 18, padding: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                <div style={{ backgroundColor: clr.white, borderRadius: 18, padding: 16, boxShadow: '0 0 0 1px var(--border)' }}>
                   <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your social battery</p>
                   <p style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 800, color: level.color }}>{level.word}</p>
                   <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: clr.textMid }}>
@@ -304,7 +304,7 @@ export default function OnboardingFlow({ onDone }) {
                 </div>
 
                 {isNative && (
-                  <div style={{ backgroundColor: clr.white, borderRadius: 18, padding: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ backgroundColor: clr.white, borderRadius: 18, padding: 16, boxShadow: '0 0 0 1px var(--border)', display: 'flex', gap: 12, alignItems: 'center' }}>
                     <Bell size={22} color="var(--indigo)" style={{ flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
                       <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: clr.textDark }}>Get notified</p>
@@ -312,7 +312,7 @@ export default function OnboardingFlow({ onDone }) {
                     </div>
                     <button type="button" onClick={askPush} disabled={pushAsked} style={{
                       minHeight: 40, padding: '8px 14px', borderRadius: 999, border: 'none',
-                      backgroundColor: pushAsked ? clr.bg : clr.indigo, color: pushAsked ? clr.textMid : '#fff',
+                      backgroundColor: pushAsked ? clr.bg : clr.indigo, color: pushAsked ? clr.textMid : 'var(--on-ink)',
                       fontSize: 14, fontWeight: 700, cursor: pushAsked ? 'default' : 'pointer',
                     }}>
                       {pushAsked ? 'Done' : 'Turn on'}
@@ -334,7 +334,7 @@ export default function OnboardingFlow({ onDone }) {
                             </div>
                             <button type="button" disabled={!!state} onClick={() => join(c)} style={{
                               minHeight: 40, minWidth: 72, padding: '8px 14px', borderRadius: 999, border: 'none',
-                              backgroundColor: state === 'done' ? '#DCFCE7' : clr.indigo, color: state === 'done' ? '#15803D' : '#fff',
+                              backgroundColor: state === 'done' ? 'var(--surface-2)' : clr.indigo, color: state === 'done' ? 'var(--good)' : 'var(--on-ink)',
                               fontSize: 14, fontWeight: 700, cursor: state ? 'default' : 'pointer',
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                             }}>
@@ -357,7 +357,7 @@ export default function OnboardingFlow({ onDone }) {
       <div style={{ padding: '12px 24px calc(16px + env(safe-area-inset-bottom))', maxWidth: 520, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         <button type="button" onClick={step === 4 ? finish : next} disabled={busy} style={{
           width: '100%', minHeight: 52, borderRadius: 999, border: 'none',
-          background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)', color: '#fff',
+          background: 'var(--indigo)', color: 'var(--on-ink)',
           fontSize: 17, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1,
         }}>
           {busy ? 'Saving…' : step === 4 ? 'Start exploring' : 'Continue'}

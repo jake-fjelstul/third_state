@@ -48,7 +48,7 @@ export default function PollMessageCard({ clr, payload, viewerId }) {
     <div style={{
       maxWidth: 300, width: '100%', padding: 14, borderRadius: 16,
       backgroundColor: clr.white, border: `1px solid ${clr.border}`,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
     }}>
       <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: clr.textDark }}>
         {poll.question}
@@ -78,7 +78,7 @@ export default function PollMessageCard({ clr, payload, viewerId }) {
           >
             <div style={{
               position: 'absolute', left: 0, top: 0, bottom: 0,
-              width: `${pct}%`, backgroundColor: 'rgba(91,95,239,0.12)',
+              width: `${pct}%`, backgroundColor: 'none',
               transition: 'width 0.3s ease',
             }} />
             <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 8 }}>

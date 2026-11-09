@@ -9,7 +9,7 @@ export const GAME_TYPES = {
     label: 'Tic-Tac-Toe',
     emoji: '⭕',
     blurb: '3 in a row. Quick & casual.',
-    accent: '#5B5FEF',
+    accent: 'var(--indigo)',
     module: ttt,
   },
   connect_four: {

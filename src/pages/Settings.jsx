@@ -1,4 +1,5 @@
 import { useAppContext } from '../context/AppContext.jsx'
+import { requestTour } from '../lib/tourBus.js'
 import { useState, useEffect, useCallback } from 'react'
 import { updateProfile, deleteMyAccount } from '../lib/auth'
 import { useCalendar } from '../hooks/useCalendar.js'
@@ -8,6 +9,7 @@ import { avatarFor } from '../lib/avatar'
 import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
 import { Mail, HelpCircle, Calendar, CheckCircle2 } from 'lucide-react'
 import { canGoBack } from '../lib/tabActive.js'
+import { NavBar } from '../components/ui/ds.jsx'
 
 const clr = {
   bg:       'var(--bg)',
@@ -174,48 +176,26 @@ export default function Settings() {
     <div style={{
       minHeight: '100vh',
       backgroundColor: clr.bg,
-      fontFamily: "'DM Sans', 'Inter', sans-serif",
+      fontFamily: 'inherit',
     }}>
       <style>{`
         @keyframes fadeToast { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(20px); } }
       `}</style>
       {/* ── Main Container ── */}
+      <NavBar onBack={() => (canGoBack() ? navigate(-1) : navigate('/profile'))} title="Settings" />
       <div style={{
-        maxWidth: '500px',
+        maxWidth: '560px',
         margin: '0 auto',
-        padding: '24px 20px 80px',
+        padding: '20px 16px 80px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingLeft: 4 }}>
-          <button
-            type="button"
-            onClick={() => (canGoBack() ? navigate(-1) : navigate('/profile'))}
-            aria-label="Back to profile"
-            style={{
-              width: 36, height: 36, borderRadius: '50%',
-              border: 'none', backgroundColor: clr.white,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="18" height="18" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
-              <path d="M15 18l-6-6 6-6"/>
-            </svg>
-          </button>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0 }}>
-            Settings
-          </h1>
-        </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           
           {/* Default Block */}
           <div style={{
             backgroundColor: clr.white,
-            borderRadius: 20,
+            borderRadius: 16,
             padding: '20px',
-            boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+            boxShadow: '0 0 0 1px var(--border)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -233,7 +213,7 @@ export default function Settings() {
               width: 50,
               height: 28,
               borderRadius: 999,
-              backgroundColor: theme === 'dark' ? clr.indigo : clr.border,
+              backgroundColor: theme === 'dark' ? 'var(--good)' : 'var(--surface-3)',
               position: 'relative',
               transition: 'background-color 0.3s ease',
             }}>
@@ -255,8 +235,8 @@ export default function Settings() {
           <CollapsibleSection title="Notifications" defaultOpen={true}>
             <div style={{
               backgroundColor: clr.white,
-              borderRadius: 20,
-              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+              borderRadius: 16,
+              boxShadow: '0 0 0 1px var(--border)',
               overflow: 'hidden',
             }}>
               {pushPermissionStatus !== 'unsupported' && (
@@ -285,7 +265,7 @@ export default function Settings() {
                         borderRadius: 999,
                         border: 'none',
                         backgroundColor: clr.indigo,
-                        color: '#FFFFFF',
+                        color: 'var(--on-ink)',
                         fontSize: 14,
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -324,7 +304,7 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: (currentUser?.notificationPrefs?.messages ?? true) ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.messages ?? true) ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
@@ -362,7 +342,7 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: (currentUser?.notificationPrefs?.chat_activity ?? true) ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.chat_activity ?? true) ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
@@ -400,7 +380,7 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: (currentUser?.notificationPrefs?.connections ?? true) ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.connections ?? true) ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
@@ -438,7 +418,7 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: (currentUser?.notificationPrefs?.events ?? true) ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.events ?? true) ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
@@ -446,6 +426,45 @@ export default function Settings() {
                     position: 'absolute',
                     top: 2,
                     left: (currentUser?.notificationPrefs?.events ?? true) ? 24 : 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
+              </div>
+
+              {/* Daily question reminder toggle */}
+              <div style={{
+                padding: '20px',
+                borderBottom: `1px solid ${clr.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }} onClick={() => updateMyNotificationPrefs({ daily_question: !(currentUser?.notificationPrefs?.daily_question ?? true) })}>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Question of the Day</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    A daily reminder with today's question, around 10 AM
+                  </p>
+                </div>
+
+                {/* Toggle Switch */}
+                <div style={{
+                  width: 50,
+                  height: 28,
+                  borderRadius: 999,
+                  backgroundColor: (currentUser?.notificationPrefs?.daily_question ?? true) ? 'var(--good)' : 'var(--surface-3)',
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: (currentUser?.notificationPrefs?.daily_question ?? true) ? 24 : 2,
                     width: 24,
                     height: 24,
                     borderRadius: '50%',
@@ -477,7 +496,7 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: (currentUser?.notificationPrefs?.reconnect_nudges ?? true) ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.notificationPrefs?.reconnect_nudges ?? true) ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
@@ -539,10 +558,10 @@ export default function Settings() {
 
           {/* Discovery Block */}
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Discovery
             </h2>
-            <div style={{ backgroundColor: clr.white, borderRadius: 20, padding: '20px', boxShadow: '0 2px 14px rgba(0,0,0,0.05)' }}>
+            <div style={{ backgroundColor: clr.white, borderRadius: 20, padding: '20px', boxShadow: '0 0 0 1px var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Search Radius</p>
@@ -570,13 +589,13 @@ export default function Settings() {
 
           {/* Questions Block */}
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Questions
             </h2>
             <div style={{
               backgroundColor: clr.white,
-              borderRadius: 20,
-              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+              borderRadius: 16,
+              boxShadow: '0 0 0 1px var(--border)',
               overflow: 'hidden',
             }}>
               <div style={{
@@ -597,7 +616,7 @@ export default function Settings() {
                   width: 50,
                   height: 28,
                   borderRadius: 999,
-                  backgroundColor: dailyQuestionsEnabled ? clr.indigo : clr.border,
+                  backgroundColor: dailyQuestionsEnabled ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative',
                   transition: 'background-color 0.3s ease',
                 }}>
@@ -621,8 +640,8 @@ export default function Settings() {
           <CollapsibleSection title="Privacy & Visibility" defaultOpen={false}>
             <div style={{
               backgroundColor: clr.white,
-              borderRadius: 20,
-              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+              borderRadius: 16,
+              boxShadow: '0 0 0 1px var(--border)',
               overflow: 'hidden',
             }}>
               
@@ -646,7 +665,7 @@ export default function Settings() {
 
                 <div style={{
                   width: 50, height: 28, borderRadius: 999,
-                  backgroundColor: (currentUser?.privacy?.isPrivateProfile ?? false) ? clr.indigo : clr.border,
+                  backgroundColor: (currentUser?.privacy?.isPrivateProfile ?? false) ? 'var(--good)' : 'var(--surface-3)',
                   position: 'relative', transition: 'background-color 0.3s ease',
                 }}>
                   <div style={{
@@ -684,7 +703,7 @@ export default function Settings() {
 
                     <div style={{
                       width: 50, height: 28, borderRadius: 999,
-                      backgroundColor: val ? clr.indigo : clr.border,
+                      backgroundColor: val ? 'var(--good)' : 'var(--surface-3)',
                       position: 'relative', transition: 'background-color 0.3s ease',
                     }}>
                       <div style={{
@@ -703,14 +722,14 @@ export default function Settings() {
 
           {/* Blocked Users Section */}
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Blocked users
             </h2>
             <div style={{
               backgroundColor: clr.white,
-              borderRadius: 20,
+              borderRadius: 16,
               padding: '20px',
-              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+              boxShadow: '0 0 0 1px var(--border)',
             }}>
               {loadingBlocks && blockedUsers.length === 0 ? (
                 <p style={{ fontSize: 14, color: clr.textMid, margin: 0 }}>Loading blocked users...</p>
@@ -776,14 +795,14 @@ export default function Settings() {
 
           {/* Safety Section */}
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Safety
             </h2>
             <div style={{
               backgroundColor: clr.white,
-              borderRadius: 20,
+              borderRadius: 16,
               padding: '20px',
-              boxShadow: '0 2px 14px rgba(0,0,0,0.05)',
+              boxShadow: '0 0 0 1px var(--border)',
             }}>
               <p style={{ fontSize: 14, color: clr.textMid, margin: '0 0 10px 0', lineHeight: 1.6 }}>
                 Third Space automatically filters hate speech and explicit content from messages, profiles, and circles.
@@ -837,10 +856,10 @@ export default function Settings() {
 
           {/* Invite Friends Block */}
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Invite Friends
             </h2>
-            <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 2px 14px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/profile')}>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Invite friends to Third Space</p>
@@ -857,10 +876,10 @@ export default function Settings() {
 
         {/* Account Block */}
         <div style={{ marginTop: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+          <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Connected Accounts
           </h2>
-          <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 2px 14px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: clr.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -888,8 +907,8 @@ export default function Settings() {
                   border: 'none',
                   borderRadius: 999,
                   padding: '8px 14px',
-                  background: isCalendarConnected ? '#fee2e2' : 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
-                  color: isCalendarConnected ? '#b91c1c' : '#fff',
+                  background: isCalendarConnected ? '#fee2e2' : 'var(--indigo)',
+                  color: isCalendarConnected ? '#b91c1c' : 'var(--on-ink)',
                   cursor: calendarLoading ? 'not-allowed' : 'pointer',
                   fontWeight: 700,
                   fontSize: 13,
@@ -916,7 +935,7 @@ export default function Settings() {
                 </div>
                 <button type="button" role="switch" aria-checked={shareBusy} onClick={toggleShareBusy} style={{
                   width: 50, height: 30, borderRadius: 999, border: 'none', flexShrink: 0, cursor: 'pointer',
-                  backgroundColor: shareBusy ? clr.indigo : clr.border, position: 'relative', transition: 'background-color 0.2s ease',
+                  backgroundColor: shareBusy ? 'var(--good)' : 'var(--surface-3)', position: 'relative', transition: 'background-color 0.2s ease',
                 }}>
                   <span style={{
                     position: 'absolute', top: 3, left: shareBusy ? 23 : 3, width: 24, height: 24, borderRadius: '50%',
@@ -938,10 +957,16 @@ export default function Settings() {
         </div>
 
         <div style={{ marginTop: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: clr.textDark, marginBottom: 12, paddingLeft: 4 }}>
+          <h2 style={{ fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8, paddingLeft: 16, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Account
           </h2>
-          <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 2px 14px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: clr.white, borderRadius: 20, boxShadow: '0 0 0 1px var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '20px', borderBottom: `1px solid ${clr.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => { navigate('/feed'); requestTour() }}>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Replay the tour</p>
+                <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>A quick walk through the main buttons</p>
+              </div>
+            </div>
             <div style={{ padding: '20px', borderBottom: `1px solid ${clr.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => signOut()}>
               <div>
                 <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: '#E11D48' }}>Sign Out</p>
@@ -999,7 +1024,7 @@ export default function Settings() {
             alignItems: 'center',
             justifyContent: 'center',
             padding: 20,
-            fontFamily: "'DM Sans', 'Inter', sans-serif",
+            fontFamily: 'inherit',
           }}
         >
           <div

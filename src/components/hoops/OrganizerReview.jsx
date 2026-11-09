@@ -13,7 +13,7 @@ const clr = {
   textDark:  '#E2E4F0',
   textMid:   '#8B8FA3',
   textLight: '#5C5F73',
-  indigo:    '#7B6FFF',
+  indigo:    'var(--indigo)',
   indigoLt:  'rgba(123, 111, 255, 0.18)',
   white:     '#FFFFFF',
   amber:     '#F59E0B',
@@ -100,7 +100,7 @@ export default function OrganizerReview({ circle }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {filteredApps.map(app => (
-            <div key={app.id} style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.04)', border: `1px solid ${clr.border}` }}>
+            <div key={app.id} style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 20, boxShadow: '0 0 0 1px var(--border)', border: `1px solid ${clr.border}` }}>
               {/* Header */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                 <img src={app.applicantAvatar} alt="avatar" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />

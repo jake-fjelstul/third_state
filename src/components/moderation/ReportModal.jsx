@@ -79,7 +79,7 @@ export default function ReportModal({
         alignItems: 'flex-end',
         justifyContent: 'center',
         overflow: 'hidden',
-        fontFamily: "'DM Sans', 'Inter', sans-serif",
+        fontFamily: 'inherit',
       }}
     >
       <div
@@ -277,13 +277,13 @@ export default function ReportModal({
                   borderRadius: 999,
                   border: 'none',
                   background: selectedReason && !submitting
-                    ? `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`
+                    ? `var(--indigo)`
                     : clr.border,
                   color: '#FFFFFF',
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: selectedReason && !submitting ? 'pointer' : 'not-allowed',
-                  boxShadow: selectedReason && !submitting ? '0 4px 14px rgba(91,95,239,0.3)' : 'none',
+                  boxShadow: selectedReason && !submitting ? 'none' : 'none',
                   opacity: selectedReason && !submitting ? 1 : 0.6,
                 }}
               >

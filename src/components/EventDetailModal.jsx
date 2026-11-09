@@ -139,30 +139,26 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
         onClick={e => e.stopPropagation()}
         style={{
           backgroundColor: clr.white,
-          borderTopLeftRadius: 28, borderTopRightRadius: 28,
-          padding: '28px 24px 36px',
-          maxHeight: '75vh', overflowY: 'auto',
+          borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          padding: '8px 20px calc(24px + env(safe-area-inset-bottom))',
+          maxHeight: '85vh', overflowY: 'auto',
           boxShadow: '0 -10px 40px rgba(0,0,0,0.12)',
           animation: closing ? 'tsSheetDown 0.24s ease-in forwards' : 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) forwards',
         }}
       >
         {/* Drag handle */}
-        <div style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: clr.border, margin: '0 auto 18px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'var(--surface-3)', margin: '0 auto 14px' }} />
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div style={{ flex: 1 }}>
             <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: event.source === 'google' ? '#059669' : clr.indigo,
-              backgroundColor: event.source === 'google' ? '#F0FFF4' : clr.indigoLt,
-              padding: '4px 10px', borderRadius: 999,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-              display: 'inline-block', marginBottom: 10,
+              fontSize: 13, fontWeight: 600, color: clr.textMid,
+              display: 'block', marginBottom: 4,
             }}>
               {event.circleName || (event.source === 'google' ? 'Google Calendar' : 'Meetup')}
             </span>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: clr.textDark, margin: 0, lineHeight: 1.3 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: clr.textDark, margin: 0, lineHeight: 1.25 }}>
               {event.title}
             </h2>
           </div>
@@ -172,9 +168,9 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
                 type="button"
                 onClick={() => setShowEditModal(true)}
                 style={{
-                  padding: '6px 14px', borderRadius: 999,
-                  border: `1.5px solid ${clr.indigo}`, backgroundColor: clr.indigoLt,
-                  color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  height: 34, padding: '0 14px', borderRadius: 10, border: 'none',
+                  backgroundColor: 'var(--surface-2)', color: clr.textDark,
+                  fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
                 Edit
@@ -384,9 +380,9 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
             ) : (
               <button type="button" onClick={() => { onRsvp?.(event); onClose(); }} style={{
                 flex: 1, padding: '14px 0', borderRadius: 14, border: 'none',
-                background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
-                color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                boxShadow: '0 6px 20px rgba(91,95,239,0.35)',
+                background: `var(--indigo)`,
+                color: 'var(--on-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                boxShadow: 'none',
                 transition: 'all 0.2s ease',
               }}>
                 ✓ RSVP
@@ -417,8 +413,8 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
               }
             }} style={{
               width: '100%', padding: '14px 0', borderRadius: 14, border: 'none',
-              background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`, color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 6px 20px rgba(91,95,239,0.35)', marginBottom: 12,
+              background: `var(--indigo)`, color: 'var(--on-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              boxShadow: 'none', marginBottom: 12,
             }}>
               Add to Calendar
             </button>
