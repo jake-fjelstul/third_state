@@ -67,7 +67,7 @@ export default function EventList({ message, ctx, clr, onAppendMessages }) {
                   {event.emoji ? event.emoji : <Calendar size={14} color={clr.indigo} />} {event.title}
                 </p>
                 <p style={{ margin: 0, fontSize: 12, color: clr.textMid }}>
-                  {event.date}{event.time ? ` · ${event.time}` : ''}
+                  {event.dateLabel || event.date}{event.timeLabel ? ` · ${event.timeLabel}` : ''}
                   {event.location ? ` · ${event.location}` : ''}
                 </p>
                 {event.circleName && (

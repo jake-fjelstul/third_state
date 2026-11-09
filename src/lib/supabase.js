@@ -1,3 +1,4 @@
+/* global process */
 import { createClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 

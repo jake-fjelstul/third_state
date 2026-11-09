@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Third Space</string>
+    <string name="title_activity_main">Third Space</string>
+    <string name="package_name">com.thirdspace.social</string>
+    <string name="custom_url_scheme">com.thirdspace.social</string>
+</resources>

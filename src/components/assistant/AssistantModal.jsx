@@ -16,6 +16,7 @@ import NavSuggestion from './messages/NavSuggestion.jsx'
 import HelpMessage   from './messages/HelpMessage.jsx'
 import DisambiguationCard from './messages/DisambiguationCard.jsx'
 import ActionConfirmCard from './messages/ActionConfirmCard.jsx'
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight.js'
 
 const SUGGESTIONS = [
   'Find people who like hiking',
@@ -25,6 +26,7 @@ const SUGGESTIONS = [
 ]
 
 export default function AssistantModal({ initialPrompt, onClose, clr }) {
+  const kbHeight = useKeyboardHeight()
   const ctx = useAppContext()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -112,17 +114,18 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
         position: 'fixed', inset: 0, zIndex: 999,
         backgroundColor: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'flex-end',
+        paddingBottom: kbHeight, transition: 'padding-bottom 0.25s ease',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto',
-          height: '88vh',
+          height: kbHeight > 0 ? `calc(100dvh - ${kbHeight}px - 48px)` : '88vh',
           backgroundColor: clr.bg,
           borderTopLeftRadius: 24, borderTopRightRadius: 24,
           display: 'flex', flexDirection: 'column',
-          animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
           boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',
         }}
       >

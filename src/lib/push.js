@@ -7,6 +7,8 @@ import { supabase } from './supabase'
  */
 const APNS_ENVIRONMENT = import.meta.env.VITE_APNS_ENVIRONMENT || 'sandbox'
 
+const TOKEN_KEY = 'ts.push.lastToken'
+
 let lastToken = null
 
 export function getLastPushToken() { return lastToken }
@@ -16,6 +18,33 @@ async function isNative() {
     const { Capacitor } = await import('@capacitor/core')
     return Capacitor.isNativePlatform()
   } catch { return false }
+}
+
+async function getPlatform() {
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    return Capacitor.getPlatform() // 'ios' | 'android'
+  } catch { return 'ios' }
+}
+
+// The token survives app restarts so sign-out can always unregister it, even
+// if 'registration' never fired this session (audit H5).
+async function saveToken(token) {
+  lastToken = token
+  try {
+    const { Preferences } = await import('@capacitor/preferences')
+    if (token) await Preferences.set({ key: TOKEN_KEY, value: token })
+    else await Preferences.remove({ key: TOKEN_KEY })
+  } catch { /* non-fatal */ }
+}
+
+async function loadToken() {
+  if (lastToken) return lastToken
+  try {
+    const { Preferences } = await import('@capacitor/preferences')
+    const { value } = await Preferences.get({ key: TOKEN_KEY })
+    return value || null
+  } catch { return null }
 }
 
 /**
@@ -54,11 +83,11 @@ export async function initPush({ onTokenRegistered, onTapped, onForeground } = {
   const { PushNotifications } = await import('@capacitor/push-notifications')
 
   const registration = await PushNotifications.addListener('registration', async (t) => {
-    lastToken = t.value
+    await saveToken(t.value)
     try {
       await supabase.rpc('register_device_token', {
         p_token: t.value,
-        p_platform: 'ios',
+        p_platform: await getPlatform(),
         p_environment: APNS_ENVIRONMENT,
       })
       onTokenRegistered?.(t.value)
@@ -81,6 +110,25 @@ export async function initPush({ onTokenRegistered, onTapped, onForeground } = {
     onTapped?.(action.notification)
   })
 
+  // Android 8+: messages and activity get separate, user-controllable channels.
+  if ((await getPlatform()) === 'android') {
+    try {
+      await PushNotifications.createChannel({ id: 'messages', name: 'Messages', description: 'Direct and circle messages', importance: 4, sound: 'default', vibration: true })
+      await PushNotifications.createChannel({ id: 'activity', name: 'Activity', description: 'Invites, requests, reminders', importance: 3 })
+    } catch (err) {
+      console.error('[push] createChannel failed', err)
+    }
+  }
+
+  // Already allowed: register on every launch so this device's token is tied
+  // to whoever is signed in now, and rotated tokens get picked up.
+  try {
+    const perm = await PushNotifications.checkPermissions()
+    if (perm.receive === 'granted') await PushNotifications.register()
+  } catch (err) {
+    console.error('[push] register on launch failed', err)
+  }
+
   return () => {
     registration.remove().catch(() => {})
     registrationError.remove().catch(() => {})
@@ -92,13 +140,15 @@ export async function initPush({ onTokenRegistered, onTapped, onForeground } = {
 /** Called on sign-out so the next user on this device does not inherit pushes. */
 export async function unregisterPush() {
   if (!(await isNative())) return
-  if (!lastToken) return
+  const token = await loadToken()
+  if (!token) return
   try {
-    await supabase.rpc('unregister_device_token', { p_token: lastToken })
+    const { error } = await supabase.rpc('unregister_device_token', { p_token: token })
+    if (error) throw error
   } catch (err) {
     console.error('[push] unregister_device_token failed', err)
   }
-  lastToken = null
+  await saveToken(null)
 }
 
 export async function setBadgeCount(count) {

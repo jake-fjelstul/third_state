@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { listMessages, mapMessageRow, listChatReactions } from '../lib/chat'
+import { listMessages, mapMessageRow, listChatReactions, MESSAGE_PAGE_SIZE } from '../lib/chat'
+import { getCachedMessages, setCachedMessages } from '../lib/chatCache.js'
 
 /**
  * Subscribes to new messages for a chat (optionally filtered to a channel).
  * Returns { messages, loading, error, append, refresh, reactions, applyLocalReaction }.
  */
 export function useChatMessages({ chatId, channelId = null } = {}) {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(() => getCachedMessages(chatId, channelId) || [])
   const [reactions, setReactions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !getCachedMessages(chatId, channelId))
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const [error, setError] = useState(null)
   const channelIdRef = useRef(channelId)
   channelIdRef.current = channelId
@@ -22,11 +25,16 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
       return
     }
     let cancelled = false
-    setLoading(true)
+    // Cached messages render immediately; the fetch reconciles (item 3).
+    const cached = getCachedMessages(chatId, channelId)
+    setMessages(cached || [])
+    setLoading(!cached)
     listMessages(chatId, { channelId })
       .then(rows => {
         if (cancelled) return
         setMessages(rows)
+        setHasMore(rows.length >= MESSAGE_PAGE_SIZE)
+        setCachedMessages(chatId, channelId, rows)
         setError(null)
       })
       .catch(err => { if (!cancelled) setError(err) })
@@ -72,6 +80,18 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
       )
       .on(
         'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+        (payload) => {
+          // e.g. a coffee invite flipping to accepted/declined (H8).
+          const row = payload.new
+          if (!row?.id) return
+          setMessages(prev => prev.map(m => (
+            m.id === row.id ? { ...m, payload: row.payload, text: row.text ?? m.text } : m
+          )))
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'message_reactions', filter: `chat_id=eq.${chatId}` },
         (payload) => {
           const row = payload.new
@@ -96,6 +116,31 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
     }
   }, [chatId, channelId])
 
+  // Keep the cache current with realtime arrivals.
+  useEffect(() => {
+    if (chatId && !loading) setCachedMessages(chatId, channelId, messages)
+  }, [chatId, channelId, messages, loading])
+
+  // Older history on scroll-to-top (audit M10).
+  const loadOlder = async () => {
+    if (!chatId || loadingOlder || !hasMore || messages.length === 0) return 0
+    setLoadingOlder(true)
+    try {
+      const older = await listMessages(chatId, { channelId, before: messages[0].createdAt })
+      setHasMore(older.length >= MESSAGE_PAGE_SIZE)
+      setMessages(prev => {
+        const ids = new Set(prev.map(m => m.id))
+        return [...older.filter(m => !ids.has(m.id)), ...prev]
+      })
+      return older.length
+    } catch (err) {
+      console.error('[useChatMessages] loadOlder failed', err)
+      return 0
+    } finally {
+      setLoadingOlder(false)
+    }
+  }
+
   const append = (msg) => {
     setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
   }
@@ -116,5 +161,5 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
     })
   }
 
-  return { messages, loading, error, append, refresh, reactions, applyLocalReaction }
+  return { messages, loading, error, append, refresh, reactions, applyLocalReaction, loadOlder, hasMore, loadingOlder }
 }

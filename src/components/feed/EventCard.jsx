@@ -8,7 +8,7 @@ export default function EventCard({ event }) {
         {event.title}
       </p>
       <p className="mb-2 text-xs text-slate-500">
-        {event.date} · {event.time}
+        {event.dateLabel || event.date} · {event.timeLabel || event.time}
       </p>
       <p className="mb-3 line-clamp-2 text-xs text-slate-500">
         {event.location}

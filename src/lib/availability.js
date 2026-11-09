@@ -5,13 +5,15 @@ import { supabase } from './supabase'
  * Joins event_attendees → events.
  * Caller is responsible for connection + privacy gating.
  */
+const DEFAULT_EVENT_MINUTES = 90
+
 export async function getAvailabilityForUser(userId, { fromIso, toIso }) {
   if (!userId) return []
   const { data, error } = await supabase
     .from('event_attendees')
-    .select('events!inner(id, title, starts_at, location)')
+    .select('events!inner(id, title, starts_at, ends_at, location)')
     .eq('user_id', userId)
-    .gte('events.starts_at', fromIso)
+    .gte('events.starts_at', new Date(new Date(fromIso).getTime() - 24 * 3600 * 1000).toISOString())
     .lte('events.starts_at', toIso)
     .order('starts_at', { foreignTable: 'events', ascending: true })
   if (error) throw error
@@ -19,10 +21,49 @@ export async function getAvailabilityForUser(userId, { fromIso, toIso }) {
     id:        row.events.id,
     title:     row.events.title,
     startsAt:  row.events.starts_at,
-    // events table has no duration column — assume 90 min default.
-    endsAt:    new Date(new Date(row.events.starts_at).getTime() + 90 * 60 * 1000).toISOString(),
+    // Real end time when set; older events have none, so assume 90 minutes.
+    endsAt:    row.events.ends_at
+      || new Date(new Date(row.events.starts_at).getTime() + DEFAULT_EVENT_MINUTES * 60 * 1000).toISOString(),
     location:  row.events.location,
-  }))
+    source:    'thirdspace',
+  })).filter(b => new Date(b.endsAt) > new Date(fromIso))
+}
+
+/**
+ * Busy blocks from Google Calendar for a connection who opted in to sharing.
+ * Server-side: the edge function returns start/end only, never titles.
+ * Returns { blocks, needsReconnect }.
+ */
+export async function getGoogleBusyForUser(userId, { fromIso, toIso }) {
+  try {
+    const { data, error } = await supabase.functions.invoke('google-calendar', {
+      body: { action: 'freebusy', targetId: userId, from: fromIso, to: toIso },
+    })
+    if (error) throw error
+    const blocks = (data?.busy || []).map((b, i) => ({
+      id: `g-${i}`, title: 'Busy', startsAt: b.start, endsAt: b.end, source: 'google',
+    }))
+    return { blocks, used: data?.source === 'google', needsReconnect: !!data?.needsReconnect }
+  } catch (err) {
+    console.error('[availability] freebusy failed', err)
+    return { blocks: [], used: false, needsReconnect: false }
+  }
+}
+
+/**
+ * Third Space plans plus (if shared) Google busy blocks.
+ * Returns { blocks, source: 'calendar' | 'thirdspace', needsReconnect }.
+ */
+export async function getBusyForUser(userId, range) {
+  const [own, google] = await Promise.all([
+    getAvailabilityForUser(userId, range),
+    getGoogleBusyForUser(userId, range),
+  ])
+  return {
+    blocks: [...own, ...google.blocks],
+    source: google.used ? 'calendar' : 'thirdspace',
+    needsReconnect: google.needsReconnect,
+  }
 }
 
 /**
@@ -33,7 +74,7 @@ export async function checkConflictAt(userId, atIso) {
   const at = new Date(atIso)
   const from = new Date(at.getTime() - 24 * 60 * 60 * 1000).toISOString()
   const to   = new Date(at.getTime() + 24 * 60 * 60 * 1000).toISOString()
-  const busy = await getAvailabilityForUser(userId, { fromIso: from, toIso: to })
+  const { blocks: busy } = await getBusyForUser(userId, { fromIso: from, toIso: to })
   return busy.find(b => at >= new Date(b.startsAt) && at < new Date(b.endsAt)) || null
 }
 

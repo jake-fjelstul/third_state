@@ -1,5 +1,5 @@
-# Generated: 2026-08-18T02:08:20Z
-# Commit:    fdfa49b
+# Generated: 2026-08-18T20:26:29Z
+# Commit:    fbbfdcd
 # Branch:    main
 
 === TREE ===
@@ -87,6 +87,7 @@ src/components/moderation/ReportModal.jsx
 src/components/ui/Card.jsx
 src/components/ui/CircleIcon.jsx
 src/components/ui/CityAutocomplete.jsx
+src/components/ui/CollapsibleSection.jsx
 src/components/ui/ImageUploader.jsx
 src/components/ui/LocationAutocomplete.jsx
 src/components/ui/PillTag.jsx
@@ -227,82 +228,88 @@ supabase/migrations/00000000000057_friend_groups_and_lfg_targeting.sql
 supabase/migrations/00000000000058_device_tokens.sql
 supabase/migrations/00000000000059_push_on_notification.sql
 supabase/migrations/00000000000060_push_on_message.sql
+supabase/migrations/00000000000061_lock_notification_inserts.sql
+supabase/migrations/00000000000062_get_circles_page.sql
+supabase/migrations/00000000000063_hangout_and_interaction_model.sql
+supabase/migrations/00000000000064_strict_hangout_semantics.sql
+supabase/migrations/00000000000065_enable_scheduled_jobs.sql
+supabase/migrations/00000000000066_nudge_once_per_hangout.sql
 
 === FILE SIZES ===
-    2135 src/pages/Feed.jsx
-    1514 src/pages/CircleDetail.jsx
-    1323 src/pages/Chat.jsx
-    1144 src/context/AppContext.jsx
-    1077 src/pages/Settings.jsx
-    1054 src/pages/Profile.jsx
-     948 src/components/discovery/SwipeDiscovery.jsx
-     942 src/pages/UserProfile.jsx
-     916 src/pages/Schedule.jsx
-     853 src/pages/Circles.jsx
-     711 src/pages/Notifications.jsx
-     457 src/components/EventDetailModal.jsx
+    2149 src/pages/Feed.jsx
+    1776 src/pages/CircleDetail.jsx
+    1498 src/pages/Chat.jsx
+    1156 src/context/AppContext.jsx
+    1075 src/pages/Settings.jsx
+    1053 src/pages/Profile.jsx
+     989 src/pages/Circles.jsx
+     974 src/components/discovery/SwipeDiscovery.jsx
+     946 src/pages/UserProfile.jsx
+     917 src/pages/Schedule.jsx
+     741 src/pages/Notifications.jsx
+     465 src/components/EventDetailModal.jsx
      410 admin/src/pages/Growth.jsx
      404 src/pages/Auth.jsx
+     397 src/lib/circles.js
      396 src/components/lfg/LfgRecipientPicker.jsx
      396 src/App.jsx
-     394 src/lib/circles.js
      375 src/pages/Landing.jsx
      372 src/lib/events.js
      359 src/pages/Legal.jsx
-     357 src/components/feed/OnboardingModal.jsx
-     351 src/components/EventEditModal.jsx
+     358 src/components/feed/OnboardingModal.jsx
+     352 src/components/EventEditModal.jsx
      348 src/components/EventRecapModal.jsx
      340 admin/src/pages/Circles.jsx
      327 src/lib/assistant/slots.js
-     320 src/components/assistant/AssistantModal.jsx
+     321 src/components/assistant/AssistantModal.jsx
      313 admin/src/pages/Moderation.jsx
+     310 src/components/chat/QuestionPrompt.jsx
      310 src/components/CreateWheel.jsx
-     309 src/components/chat/QuestionPrompt.jsx
      298 src/components/moderation/ReportModal.jsx
-     283 src/lib/chat.js
      279 src/lib/assistant/entities.js
      271 src/components/hoops/HoopApplication.jsx
      263 src/lib/calendar.js
      262 src/lib/auth.js
-     251 src/components/chat/CoffeeInviteMessageCard.jsx
+     254 src/components/chat/CoffeeInviteMessageCard.jsx
      249 src/lib/assistant/engine.js
+     249 src/components/chat/AskQuestionComposer.jsx
      248 src/lib/assistant/actions.js
-     248 src/components/chat/AskQuestionComposer.jsx
      246 admin/src/pages/Events.jsx
      242 src/pages/GamePlay.jsx
+     241 src/lib/chat.js
      225 src/lib/assistant/classify.js
      217 admin/src/pages/Connections.jsx
      215 admin/src/pages/Onboarding.jsx
      209 src/lib/games/checkers.js
      206 admin/src/pages/Overview.jsx
      205 admin/src/components/AuthGate.jsx
+     198 src/pages/Memories.jsx
      197 src/components/ui/QRCard.jsx
-     196 src/pages/Memories.jsx
      196 src/components/feed/AssistantBar.jsx
      190 src/lib/lfg.js
-     189 src/components/ui/LocationAutocomplete.jsx
+     190 src/components/ui/LocationAutocomplete.jsx
      184 src/lib/games/ai.js
      172 src/components/games/ChessBoard.jsx
-     167 src/components/hoops/OrganizerReview.jsx
+     168 src/components/hoops/OrganizerReview.jsx
      163 src/components/chat/SwipeableRow.jsx
      155 src/lib/profiles.js
+     154 src/components/assistant/messages/CircleForm.jsx
      153 src/components/games/SoloGameModal.jsx
      153 src/components/chat/PollComposer.jsx
-     153 src/components/assistant/messages/CircleForm.jsx
-     150 src/components/ui/CityAutocomplete.jsx
+     151 src/components/ui/CityAutocomplete.jsx
      147 src/components/games/CheckersBoard.jsx
      144 src/components/TimePicker.jsx
+     143 src/components/ui/ImageUploader.jsx
      143 admin/src/components/GrowthChart.jsx
-     142 src/lib/eventRecap.js
-     142 src/components/ui/ImageUploader.jsx
      141 src/components/hoops/HoopBuilder.jsx
      140 src/lib/assistant/__tests__/engine.test.js
-     136 src/components/assistant/messages/EventForm.jsx
+     137 src/components/assistant/messages/EventForm.jsx
      133 admin/src/lib/api.js
      132 src/lib/assistant/intents.js
-     129 src/components/assistant/messages/EventList.jsx
+     131 src/components/assistant/messages/EventList.jsx
      127 src/components/assistant/messages/CircleList.jsx
      125 src/components/assistant/messages/PeopleStack.jsx
+     123 src/lib/eventRecap.js
      121 src/hooks/useCalendar.js
      121 src/components/feed/ProfileCompletionCard.jsx
      120 src/lib/geocoding.js
@@ -321,30 +328,31 @@ supabase/migrations/00000000000060_push_on_message.sql
       98 src/components/games/GameMessageCard.jsx
       97 src/lib/games/chess.js
       94 src/lib/assistant/conversation.js
-      92 src/components/assistant/messages/ActionConfirmCard.jsx
+      93 src/components/assistant/messages/ActionConfirmCard.jsx
       88 src/pages/JoinLanding.jsx
       85 src/components/games/GamePicker.jsx
       81 src/lib/invites.js
       79 src/main.jsx
+      79 src/lib/connections.js
       77 src/lib/questions.js
-      77 src/lib/connections.js
       72 src/lib/moderation.js
       72 src/lib/createActions.js
-      70 src/components/chat/QuestionMessageCard.jsx
+      71 src/components/chat/QuestionMessageCard.jsx
       67 src/lib/profileCompleteness.jsx
+      67 src/lib/circleIcons.js
       66 src/lib/polls.js
       66 src/lib/games/connectFour.js
       65 src/lib/circleCover.js
-      64 src/lib/connectionStats.js
+      62 src/lib/connectionStats.js
       62 admin/src/components/PulsePanel.jsx
       61 src/components/chat/MessageInput.jsx
       58 src/components/assistant/messages/DisambiguationCard.jsx
-      57 src/lib/circleIcons.js
       55 src/pages/InviteLanding.jsx
       54 src/components/feed/CircleCard.jsx
       54 admin/src/lib/format.js
       51 src/lib/games.js
       50 src/hooks/usePoll.js
+      48 src/components/ui/CollapsibleSection.jsx
       46 src/components/games/ConnectFourBoard.jsx
       44 src/components/games/TicTacToeBoard.jsx
       43 src/components/chat/ChatListItem.jsx
@@ -362,8 +370,8 @@ supabase/migrations/00000000000060_push_on_message.sql
       30 src/lib/supabase.js
       30 src/components/assistant/messages/ConfirmCard.jsx
       29 src/components/ui/PrimaryButton.jsx
+      29 src/components/assistant/messages/HelpMessage.jsx
       29 admin/src/components/ui/Delta.jsx
-      27 src/components/assistant/messages/HelpMessage.jsx
       25 src/components/feed/EventCard.jsx
       25 admin/src/components/ui/PeriodToggle.jsx
       23 src/components/ui/SectionHeader.jsx
@@ -432,35 +440,35 @@ admin/src/pages/Overview.jsx:16:export function Overview({ period = 30, onPeriod
 src/App.jsx:397:export default App
 src/components/CreateWheel.jsx:36:export default function CreateWheel({ onAction }) {
 src/components/EventDetailModal.jsx:22:export default function EventDetailModal({ event, onClose, closing, isRsvpd, onRsvp, onCancelRsvp }) {
-src/components/EventEditModal.jsx:20:export default function EventEditModal({ event, onClose, onSaved }) {
+src/components/EventEditModal.jsx:21:export default function EventEditModal({ event, onClose, onSaved }) {
 src/components/EventRecapModal.jsx:27:export default function EventRecapModal({ event, onClose }) {
 src/components/TimePicker.jsx:98:export default function TimePicker({ value, onChange }) {
-src/components/assistant/AssistantModal.jsx:26:export default function AssistantModal({ initialPrompt, onClose, clr }) {
-src/components/assistant/messages/ActionConfirmCard.jsx:4:export default function ActionConfirmCard({ message, ctx, clr, onComplete, onCancel }) {
+src/components/assistant/AssistantModal.jsx:27:export default function AssistantModal({ initialPrompt, onClose, clr }) {
+src/components/assistant/messages/ActionConfirmCard.jsx:5:export default function ActionConfirmCard({ message, ctx, clr, onComplete, onCancel }) {
 src/components/assistant/messages/CircleForm.jsx:7:export default function CircleForm({ message, clr, onComplete }) {
 src/components/assistant/messages/CircleList.jsx:7:export default function CircleList({ message, ctx, clr, onClose, onAppendMessages }) {
 src/components/assistant/messages/ConfirmCard.jsx:1:export default function ConfirmCard({ clr, title, subtitle, primaryLabel = 'Confirm', onConfirm, onCancel }) {
 src/components/assistant/messages/DisambiguationCard.jsx:1:export default function DisambiguationCard({ message, clr, onSelectCandidate }) {
-src/components/assistant/messages/EventForm.jsx:7:export default function EventForm({ message, clr, onComplete }) {
-src/components/assistant/messages/EventList.jsx:13:export default function EventList({ message, ctx, clr, onAppendMessages }) {
-src/components/assistant/messages/HelpMessage.jsx:1:export default function HelpMessage({ clr }) {
+src/components/assistant/messages/EventForm.jsx:8:export default function EventForm({ message, clr, onComplete }) {
+src/components/assistant/messages/EventList.jsx:14:export default function EventList({ message, ctx, clr, onAppendMessages }) {
+src/components/assistant/messages/HelpMessage.jsx:3:export default function HelpMessage({ clr }) {
 src/components/assistant/messages/NavSuggestion.jsx:3:export default function NavSuggestion({ message, clr, onClose }) {
 src/components/assistant/messages/PeopleStack.jsx:17:export default function PeopleStack({ message, ctx, clr, onClose, onAppendMessages }) {
 src/components/assistant/messages/TextMessage.jsx:1:export default function TextMessage({ message, clr, muted }) {
-src/components/chat/AskQuestionComposer.jsx:27:export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, onCancelPending }) {
+src/components/chat/AskQuestionComposer.jsx:28:export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, onCancelPending }) {
 src/components/chat/ChatListItem.jsx:4:export default function ChatListItem({ chat }) {
-src/components/chat/CoffeeInviteMessageCard.jsx:8:export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
+src/components/chat/CoffeeInviteMessageCard.jsx:9:export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
 src/components/chat/MessageInput.jsx:5:export default function MessageInput({ onSend }) {
 src/components/chat/PollComposer.jsx:3:export default function PollComposer({ clr, onClose, onCreate }) {
 src/components/chat/PollMessageCard.jsx:5:export default function PollMessageCard({ clr, payload, viewerId }) {
-src/components/chat/QuestionMessageCard.jsx:3:export default function QuestionMessageCard({ clr, payload, viewerId }) {
-src/components/chat/QuestionPrompt.jsx:4:export default function QuestionPrompt({ clr, chat, messages = [] }) {
+src/components/chat/QuestionMessageCard.jsx:4:export default function QuestionMessageCard({ clr, payload, viewerId }) {
+src/components/chat/QuestionPrompt.jsx:5:export default function QuestionPrompt({ clr, chat, messages = [] }) {
 src/components/chat/SwipeableRow.jsx:7:export default function SwipeableRow({
-src/components/discovery/SwipeDiscovery.jsx:257:export default function SwipeDiscovery({ onClose }) {
+src/components/discovery/SwipeDiscovery.jsx:268:export default function SwipeDiscovery({ onClose }) {
 src/components/feed/AssistantBar.jsx:12:export default function AssistantBar({ onSubmit, clr, value, onChange, placeholder }) {
 src/components/feed/CircleCard.jsx:5:export default function CircleCard({ circle, joined }) {
 src/components/feed/EventCard.jsx:1:export default function EventCard({ event }) {
-src/components/feed/OnboardingModal.jsx:6:export default function OnboardingModal({ inviter, showIntent, onClose }) {
+src/components/feed/OnboardingModal.jsx:7:export default function OnboardingModal({ inviter, showIntent, onClose }) {
 src/components/feed/PersonCard.jsx:4:export default function PersonCard({ person }) {
 src/components/feed/ProfileCompletionCard.jsx:15:export default function ProfileCompletionCard({ completeness }) {
 src/components/games/CheckersBoard.jsx:8:export default function CheckersBoard({ state, myToken, myTurn, onMove }) {
@@ -473,20 +481,21 @@ src/components/games/SoloGameModal.jsx:15:export default function SoloGameModal(
 src/components/games/TicTacToeBoard.jsx:10:export default function TicTacToeBoard({ state, myTurn, onMove }) {
 src/components/hoops/HoopApplication.jsx:25:export default function HoopApplication({ circle, onClose, onSubmitted }) {
 src/components/hoops/HoopBuilder.jsx:18:export default function HoopBuilder({ hoops, onChange }) {
-src/components/hoops/OrganizerReview.jsx:25:export default function OrganizerReview({ circle }) {
+src/components/hoops/OrganizerReview.jsx:26:export default function OrganizerReview({ circle }) {
 src/components/lfg/LfgRecipientPicker.jsx:5:export default function LfgRecipientPicker({ connections = [], selectedIds = [], onChange, clr }) {
 src/components/moderation/ReportModal.jsx:15:export default function ReportModal({
 src/components/ui/Card.jsx:1:export default function Card({ children, className = '' }) {
 src/components/ui/CircleIcon.jsx:3:export default function CircleIcon({ circle, size = 20, color = 'currentColor', strokeWidth = 2, style }) {
-src/components/ui/CityAutocomplete.jsx:4:export default function CityAutocomplete({ value, onChange, placeholder = 'Start typing a city...', clr }) {
-src/components/ui/ImageUploader.jsx:6:export default function ImageUploader({
-src/components/ui/LocationAutocomplete.jsx:4:export default function LocationAutocomplete({ 
+src/components/ui/CityAutocomplete.jsx:5:export default function CityAutocomplete({ value, onChange, placeholder = 'Start typing a city...', clr }) {
+src/components/ui/CollapsibleSection.jsx:3:export default function CollapsibleSection({ title, defaultOpen = true, titleFontSize = 18, children }) {
+src/components/ui/ImageUploader.jsx:7:export default function ImageUploader({
+src/components/ui/LocationAutocomplete.jsx:5:export default function LocationAutocomplete({ 
 src/components/ui/PillTag.jsx:1:export default function PillTag({ children, tone = 'neutral', className = '' }) {
 src/components/ui/PrimaryButton.jsx:1:export default function PrimaryButton({
 src/components/ui/QRCard.jsx:16:export default function QRCard({ url, code, title, subtitle, message }) {
 src/components/ui/SecondaryButton.jsx:1:export default function SecondaryButton({
 src/components/ui/SectionHeader.jsx:1:export default function SectionHeader({
-src/context/AppContext.jsx:1138:export function useAppContext() {
+src/context/AppContext.jsx:1150:export function useAppContext() {
 src/context/AppContext.jsx:61:export function AppProvider({ children }) {
 src/hooks/useCalendar.js:12:export function useCalendar() {
 src/hooks/useChatMessages.js:9:export function useChatMessages({ chatId, channelId = null } = {}) {
@@ -563,60 +572,62 @@ src/lib/calendar.js:23:export function getStoredCalendarToken() {
 src/lib/calendar.js:27:export function setStoredCalendarToken(token) {
 src/lib/calendar.js:63:export async function connectCalendar() {
 src/lib/calendar.js:9:export function isCalendarConfigured() {
-src/lib/chat.js:111:export async function listMessages(chatId, { channelId = null, limit = 100 } = {}) {
-src/lib/chat.js:146:export async function sendMessage({ userId, chatId, channelId = null, text, kind = 'text', payload = null }) {
-src/lib/chat.js:186:export async function markRead({ userId, chatId }) {
-src/lib/chat.js:198:export async function findExistingDm(userIdA, userIdB) {
-src/lib/chat.js:220:export async function startDM({ userId, peerUserId }) {
-src/lib/chat.js:236:export async function hideChat(chatId) {
-src/lib/chat.js:241:export async function unhideChat(chatId) {
-src/lib/chat.js:246:export async function updateMessagePayload(messageId, payload) {
-src/lib/chat.js:265:export async function toggleMessageReaction(messageId, emoji) {
-src/lib/chat.js:274:export async function listChatReactions(chatId) {
-src/lib/chat.js:53:export async function listChats() {
-src/lib/chat.js:59:export async function getChat(chatId) {
+src/lib/chat.js:103:export async function listMessages(chatId, { channelId = null, limit = 100 } = {}) {
+src/lib/chat.js:120:export async function sendMessage({ userId, chatId, channelId = null, text, kind = 'text', payload = null }) {
+src/lib/chat.js:144:export async function markRead({ userId, chatId }) {
+src/lib/chat.js:156:export async function findExistingDm(userIdA, userIdB) {
+src/lib/chat.js:178:export async function startDM({ userId, peerUserId }) {
+src/lib/chat.js:194:export async function hideChat(chatId) {
+src/lib/chat.js:199:export async function unhideChat(chatId) {
+src/lib/chat.js:204:export async function updateMessagePayload(messageId, payload) {
+src/lib/chat.js:223:export async function toggleMessageReaction(messageId, emoji) {
+src/lib/chat.js:232:export async function listChatReactions(chatId) {
+src/lib/chat.js:45:export async function listChats() {
+src/lib/chat.js:51:export async function getChat(chatId) {
 src/lib/chat.js:5:export function mapMessageRow(row) {
-src/lib/chat.js:86:export async function listChannels(chatId) {
-src/lib/chat.js:97:export async function createChannel(chatId, name) {
+src/lib/chat.js:78:export async function listChannels(chatId) {
+src/lib/chat.js:89:export async function createChannel(chatId, name) {
 src/lib/circleCover.js:49:export function circleGradientFor(circle) {
 src/lib/circleCover.js:59:export function resolveCircleCover(circle) {
-src/lib/circleIcons.js:49:export const DEFAULT_CIRCLE_ICON = 'Users'
-src/lib/circleIcons.js:52:export function circleIconComponent(circle) {
+src/lib/circleIcons.js:38:export const KEY_TO_EMOJI = {
+src/lib/circleIcons.js:48:export const EMOJI_TO_KEY = {
+src/lib/circleIcons.js:58:export const DEFAULT_CIRCLE_ICON = 'Users'
+src/lib/circleIcons.js:61:export function circleIconComponent(circle) {
 src/lib/circleIcons.js:8:export const CIRCLE_ICONS = [
 src/lib/circles.js:109:export async function listMyCircleIds(userId) {
 src/lib/circles.js:119:export async function listCirclesForUser(userId) {
-src/lib/circles.js:129:export async function listJoinedCircleMembers(userId) {
-src/lib/circles.js:159:export async function getCircle(circleId) {
-src/lib/circles.js:185:export async function createCircle({ userId, name, emoji, icon, city, type, category, interestTag, coverGradient, coverImageUrl, description, vibe, rules, applicationsEnabled }) {
-src/lib/circles.js:214:export async function createHoopsForCircle(circleId, hoops) {
-src/lib/circles.js:230:export async function listHoopsForCircle(circleId) {
-src/lib/circles.js:245:export async function saveHoopsForCircle(circleId, hoops) {
-src/lib/circles.js:286:export async function updateCircle(circleId, patch) {
-src/lib/circles.js:306:export async function joinCircle({ userId, circleId }) {
-src/lib/circles.js:313:export async function leaveCircle({ userId, circleId }) {
-src/lib/circles.js:324:export async function applyToCircle({ userId, circleId, answers }) {
-src/lib/circles.js:345:export async function listApplicationsForCircle(circleId) {
-src/lib/circles.js:377:export async function listMyApplications(userId) {
-src/lib/circles.js:386:export async function approveApplication(applicationId) {
-src/lib/circles.js:391:export async function declineApplication(applicationId) {
+src/lib/circles.js:129:export async function getCirclesPage() {
+src/lib/circles.js:162:export async function getCircle(circleId) {
+src/lib/circles.js:188:export async function createCircle({ userId, name, emoji, icon, city, type, category, interestTag, coverGradient, coverImageUrl, description, vibe, rules, applicationsEnabled }) {
+src/lib/circles.js:217:export async function createHoopsForCircle(circleId, hoops) {
+src/lib/circles.js:233:export async function listHoopsForCircle(circleId) {
+src/lib/circles.js:248:export async function saveHoopsForCircle(circleId, hoops) {
+src/lib/circles.js:289:export async function updateCircle(circleId, patch) {
+src/lib/circles.js:309:export async function joinCircle({ userId, circleId }) {
+src/lib/circles.js:316:export async function leaveCircle({ userId, circleId }) {
+src/lib/circles.js:327:export async function applyToCircle({ userId, circleId, answers }) {
+src/lib/circles.js:348:export async function listApplicationsForCircle(circleId) {
+src/lib/circles.js:380:export async function listMyApplications(userId) {
+src/lib/circles.js:389:export async function approveApplication(applicationId) {
+src/lib/circles.js:394:export async function declineApplication(applicationId) {
 src/lib/circles.js:55:export async function listCircles() {
 src/lib/circles.js:64:export async function listVisibleCircles(userId) {
 src/lib/circles.js:86:export function isDiscoverable(circle) {
 src/lib/circles.js:91:export function requiresApplication(circle) {
 src/lib/circles.js:95:export async function listHoopsByCircle() {
 src/lib/connectionStats.js:14:export async function getConnectionStats({ viewerId, targetId, connectedAt, lastHangout, reconnectThresholdDays = 21 }) {
-src/lib/connections.js:18:export async function listMyConnections(userId) {
-src/lib/connections.js:29:export async function updateLastHangout({ userId, connectedUserId, when }) {
-src/lib/connections.js:40:export async function sendConnectionRequest({ requesterId, recipientId }) {
-src/lib/connections.js:54:export async function acceptConnectionRequest(requestId) {
-src/lib/connections.js:64:export async function declineConnectionRequest(requestId) {
-src/lib/connections.js:73:export async function disconnectFrom(targetId) {
+src/lib/connections.js:19:export async function listMyConnections(userId) {
+src/lib/connections.js:31:export async function updateLastHangout({ userId, connectedUserId, when }) {
+src/lib/connections.js:42:export async function sendConnectionRequest({ requesterId, recipientId }) {
+src/lib/connections.js:56:export async function acceptConnectionRequest(requestId) {
+src/lib/connections.js:66:export async function declineConnectionRequest(requestId) {
+src/lib/connections.js:75:export async function disconnectFrom(targetId) {
 src/lib/contentFilter.js:110:export function containsBlockedContent(text) {
 src/lib/contentFilter.js:61:export function checkContent(text) {
 src/lib/createActions.js:5:export const CREATE_ACTION_DEFS = [
 src/lib/createActions.js:70:export function getCreateAction(id) {
 src/lib/db/polls.js:1:export * from '../polls'
-src/lib/eventRecap.js:138:export async function removeEventReaction(reactionId) {
+src/lib/eventRecap.js:119:export async function removeEventReaction(reactionId) {
 src/lib/eventRecap.js:38:export async function listEventPhotos(eventId) {
 src/lib/eventRecap.js:49:export async function uploadEventPhoto({ eventId, userId, file }) {
 src/lib/eventRecap.js:79:export async function deleteEventPhoto({ photoId, storagePath }) {
@@ -768,10 +779,10 @@ src/lib/storage.js:98:export async function deleteCircleCover(circleId) {
 src/lib/supabase.js:23:export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 src/pages/Auth.jsx:404:export default AuthPage
 src/pages/AuthCallback.jsx:4:export default function AuthCallback() {
-src/pages/Chat.jsx:1001:export default function Chat() {
-src/pages/CircleDetail.jsx:53:export default function CircleDetail() {
-src/pages/Circles.jsx:430:export default function Circles() {
-src/pages/Feed.jsx:1516:export default function Feed() {
+src/pages/Chat.jsx:1176:export default function Chat() {
+src/pages/CircleDetail.jsx:59:export default function CircleDetail() {
+src/pages/Circles.jsx:573:export default function Circles() {
+src/pages/Feed.jsx:1529:export default function Feed() {
 src/pages/GamePlay.jsx:18:export default function GamePlay() {
 src/pages/InviteLanding.jsx:8:export default function InviteLanding() {
 src/pages/JoinLanding.jsx:9:export default function JoinLanding() {
@@ -779,12 +790,12 @@ src/pages/Landing.jsx:15:export default function LandingPage() {
 src/pages/Legal.jsx:110:export function PrivacyPolicy() {
 src/pages/Legal.jsx:212:export function Terms() {
 src/pages/Legal.jsx:299:export function Support() {
-src/pages/Memories.jsx:19:export default function Memories() {
-src/pages/Notifications.jsx:39:export default function Notifications() {
+src/pages/Memories.jsx:20:export default function Memories() {
+src/pages/Notifications.jsx:41:export default function Notifications() {
 src/pages/Profile.jsx:35:export default function Profile() {
-src/pages/Schedule.jsx:146:export default function Schedule() {
-src/pages/Settings.jsx:20:export default function Settings() {
-src/pages/UserProfile.jsx:42:export default function UserProfile() {
+src/pages/Schedule.jsx:147:export default function Schedule() {
+src/pages/Settings.jsx:22:export default function Settings() {
+src/pages/UserProfile.jsx:43:export default function UserProfile() {
 
 === IMPORTS ===
 admin/src/App.jsx:10:import { Connections } from './pages/Connections'
@@ -939,31 +950,34 @@ src/components/EventEditModal.jsx:4:import TimePicker from './TimePicker.jsx'
 src/components/EventEditModal.jsx:5:import LocationAutocomplete from './ui/LocationAutocomplete.jsx'
 src/components/EventEditModal.jsx:6:import { supabase } from '../lib/supabase.js'
 src/components/EventEditModal.jsx:7:import { checkContent } from '../lib/contentFilter.js'
+src/components/EventEditModal.jsx:8:import { Camera } from 'lucide-react'
 src/components/EventRecapModal.jsx:1:import { useState, useEffect } from 'react'
 src/components/EventRecapModal.jsx:2:import { useNavigate } from 'react-router-dom'
 src/components/EventRecapModal.jsx:3:import { useAppContext } from '../context/AppContext.jsx'
 src/components/EventRecapModal.jsx:4:import { avatarFor } from '../lib/avatar'
 src/components/EventRecapModal.jsx:5:import { listEventAttendeesWithStatus } from '../lib/events'
 src/components/TimePicker.jsx:1:import React, { useRef, useEffect } from 'react';
-src/components/assistant/AssistantModal.jsx:10:import CircleList    from './messages/CircleList.jsx'
-src/components/assistant/AssistantModal.jsx:11:import EventList     from './messages/EventList.jsx'
-src/components/assistant/AssistantModal.jsx:12:import EventForm     from './messages/EventForm.jsx'
-src/components/assistant/AssistantModal.jsx:13:import CircleForm    from './messages/CircleForm.jsx'
-src/components/assistant/AssistantModal.jsx:14:import NavSuggestion from './messages/NavSuggestion.jsx'
-src/components/assistant/AssistantModal.jsx:15:import HelpMessage   from './messages/HelpMessage.jsx'
-src/components/assistant/AssistantModal.jsx:16:import DisambiguationCard from './messages/DisambiguationCard.jsx'
-src/components/assistant/AssistantModal.jsx:17:import ActionConfirmCard from './messages/ActionConfirmCard.jsx'
+src/components/assistant/AssistantModal.jsx:10:import PeopleStack   from './messages/PeopleStack.jsx'
+src/components/assistant/AssistantModal.jsx:11:import CircleList    from './messages/CircleList.jsx'
+src/components/assistant/AssistantModal.jsx:12:import EventList     from './messages/EventList.jsx'
+src/components/assistant/AssistantModal.jsx:13:import EventForm     from './messages/EventForm.jsx'
+src/components/assistant/AssistantModal.jsx:14:import CircleForm    from './messages/CircleForm.jsx'
+src/components/assistant/AssistantModal.jsx:15:import NavSuggestion from './messages/NavSuggestion.jsx'
+src/components/assistant/AssistantModal.jsx:16:import HelpMessage   from './messages/HelpMessage.jsx'
+src/components/assistant/AssistantModal.jsx:17:import DisambiguationCard from './messages/DisambiguationCard.jsx'
+src/components/assistant/AssistantModal.jsx:18:import ActionConfirmCard from './messages/ActionConfirmCard.jsx'
 src/components/assistant/AssistantModal.jsx:1:import { useEffect, useRef, useState } from 'react'
-src/components/assistant/AssistantModal.jsx:2:import { useAppContext } from '../../context/AppContext.jsx'
-src/components/assistant/AssistantModal.jsx:6:import { runAssistant } from '../../lib/assistant/engine.js'
-src/components/assistant/AssistantModal.jsx:8:import TextMessage   from './messages/TextMessage.jsx'
-src/components/assistant/AssistantModal.jsx:9:import PeopleStack   from './messages/PeopleStack.jsx'
+src/components/assistant/AssistantModal.jsx:2:import { Sparkles } from 'lucide-react'
+src/components/assistant/AssistantModal.jsx:3:import { useAppContext } from '../../context/AppContext.jsx'
+src/components/assistant/AssistantModal.jsx:7:import { runAssistant } from '../../lib/assistant/engine.js'
+src/components/assistant/AssistantModal.jsx:9:import TextMessage   from './messages/TextMessage.jsx'
 src/components/assistant/messages/ActionConfirmCard.jsx:1:import { ACTION_REGISTRY } from '../../../lib/assistant/actions.js'
 src/components/assistant/messages/ActionConfirmCard.jsx:2:import { assistantText } from '../../../lib/assistant/conversation.js'
+src/components/assistant/messages/ActionConfirmCard.jsx:3:import { Zap } from 'lucide-react'
 src/components/assistant/messages/CircleForm.jsx:1:import { useState } from 'react'
 src/components/assistant/messages/CircleForm.jsx:2:import { assistantText, assistantNavigate } from '../../../lib/assistant/conversation.js'
 src/components/assistant/messages/CircleForm.jsx:3:import { useAppContext } from '../../../context/AppContext.jsx'
-src/components/assistant/messages/CircleForm.jsx:4:import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON } from '../../../lib/circleIcons'
+src/components/assistant/messages/CircleForm.jsx:4:import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../../../lib/circleIcons'
 src/components/assistant/messages/CircleForm.jsx:5:import CircleIcon from '../../ui/CircleIcon.jsx'
 src/components/assistant/messages/CircleList.jsx:1:import { useState } from 'react'
 src/components/assistant/messages/CircleList.jsx:2:import ConfirmCard from './ConfirmCard.jsx'
@@ -975,16 +989,20 @@ src/components/assistant/messages/EventForm.jsx:2:import { assistantText, assist
 src/components/assistant/messages/EventForm.jsx:3:import LocationAutocomplete from '../../ui/LocationAutocomplete.jsx'
 src/components/assistant/messages/EventForm.jsx:4:import TimePicker from '../../TimePicker.jsx'
 src/components/assistant/messages/EventForm.jsx:5:import { useAppContext } from '../../../context/AppContext.jsx'
+src/components/assistant/messages/EventForm.jsx:6:import { Calendar } from 'lucide-react'
 src/components/assistant/messages/EventList.jsx:1:import { useState } from 'react'
-src/components/assistant/messages/EventList.jsx:2:import { avatarFor } from '../../../lib/avatar'
-src/components/assistant/messages/EventList.jsx:3:import ConfirmCard from './ConfirmCard.jsx'
-src/components/assistant/messages/EventList.jsx:4:import { assistantText } from '../../../lib/assistant/conversation.js'
+src/components/assistant/messages/EventList.jsx:2:import { Calendar } from 'lucide-react'
+src/components/assistant/messages/EventList.jsx:3:import { avatarFor } from '../../../lib/avatar'
+src/components/assistant/messages/EventList.jsx:4:import ConfirmCard from './ConfirmCard.jsx'
+src/components/assistant/messages/EventList.jsx:5:import { assistantText } from '../../../lib/assistant/conversation.js'
+src/components/assistant/messages/HelpMessage.jsx:1:import { UserPlus, Circle, Calendar, Sparkles, Compass } from 'lucide-react'
 src/components/assistant/messages/NavSuggestion.jsx:1:import { useNavigate } from 'react-router-dom'
 src/components/assistant/messages/PeopleStack.jsx:1:import { useState } from 'react'
 src/components/assistant/messages/PeopleStack.jsx:2:import { avatarFor } from '../../../lib/avatar'
 src/components/assistant/messages/PeopleStack.jsx:3:import ConfirmCard from './ConfirmCard.jsx'
 src/components/assistant/messages/PeopleStack.jsx:4:import { assistantText } from '../../../lib/assistant/conversation.js'
 src/components/chat/AskQuestionComposer.jsx:1:import { useState } from 'react'
+src/components/chat/AskQuestionComposer.jsx:2:import { Dices, Sparkles } from 'lucide-react'
 src/components/chat/ChatListItem.jsx:1:import { Link } from 'react-router-dom'
 src/components/chat/ChatListItem.jsx:2:import { avatarFor } from '../../lib/avatar'
 src/components/chat/CoffeeInviteMessageCard.jsx:1:import { useState } from 'react'
@@ -993,6 +1011,7 @@ src/components/chat/CoffeeInviteMessageCard.jsx:3:import { rsvp } from '../../li
 src/components/chat/CoffeeInviteMessageCard.jsx:4:import { updateMessagePayload } from '../../lib/chat.js'
 src/components/chat/CoffeeInviteMessageCard.jsx:5:import { buildMapsUrl } from '../../lib/geocoding.js'
 src/components/chat/CoffeeInviteMessageCard.jsx:6:import { supabase } from '../../lib/supabase.js'
+src/components/chat/CoffeeInviteMessageCard.jsx:7:import { Coffee, Calendar, MapPin, StickyNote, Hourglass, CalendarCheck } from 'lucide-react'
 src/components/chat/MessageInput.jsx:1:import { useState } from 'react'
 src/components/chat/MessageInput.jsx:2:import { Smile, Send } from 'lucide-react'
 src/components/chat/MessageInput.jsx:3:import { checkContent } from '../../lib/contentFilter'
@@ -1001,11 +1020,14 @@ src/components/chat/PollMessageCard.jsx:1:import { useState } from 'react'
 src/components/chat/PollMessageCard.jsx:2:import { usePoll } from '../../hooks/usePoll'
 src/components/chat/PollMessageCard.jsx:3:import { votePoll, closePoll } from '../../lib/db/polls'
 src/components/chat/QuestionMessageCard.jsx:1:import { avatarFor } from '../../lib/avatar'
+src/components/chat/QuestionMessageCard.jsx:2:import { HelpCircle } from 'lucide-react'
 src/components/chat/QuestionPrompt.jsx:1:import { useState, useEffect, useRef } from 'react'
 src/components/chat/QuestionPrompt.jsx:2:import { useAppContext } from '../../context/AppContext.jsx'
+src/components/chat/QuestionPrompt.jsx:3:import { Lightbulb } from 'lucide-react'
 src/components/chat/SwipeableRow.jsx:1:import { useRef, useState, useEffect } from 'react'
-src/components/discovery/SwipeDiscovery.jsx:10:import { haversineMiles } from '../../lib/geo'
-src/components/discovery/SwipeDiscovery.jsx:11:import HoopApplication from '../hoops/HoopApplication.jsx'
+src/components/discovery/SwipeDiscovery.jsx:10:import { Sparkles, MapPin, Calendar, Ticket, Users, Zap, Clock, Lock, UserRound, UserPlus, Telescope } from 'lucide-react'
+src/components/discovery/SwipeDiscovery.jsx:11:import { haversineMiles } from '../../lib/geo'
+src/components/discovery/SwipeDiscovery.jsx:12:import HoopApplication from '../hoops/HoopApplication.jsx'
 src/components/discovery/SwipeDiscovery.jsx:1:import { useState, useMemo, useRef, useEffect } from 'react'
 src/components/discovery/SwipeDiscovery.jsx:2:import { listVisibleCircles, listHoopsByCircle, listMyApplications, isDiscoverable, requiresApplication as requiresApp } from '../../lib/circles'
 src/components/discovery/SwipeDiscovery.jsx:3:import { listProfiles } from '../../lib/profiles'
@@ -1023,6 +1045,7 @@ src/components/feed/OnboardingModal.jsx:1:import { useEffect, useState } from 'r
 src/components/feed/OnboardingModal.jsx:2:import { useNavigate } from 'react-router-dom'
 src/components/feed/OnboardingModal.jsx:3:import { useAppContext } from '../../context/AppContext'
 src/components/feed/OnboardingModal.jsx:4:import { INTENT_LABELS } from '../../lib/intents'
+src/components/feed/OnboardingModal.jsx:5:import { PartyPopper } from 'lucide-react'
 src/components/feed/PersonCard.jsx:1:import { MessageCircle } from 'lucide-react'
 src/components/feed/PersonCard.jsx:2:import { avatarFor } from '../../lib/avatar'
 src/components/feed/ProfileCompletionCard.jsx:1:import { useState } from 'react'
@@ -1058,6 +1081,7 @@ src/components/hoops/OrganizerReview.jsx:1:import { useState, useEffect } from '
 src/components/hoops/OrganizerReview.jsx:2:import { useAppContext } from '../../context/AppContext'
 src/components/hoops/OrganizerReview.jsx:3:import { useNavigate } from 'react-router-dom'
 src/components/hoops/OrganizerReview.jsx:4:import { getProfileById } from '../../lib/profiles'
+src/components/hoops/OrganizerReview.jsx:5:import { Inbox } from 'lucide-react'
 src/components/lfg/LfgRecipientPicker.jsx:1:import { useState, useEffect, useCallback } from 'react'
 src/components/lfg/LfgRecipientPicker.jsx:2:import { avatarFor } from '../../lib/avatar'
 src/components/lfg/LfgRecipientPicker.jsx:3:import { listFriendGroups, saveFriendGroup, deleteFriendGroup } from '../../lib/friendGroups'
@@ -1066,9 +1090,13 @@ src/components/moderation/ReportModal.jsx:2:import { REPORT_REASONS, fileReport 
 src/components/ui/CircleIcon.jsx:1:import { circleIconComponent } from '../../lib/circleIcons'
 src/components/ui/CityAutocomplete.jsx:1:import { useEffect, useRef, useState } from 'react'
 src/components/ui/CityAutocomplete.jsx:2:import { reverseGeocode, searchCities } from '../../lib/geocoding'
+src/components/ui/CityAutocomplete.jsx:3:import { MapPin } from 'lucide-react'
+src/components/ui/CollapsibleSection.jsx:1:import { useState } from 'react'
 src/components/ui/ImageUploader.jsx:1:import { useEffect, useMemo, useRef, useState } from 'react'
+src/components/ui/ImageUploader.jsx:2:import { Camera } from 'lucide-react'
 src/components/ui/LocationAutocomplete.jsx:1:import { useEffect, useRef, useState } from 'react'
 src/components/ui/LocationAutocomplete.jsx:2:import { reverseGeocode, searchVenues } from '../../lib/geocoding'
+src/components/ui/LocationAutocomplete.jsx:3:import { MapPin } from 'lucide-react'
 src/components/ui/QRCard.jsx:1:import { useState, useEffect } from 'react'
 src/components/ui/QRCard.jsx:2:import QRCode from 'qrcode'
 src/components/ui/QRCard.jsx:3:import { Share } from '@capacitor/share'
@@ -1156,75 +1184,82 @@ src/pages/Auth.jsx:3:import { signUp, signIn, resetPassword, signInWithGoogle, s
 src/pages/Auth.jsx:4:import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
 src/pages/AuthCallback.jsx:1:import { useEffect } from 'react'
 src/pages/AuthCallback.jsx:2:import { useNavigate } from 'react-router-dom'
-src/pages/Chat.jsx:10:import SoloGameModal from '../components/games/SoloGameModal.jsx'
-src/pages/Chat.jsx:11:import SwipeableRow from '../components/chat/SwipeableRow.jsx'
-src/pages/Chat.jsx:12:import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
-src/pages/Chat.jsx:13:import PollComposer from '../components/chat/PollComposer.jsx'
-src/pages/Chat.jsx:14:import PollMessageCard from '../components/chat/PollMessageCard.jsx'
-src/pages/Chat.jsx:15:import CoffeeInviteMessageCard from '../components/chat/CoffeeInviteMessageCard.jsx'
-src/pages/Chat.jsx:16:import QuestionPrompt from '../components/chat/QuestionPrompt.jsx'
-src/pages/Chat.jsx:17:import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
-src/pages/Chat.jsx:18:import AskQuestionComposer from '../components/chat/AskQuestionComposer.jsx'
-src/pages/Chat.jsx:19:import ReportModal from '../components/moderation/ReportModal.jsx'
-src/pages/Chat.jsx:1:import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+src/pages/Chat.jsx:10:import GameMessageCard from '../components/games/GameMessageCard.jsx'
+src/pages/Chat.jsx:11:import GamePicker from '../components/games/GamePicker.jsx'
+src/pages/Chat.jsx:12:import SoloGameModal from '../components/games/SoloGameModal.jsx'
+src/pages/Chat.jsx:13:import SwipeableRow from '../components/chat/SwipeableRow.jsx'
+src/pages/Chat.jsx:14:import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
+src/pages/Chat.jsx:15:import PollComposer from '../components/chat/PollComposer.jsx'
+src/pages/Chat.jsx:16:import PollMessageCard from '../components/chat/PollMessageCard.jsx'
+src/pages/Chat.jsx:17:import CoffeeInviteMessageCard from '../components/chat/CoffeeInviteMessageCard.jsx'
+src/pages/Chat.jsx:18:import QuestionPrompt from '../components/chat/QuestionPrompt.jsx'
+src/pages/Chat.jsx:19:import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
+src/pages/Chat.jsx:1:import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react'
+src/pages/Chat.jsx:20:import AskQuestionComposer from '../components/chat/AskQuestionComposer.jsx'
+src/pages/Chat.jsx:21:import ReportModal from '../components/moderation/ReportModal.jsx'
+src/pages/Chat.jsx:22:import { BarChart2, Gamepad2, HelpCircle, XCircle, Flag } from 'lucide-react'
 src/pages/Chat.jsx:2:import { useParams, useNavigate, useLocation } from 'react-router-dom'
-src/pages/Chat.jsx:3:import { useAppContext } from '../context/AppContext.jsx'
-src/pages/Chat.jsx:4:import { listCircles } from '../lib/circles'
-src/pages/Chat.jsx:5:import { useChatMessages } from '../hooks/useChatMessages.js'
-src/pages/Chat.jsx:6:import { listChannels, createChannel, toggleMessageReaction } from '../lib/chat.js'
-src/pages/Chat.jsx:7:import { avatarFor } from '../lib/avatar'
-src/pages/Chat.jsx:8:import GameMessageCard from '../components/games/GameMessageCard.jsx'
-src/pages/Chat.jsx:9:import GamePicker from '../components/games/GamePicker.jsx'
-src/pages/CircleDetail.jsx:10:import { buildMapsUrl } from '../lib/geocoding'
-src/pages/CircleDetail.jsx:11:import { useChatMessages } from '../hooks/useChatMessages.js'
-src/pages/CircleDetail.jsx:12:import { listChannels, createChannel as createChannelApi } from '../lib/chat.js'
-src/pages/CircleDetail.jsx:13:import { avatarFor } from '../lib/avatar'
-src/pages/CircleDetail.jsx:14:import CircleIcon from '../components/ui/CircleIcon.jsx'
-src/pages/CircleDetail.jsx:15:import { resolveCircleCover } from '../lib/circleCover'
-src/pages/CircleDetail.jsx:16:import { uploadCircleCover, deleteCircleCover } from '../lib/storage'
-src/pages/CircleDetail.jsx:17:import ImageUploader from '../components/ui/ImageUploader.jsx'
-src/pages/CircleDetail.jsx:18:import PollComposer from '../components/chat/PollComposer.jsx'
-src/pages/CircleDetail.jsx:19:import PollMessageCard from '../components/chat/PollMessageCard.jsx'
-src/pages/CircleDetail.jsx:1:import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
-src/pages/CircleDetail.jsx:20:import GameMessageCard from '../components/games/GameMessageCard.jsx'
-src/pages/CircleDetail.jsx:21:import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
-src/pages/CircleDetail.jsx:22:import { createCircleInviteLink, buildCircleInviteMessage } from '../lib/invites.js'
-src/pages/CircleDetail.jsx:23:import QRCard from '../components/ui/QRCard.jsx'
-src/pages/CircleDetail.jsx:2:import { useParams, Link, useNavigate } from 'react-router-dom'
-src/pages/CircleDetail.jsx:3:import { getCircle, updateCircle, saveHoopsForCircle } from '../lib/circles'
-src/pages/CircleDetail.jsx:4:import { listEventsForCircle } from '../lib/events'
-src/pages/CircleDetail.jsx:5:import { useAppContext } from '../context/AppContext.jsx'
-src/pages/CircleDetail.jsx:6:import EventDetailModal from '../components/EventDetailModal.jsx'
-src/pages/CircleDetail.jsx:7:import HoopApplication from '../components/hoops/HoopApplication.jsx'
-src/pages/CircleDetail.jsx:8:import OrganizerReview from '../components/hoops/OrganizerReview.jsx'
-src/pages/CircleDetail.jsx:9:import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
+src/pages/Chat.jsx:3:import { Capacitor } from '@capacitor/core'
+src/pages/Chat.jsx:4:import { Keyboard } from '@capacitor/keyboard'
+src/pages/Chat.jsx:5:import { useAppContext } from '../context/AppContext.jsx'
+src/pages/Chat.jsx:6:import { listCircles } from '../lib/circles'
+src/pages/Chat.jsx:7:import { useChatMessages } from '../hooks/useChatMessages.js'
+src/pages/Chat.jsx:8:import { listChannels, createChannel, toggleMessageReaction } from '../lib/chat.js'
+src/pages/Chat.jsx:9:import { avatarFor } from '../lib/avatar'
+src/pages/CircleDetail.jsx:10:import OrganizerReview from '../components/hoops/OrganizerReview.jsx'
+src/pages/CircleDetail.jsx:11:import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
+src/pages/CircleDetail.jsx:12:import { buildMapsUrl } from '../lib/geocoding'
+src/pages/CircleDetail.jsx:13:import { useChatMessages } from '../hooks/useChatMessages.js'
+src/pages/CircleDetail.jsx:14:import { listChannels, createChannel as createChannelApi } from '../lib/chat.js'
+src/pages/CircleDetail.jsx:15:import { avatarFor } from '../lib/avatar'
+src/pages/CircleDetail.jsx:16:import CircleIcon from '../components/ui/CircleIcon.jsx'
+src/pages/CircleDetail.jsx:17:import { resolveCircleCover } from '../lib/circleCover'
+src/pages/CircleDetail.jsx:18:import { uploadCircleCover, deleteCircleCover } from '../lib/storage'
+src/pages/CircleDetail.jsx:19:import ImageUploader from '../components/ui/ImageUploader.jsx'
+src/pages/CircleDetail.jsx:1:import { useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect, Fragment } from 'react'
+src/pages/CircleDetail.jsx:20:import PollComposer from '../components/chat/PollComposer.jsx'
+src/pages/CircleDetail.jsx:21:import PollMessageCard from '../components/chat/PollMessageCard.jsx'
+src/pages/CircleDetail.jsx:22:import GameMessageCard from '../components/games/GameMessageCard.jsx'
+src/pages/CircleDetail.jsx:23:import QuestionMessageCard from '../components/chat/QuestionMessageCard.jsx'
+src/pages/CircleDetail.jsx:24:import { createCircleInviteLink, buildCircleInviteMessage } from '../lib/invites.js'
+src/pages/CircleDetail.jsx:25:import QRCard from '../components/ui/QRCard.jsx'
+src/pages/CircleDetail.jsx:2:import { Capacitor } from '@capacitor/core'
+src/pages/CircleDetail.jsx:3:import { Keyboard } from '@capacitor/keyboard'
+src/pages/CircleDetail.jsx:4:import { useParams, Link, useNavigate } from 'react-router-dom'
+src/pages/CircleDetail.jsx:5:import { getCircle, updateCircle, saveHoopsForCircle } from '../lib/circles'
+src/pages/CircleDetail.jsx:6:import { listEventsForCircle } from '../lib/events'
+src/pages/CircleDetail.jsx:7:import { useAppContext } from '../context/AppContext.jsx'
+src/pages/CircleDetail.jsx:8:import EventDetailModal from '../components/EventDetailModal.jsx'
+src/pages/CircleDetail.jsx:9:import HoopApplication from '../components/hoops/HoopApplication.jsx'
 src/pages/Circles.jsx:1:import { useState, useEffect, useRef, useMemo } from 'react'
 src/pages/Circles.jsx:2:import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 src/pages/Circles.jsx:3:import { listProfiles } from '../lib/profiles'
-src/pages/Circles.jsx:4:import { listVisibleCircles, listJoinedCircleMembers, isDiscoverable, requiresApplication } from '../lib/circles'
+src/pages/Circles.jsx:4:import { getCirclesPage, isDiscoverable, requiresApplication } from '../lib/circles'
 src/pages/Circles.jsx:5:import { useAppContext } from '../context/AppContext.jsx'
 src/pages/Circles.jsx:6:import { avatarFor } from '../lib/avatar'
 src/pages/Circles.jsx:7:import Memories from './Memories.jsx'
 src/pages/Circles.jsx:8:import CircleIcon from '../components/ui/CircleIcon.jsx'
+src/pages/Circles.jsx:9:import { Briefcase, PartyPopper, Activity, Users, MessageCircle } from 'lucide-react'
 src/pages/Feed.jsx:10:import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 src/pages/Feed.jsx:11:import SwipeDiscovery from '../components/discovery/SwipeDiscovery.jsx'
 src/pages/Feed.jsx:12:import EventDetailModal from '../components/EventDetailModal.jsx'
 src/pages/Feed.jsx:13:import CreateWheel from '../components/CreateWheel.jsx'
 src/pages/Feed.jsx:14:import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 src/pages/Feed.jsx:15:import CircleIcon from '../components/ui/CircleIcon.jsx'
-src/pages/Feed.jsx:16:import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON } from '../lib/circleIcons.js'
-src/pages/Feed.jsx:17:import TimePicker from '../components/TimePicker.jsx'
-src/pages/Feed.jsx:18:import { avatarFor } from '../lib/avatar'
-src/pages/Feed.jsx:19:import OnboardingModal from '../components/feed/OnboardingModal.jsx'
+src/pages/Feed.jsx:16:import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
+src/pages/Feed.jsx:17:import { Calendar, Camera, Dribbble, Zap, Lightbulb, Sparkles, MapPin, Clock, Timer, Flame, Hand } from 'lucide-react'
+src/pages/Feed.jsx:18:import TimePicker from '../components/TimePicker.jsx'
+src/pages/Feed.jsx:19:import { avatarFor } from '../lib/avatar'
 src/pages/Feed.jsx:1:import { useMemo, useState, useEffect, useCallback } from 'react'
-src/pages/Feed.jsx:20:import { listBatteryHistory, relativeTime } from '../lib/battery.js'
-src/pages/Feed.jsx:21:import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
-src/pages/Feed.jsx:22:import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
-src/pages/Feed.jsx:23:import AssistantBar from '../components/feed/AssistantBar.jsx'
-src/pages/Feed.jsx:24:import AssistantModal from '../components/assistant/AssistantModal.jsx'
-src/pages/Feed.jsx:25:import { checkContent } from '../lib/contentFilter.js'
+src/pages/Feed.jsx:20:import OnboardingModal from '../components/feed/OnboardingModal.jsx'
+src/pages/Feed.jsx:21:import { listBatteryHistory, relativeTime } from '../lib/battery.js'
+src/pages/Feed.jsx:22:import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
+src/pages/Feed.jsx:23:import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
+src/pages/Feed.jsx:24:import AssistantBar from '../components/feed/AssistantBar.jsx'
+src/pages/Feed.jsx:25:import AssistantModal from '../components/assistant/AssistantModal.jsx'
+src/pages/Feed.jsx:26:import { checkContent } from '../lib/contentFilter.js'
 src/pages/Feed.jsx:2:import { useNavigate, useSearchParams } from 'react-router-dom'
-src/pages/Feed.jsx:31:import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
+src/pages/Feed.jsx:32:import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
 src/pages/Feed.jsx:3:import { useAppContext } from '../context/AppContext.jsx'
 src/pages/Feed.jsx:4:import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 src/pages/Feed.jsx:5:import { profileCompleteness } from '../lib/profileCompleteness.jsx'
@@ -1258,6 +1293,7 @@ src/pages/Memories.jsx:3:import { useAppContext } from '../context/AppContext.js
 src/pages/Memories.jsx:4:import { listPastEventsForUser } from '../lib/events'
 src/pages/Memories.jsx:5:import { avatarFor } from '../lib/avatar'
 src/pages/Memories.jsx:6:import EventRecapModal from '../components/EventRecapModal.jsx'
+src/pages/Memories.jsx:7:import { Camera, Calendar, MapPin } from 'lucide-react'
 src/pages/Notifications.jsx:1:import { useState } from 'react'
 src/pages/Notifications.jsx:2:import { useNavigate } from 'react-router-dom'
 src/pages/Notifications.jsx:3:import { useAppContext } from '../context/AppContext.jsx'
@@ -1265,6 +1301,8 @@ src/pages/Notifications.jsx:4:import { listChannels } from '../lib/chat'
 src/pages/Notifications.jsx:5:import { avatarFor } from '../lib/avatar'
 src/pages/Notifications.jsx:6:import CircleIcon from '../components/ui/CircleIcon.jsx'
 src/pages/Notifications.jsx:7:import { joinLfgPost } from '../lib/lfg'
+src/pages/Notifications.jsx:8:import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
+src/pages/Notifications.jsx:9:import { Calendar, CheckCircle2, XCircle, MessageCircle, UserPlus } from 'lucide-react'
 src/pages/Profile.jsx:10:import { avatarFor } from '../lib/avatar'
 src/pages/Profile.jsx:11:import CircleIcon from '../components/ui/CircleIcon.jsx'
 src/pages/Profile.jsx:12:import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
@@ -1289,6 +1327,7 @@ src/pages/Schedule.jsx:5:import { useCalendar } from '../hooks/useCalendar.js'
 src/pages/Schedule.jsx:6:import EventDetailModal from '../components/EventDetailModal.jsx'
 src/pages/Schedule.jsx:7:import TimePicker from '../components/TimePicker.jsx'
 src/pages/Schedule.jsx:8:import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
+src/pages/Schedule.jsx:9:import { Camera, Calendar, CalendarCheck } from 'lucide-react'
 src/pages/Settings.jsx:1:import { useAppContext } from '../context/AppContext.jsx'
 src/pages/Settings.jsx:2:import { useState, useEffect, useCallback } from 'react'
 src/pages/Settings.jsx:3:import { updateProfile, deleteMyAccount } from '../lib/auth'
@@ -1296,10 +1335,13 @@ src/pages/Settings.jsx:4:import { useCalendar } from '../hooks/useCalendar.js'
 src/pages/Settings.jsx:5:import { useNavigate } from 'react-router-dom'
 src/pages/Settings.jsx:6:import { listMyBlocks } from '../lib/moderation'
 src/pages/Settings.jsx:7:import { avatarFor } from '../lib/avatar'
+src/pages/Settings.jsx:8:import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
+src/pages/Settings.jsx:9:import { Mail, HelpCircle, Calendar, CheckCircle2 } from 'lucide-react'
 src/pages/UserProfile.jsx:10:import { getAvailabilityForUser, checkConflictAt, computeFreeSlots } from '../lib/availability'
 src/pages/UserProfile.jsx:11:import { getConnectionStats } from '../lib/connectionStats'
 src/pages/UserProfile.jsx:12:import TimePicker from '../components/TimePicker.jsx'
 src/pages/UserProfile.jsx:13:import ReportModal from '../components/moderation/ReportModal.jsx'
+src/pages/UserProfile.jsx:14:import { Flame, Calendar, AlertTriangle, CheckCircle, Users, Flag, Unlock, Ban } from 'lucide-react'
 src/pages/UserProfile.jsx:1:import { useEffect, useState, useMemo } from 'react'
 src/pages/UserProfile.jsx:2:import { useParams, useNavigate } from 'react-router-dom'
 src/pages/UserProfile.jsx:3:import { getProfileById } from '../lib/profiles'
@@ -1321,22 +1363,22 @@ admin/src/lib/api.js:47:  const { data, error } = await supabase.rpc('admin_rete
 admin/src/lib/api.js:53:  const { data, error } = await supabase.rpc('admin_recent_users', { p_limit: limit })
 admin/src/lib/api.js:59:  const { data, error } = await supabase.rpc('admin_content_stats', { p_days: days })
 admin/src/lib/api.js:5:  const { data, error } = await supabase.rpc('is_admin')
-src/components/chat/CoffeeInviteMessageCard.jsx:29:        const { data, error } = await supabase.rpc('accept_coffee_invite', {
-src/context/AppContext.jsx:502:      const { data, error } = await supabase.rpc('adjust_battery', { p_points: points, p_reason: reason || null })
+src/components/chat/CoffeeInviteMessageCard.jsx:30:        const { data, error } = await supabase.rpc('accept_coffee_invite', {
+src/context/AppContext.jsx:514:      const { data, error } = await supabase.rpc('adjust_battery', { p_points: points, p_reason: reason || null })
 src/lib/auth.js:134:  const { error } = await supabase.rpc('delete_my_account')
 src/lib/calendar.js:142:    await supabase.rpc('disconnect_calendar')
 src/lib/calendar.js:15:    const { data, error } = await supabase.rpc('has_calendar_connection')
-src/lib/chat.js:224:  const { data, error } = await supabase.rpc('start_dm', { p_peer_id: peerUserId })
-src/lib/chat.js:237:  const { error } = await supabase.rpc('hide_chat', { p_chat_id: chatId })
-src/lib/chat.js:242:  const { error } = await supabase.rpc('unhide_chat', { p_chat_id: chatId })
-src/lib/chat.js:249:    const { error } = await supabase.rpc('update_message_payload', {
-src/lib/chat.js:266:  const { data, error } = await supabase.rpc('toggle_message_reaction', {
-src/lib/chat.js:54:  const { data, error } = await supabase.rpc('get_my_chat_summaries')
-src/lib/circles.js:387:  const { error } = await supabase.rpc('approve_application', { p_application_id: applicationId })
-src/lib/circles.js:392:  const { error } = await supabase.rpc('decline_application', { p_application_id: applicationId })
+src/lib/chat.js:182:  const { data, error } = await supabase.rpc('start_dm', { p_peer_id: peerUserId })
+src/lib/chat.js:195:  const { error } = await supabase.rpc('hide_chat', { p_chat_id: chatId })
+src/lib/chat.js:200:  const { error } = await supabase.rpc('unhide_chat', { p_chat_id: chatId })
+src/lib/chat.js:207:    const { error } = await supabase.rpc('update_message_payload', {
+src/lib/chat.js:224:  const { data, error } = await supabase.rpc('toggle_message_reaction', {
+src/lib/chat.js:46:  const { data, error } = await supabase.rpc('get_my_chat_summaries')
+src/lib/circles.js:130:  const { data, error } = await supabase.rpc('get_circles_page')
+src/lib/circles.js:390:  const { error } = await supabase.rpc('approve_application', { p_application_id: applicationId })
+src/lib/circles.js:395:  const { error } = await supabase.rpc('decline_application', { p_application_id: applicationId })
 src/lib/connectionStats.js:15:  const { data: shared, error } = await supabase.rpc('shared_meetup_count', {
-src/lib/connections.js:75:  const { error } = await supabase.rpc('disconnect_from', { p_target_id: targetId })
-src/lib/eventRecap.js:120:      await supabase.rpc('enqueue_notification', {
+src/lib/connections.js:77:  const { error } = await supabase.rpc('disconnect_from', { p_target_id: targetId })
 src/lib/events.js:350:  const { error } = await supabase.rpc('mark_event_attendance', {
 src/lib/friendGroups.js:29:  const { data, error } = await supabase.rpc('save_friend_group', {
 src/lib/friendGroups.js:4:  const { data, error } = await supabase.rpc('list_friend_groups')
@@ -1373,19 +1415,19 @@ src/lib/questions.js:75:  const { error } = await supabase.rpc('cancel_spontaneo
 === TABLE ACCESS ===
 src/lib/auth.js:108:        await supabase.from('profiles').update({ name: fullName }).eq('id', data.user.id)
 src/lib/auth.js:209:  const { data, error } = await supabase.from('profiles').insert(row).select().single()
-src/lib/chat.js:62:    supabase.from('chats').select('*, circles(name, emoji, icon)').eq('id', chatId).maybeSingle(),
-src/lib/chat.js:63:    supabase.from('chat_members').select('user_id, profiles(id, name, avatar_url)').eq('chat_id', chatId),
-src/lib/chat.js:64:    supabase.from('chat_channels').select('*').eq('chat_id', chatId),
-src/lib/circles.js:162:    supabase.from('circles').select('*').eq('id', circleId).maybeSingle(),
-src/lib/circles.js:163:    supabase.from('hoops').select('*').eq('circle_id', circleId).order('order_index'),
-src/lib/circles.js:164:    supabase.from('circle_members').select('user_id, role, profiles(id, name, avatar_url)').eq('circle_id', circleId),
-src/lib/circles.js:224:  const { data, error } = await supabase.from('hoops').insert(rows).select('*').order('order_index')
-src/lib/circles.js:268:    const { error } = await supabase.from('hoops').update(toRow(h, i)).eq('id', h.id)
-src/lib/circles.js:274:    const { error } = await supabase.from('hoops').insert(newRows.map(({ h, i }) => toRow(h, i)))
-src/lib/circles.js:279:    const { error } = await supabase.from('hoops').delete().in('id', removedIds)
-src/lib/circles.js:301:  const { data, error } = await supabase.from('circles').update(dbPatch).eq('id', circleId).select().single()
-src/lib/circles.js:339:    const { error: ansErr } = await supabase.from('application_answers').insert(rows)
-src/lib/eventRecap.js:140:  const { error } = await supabase.from('event_reactions').delete().eq('id', reactionId)
+src/lib/chat.js:54:    supabase.from('chats').select('*, circles(name, emoji, icon)').eq('id', chatId).maybeSingle(),
+src/lib/chat.js:55:    supabase.from('chat_members').select('user_id, profiles(id, name, avatar_url)').eq('chat_id', chatId),
+src/lib/chat.js:56:    supabase.from('chat_channels').select('*').eq('chat_id', chatId),
+src/lib/circles.js:165:    supabase.from('circles').select('*').eq('id', circleId).maybeSingle(),
+src/lib/circles.js:166:    supabase.from('hoops').select('*').eq('circle_id', circleId).order('order_index'),
+src/lib/circles.js:167:    supabase.from('circle_members').select('user_id, role, profiles(id, name, avatar_url)').eq('circle_id', circleId),
+src/lib/circles.js:227:  const { data, error } = await supabase.from('hoops').insert(rows).select('*').order('order_index')
+src/lib/circles.js:271:    const { error } = await supabase.from('hoops').update(toRow(h, i)).eq('id', h.id)
+src/lib/circles.js:277:    const { error } = await supabase.from('hoops').insert(newRows.map(({ h, i }) => toRow(h, i)))
+src/lib/circles.js:282:    const { error } = await supabase.from('hoops').delete().in('id', removedIds)
+src/lib/circles.js:304:  const { data, error } = await supabase.from('circles').update(dbPatch).eq('id', circleId).select().single()
+src/lib/circles.js:342:    const { error: ansErr } = await supabase.from('application_answers').insert(rows)
+src/lib/eventRecap.js:121:  const { error } = await supabase.from('event_reactions').delete().eq('id', reactionId)
 src/lib/eventRecap.js:84:  const { error } = await supabase.from('event_photos').delete().eq('id', photoId)
 src/lib/events.js:234:  let res = await supabase.from('events').insert(row).select('*, circles(name)').single()
 src/lib/events.js:243:    res = await supabase.from('events').insert(row).select('*, circles(name)').single()
@@ -1397,7 +1439,7 @@ src/lib/lfg.js:153:  const { error } = await supabase.from('lfg_posts').delete()
 src/lib/notifications.js:101:  const { error } = await supabase.from('notifications').delete().in('id', ids)
 src/lib/polls.js:17:    supabase.from('polls').select('*').eq('id', pollId).maybeSingle(),
 src/lib/profiles.js:85:    let q = supabase.from('profiles').select(select).limit(limit)
-src/pages/Settings.jsx:77:        await supabase.from('question_prefs').upsert({ user_id: currentUser.id, daily_enabled: true })
+src/pages/Settings.jsx:79:        await supabase.from('question_prefs').upsert({ user_id: currentUser.id, daily_enabled: true })
 
 === EDGE FUNCTION INVOCATIONS ===
 src/lib/calendar.js:151:      await supabase.functions.invoke('google-calendar', {
@@ -1464,3 +1506,9 @@ src/lib/calendar.js:71:  const { data, error } = await supabase.functions.invoke
 00000000000058_device_tokens.sql
 00000000000059_push_on_notification.sql
 00000000000060_push_on_message.sql
+00000000000061_lock_notification_inserts.sql
+00000000000062_get_circles_page.sql
+00000000000063_hangout_and_interaction_model.sql
+00000000000064_strict_hangout_semantics.sql
+00000000000065_enable_scheduled_jobs.sql
+00000000000066_nudge_once_per_hangout.sql

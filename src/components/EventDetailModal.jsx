@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { getCircle } from '../lib/circles'
 import { getEvent, markAttendance, listEventAttendeesWithStatus } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
 import { useCalendar } from '../hooks/useCalendar.js'
 import { buildMapsUrl } from '../lib/geocoding'
 import { useAppContext } from '../context/AppContext.jsx'
 import EventEditModal from './EventEditModal.jsx'
+import { listProfilesByIds } from '../lib/profiles'
 
 const clr = {
   bg:       'var(--bg)',
@@ -19,8 +19,14 @@ const clr = {
   border:   'var(--border)',
 }
 
-export default function EventDetailModal({ event, onClose, closing, isRsvpd, onRsvp, onCancelRsvp }) {
-  if (!event) return null
+// Hooks must run unconditionally (L1), so the null check lives in a thin
+// wrapper and the body below always has an event.
+export default function EventDetailModal(props) {
+  if (!props.event) return null
+  return <EventDetailModalBody {...props} />
+}
+
+function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCancelRsvp }) {
 
   const rsvpd = isRsvpd?.(event.id) ?? false
 
@@ -65,15 +71,16 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
     return () => { cancelled = true }
   }, [event?.id, event?.source])
   
+  // "Hosted by" is whoever created the event, not the circle's organizer (L7).
   useEffect(() => {
     let cancelled = false
-    if (event?.circleId) {
-      getCircle(event.circleId).then(c => {
-        if (!cancelled && c?.organizer) setOrganizer(c.organizer)
-      }).catch(err => console.error('[EventDetailModal] getCircle failed', err))
+    if (event?.createdBy) {
+      listProfilesByIds([event.createdBy]).then(([p]) => {
+        if (!cancelled && p) setOrganizer({ ...p, role: 'Host' })
+      }).catch(err => console.error('[EventDetailModal] host lookup failed', err))
     }
     return () => { cancelled = true }
-  }, [event?.circleId])
+  }, [event?.createdBy])
 
   useEffect(() => {
     if (!isPastEvent || !isHost || !currentEvent?.id) return
@@ -134,7 +141,7 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
           padding: '28px 24px 36px',
           maxHeight: '75vh', overflowY: 'auto',
           boxShadow: '0 -10px 40px rgba(0,0,0,0.12)',
-          animation: closing ? 'slideDown 0.3s ease forwards' : 'slideUp 0.3s ease forwards',
+          animation: closing ? 'tsSheetDown 0.24s ease-in forwards' : 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) forwards',
         }}
       >
         {/* Drag handle */}
@@ -253,8 +260,8 @@ export default function EventDetailModal({ event, onClose, closing, isRsvpd, onR
                 style={{ width: 40, height: 40, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
               />
               <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: clr.textDark, margin: 0 }}>Organizer</p>
-                <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>{organizer.name} · {organizer.role ?? 'Host'}</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: clr.textDark, margin: 0 }}>Hosted by</p>
+                <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>{organizer.name}</p>
               </div>
             </div>
           )}

@@ -2,12 +2,12 @@ import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProfileById } from '../lib/profiles'
 import { listCirclesForUser } from '../lib/circles'
-import { listUpcomingEventsForUser } from '../lib/events'
+import { listUpcomingEventsForUser, toLocalDateString } from '../lib/events'
 import { useAppContext } from '../context/AppContext.jsx'
 import { avatarFor } from '../lib/avatar'
 import { resolveCircleCover } from '../lib/circleCover'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
-import { getAvailabilityForUser, checkConflictAt, computeFreeSlots } from '../lib/availability'
+import { getBusyForUser, checkConflictAt, computeFreeSlots } from '../lib/availability'
 import { getConnectionStats } from '../lib/connectionStats'
 import TimePicker from '../components/TimePicker.jsx'
 import ReportModal from '../components/moderation/ReportModal.jsx'
@@ -43,7 +43,8 @@ function formatConnectionDate(iso) {
 export default function UserProfile() {
   const { id }     = useParams()
   const navigate   = useNavigate()
-  const { connections, connectWithPerson, disconnectFromPerson, startDM, sendMessage, currentUser, blockedUserIds, blockUserById, unblockUserById } = useAppContext()
+  const { connections, connectWithPerson, disconnectFromPerson, startDM, sendMessage, currentUser, blockedUserIds, blockUserById, unblockUserById, reconnectThresholdDays } = useAppContext()
+  const [showCatchUp, setShowCatchUp] = useState(false)
   const [person, setPerson] = useState(null)
   const [showActionMenu, setShowActionMenu] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
@@ -58,6 +59,7 @@ export default function UserProfile() {
 
   const [availability, setAvailability] = useState([])
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [availabilitySource, setAvailabilitySource] = useState('thirdspace')
 
   const [showMeetupModal, setShowMeetupModal] = useState(false)
   const [suggestPrefill, setSuggestPrefill] = useState(null)
@@ -133,6 +135,7 @@ export default function UserProfile() {
       targetId: person.id,
       connectedAt: connection.connectedAt || null,
       lastHangout: connection.lastHangout || null,
+      reconnectThresholdDays: reconnectThresholdDays || 21,
     })
       .then(stats => {
         if (!cancelled) setConnStats(stats)
@@ -140,7 +143,7 @@ export default function UserProfile() {
       .catch(err => console.error('[UserProfile] connection stats failed', err))
     
     return () => { cancelled = true }
-  }, [person, currentUser, isConnected, isSelf, connections])
+  }, [person, currentUser, isConnected, isSelf, connections, reconnectThresholdDays])
 
   useEffect(() => {
     if (!person || !showAvailability || isMasterPrivate) return
@@ -150,9 +153,11 @@ export default function UserProfile() {
     const fromIso = now.toISOString()
     const toIso = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
     
-    getAvailabilityForUser(person.id, { fromIso, toIso })
-      .then(data => {
-        if (!cancelled) setAvailability(data)
+    getBusyForUser(person.id, { fromIso, toIso })
+      .then(({ blocks, source }) => {
+        if (cancelled) return
+        setAvailability(blocks)
+        setAvailabilitySource(source)
       })
       .catch(err => console.error('[UserProfile] availability fetch failed', err))
       .finally(() => {
@@ -204,7 +209,7 @@ export default function UserProfile() {
         setMeetupDate(suggestPrefill.date || '')
         setMeetupTime(suggestPrefill.time || '12:00')
       } else {
-        setMeetupDate(new Date().toISOString().split('T')[0])
+        setMeetupDate(toLocalDateString(new Date()))
       }
     } else {
       setSuggestPrefill(null)
@@ -358,9 +363,22 @@ export default function UserProfile() {
               <div style={{ backgroundColor:clr.white, padding:16, borderRadius:20, boxShadow:'0 2px 12px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, padding: '4px 10px', borderRadius: 6, backgroundColor: connStats.status === 'New' ? '#FEF3C7' : connStats.status === 'Active' ? '#DCFCE7' : '#F3F4F6', color: connStats.status === 'New' ? '#D97706' : connStats.status === 'Active' ? '#059669' : '#4B5563', textTransform: 'uppercase' }}>
-                      {connStats.status}
-                    </span>
+                    {connStats.status === 'Reconnect' ? (
+                      // "Reconnect" meant nothing on its own (item 1): it's a
+                      // nudge, so it reads as one and explains itself on tap.
+                      <button type="button" onClick={() => setShowCatchUp(true)} style={{
+                        fontSize: 13, fontWeight: 800, padding: '4px 10px', borderRadius: 6, border: 'none',
+                        backgroundColor: '#FEF3C7', color: '#B45309', cursor: 'pointer', fontFamily: 'inherit',
+                        display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 28,
+                      }}>
+                        Catch up?
+                        <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg>
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 13, fontWeight: 800, padding: '4px 10px', borderRadius: 6, backgroundColor: connStats.status === 'New' ? '#FEF3C7' : '#DCFCE7', color: connStats.status === 'New' ? '#D97706' : '#059669', textTransform: 'uppercase' }}>
+                        {connStats.status}
+                      </span>
+                    )}
                     {connStats.daysConnected != null && (
                       <span style={{ fontSize: 14, color: clr.textMid }}>
                         {connStats.daysConnected < 30 ? `${connStats.daysConnected} days` : `${Math.floor(connStats.daysConnected / 30)} mo`}
@@ -440,7 +458,12 @@ export default function UserProfile() {
 
           {showAvailability && (
             <section>
-              <h3 style={{ fontSize:18, fontWeight:800, color:clr.textDark, marginBottom:12 }}>Availability</h3>
+              <h3 style={{ fontSize:18, fontWeight:800, color:clr.textDark, marginBottom:4 }}>Availability</h3>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: clr.textMid }}>
+                {availabilitySource === 'calendar'
+                  ? 'Based on their calendar and Third Space plans · 9 AM–9 PM'
+                  : 'Based on Third Space plans only · 9 AM–9 PM'}
+              </p>
               {availabilityLoading ? (
                 <p style={{ fontSize: 14, color: clr.textMid }}>Loading...</p>
               ) : (
@@ -513,7 +536,7 @@ export default function UserProfile() {
                           <p style={{ margin: 0, fontSize: 14, color: clr.textMid, fontStyle: 'italic' }}>Fully booked</p>
                         ) : (dData.busy.length === 0 && dData.free.length === 1 && new Date(dData.free[0].endsAt).getHours() - new Date(dData.free[0].startsAt).getHours() >= 12) ? (
                           <div 
-                            onClick={() => openSuggestModal({ date: dData.date.toISOString().split('T')[0], time: '09:00' })}
+                            onClick={() => openSuggestModal({ date: toLocalDateString(dData.date), time: '09:00' })}
                             className="free-chip"
                             style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 999, border: `1.5px solid ${clr.border}`, background: clr.white, color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}
                           >
@@ -527,7 +550,7 @@ export default function UserProfile() {
                               return (
                                 <div 
                                   key={idx} 
-                                  onClick={() => openSuggestModal({ date: dData.date.toISOString().split('T')[0], time: timeStr })}
+                                  onClick={() => openSuggestModal({ date: toLocalDateString(dData.date), time: timeStr })}
                                   className="free-chip"
                                   style={{ padding: '8px 14px', borderRadius: 999, border: `1.5px solid ${clr.border}`, background: clr.white, color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}
                                 >
@@ -555,7 +578,7 @@ export default function UserProfile() {
       {showMeetupModal && (
         <>
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 999 }} onClick={() => setShowMeetupModal(false)} />
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 500, margin: '0 auto', backgroundColor: clr.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: '24px 20px 40px', zIndex: 1000, animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 -10px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 500, margin: '0 auto', backgroundColor: clr.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: '24px 20px 40px', zIndex: 1000, animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both', boxShadow: '0 -10px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ width: 40, height: 5, borderRadius: 999, backgroundColor: clr.border, margin: '0 auto 20px' }} />
             <h3 style={{ margin: '0 0 20px 0', fontSize: 22, fontWeight: 800, color: clr.textDark }}>Suggest a time with {person.name.split(' ')[0]}</h3>
             
@@ -741,7 +764,7 @@ export default function UserProfile() {
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
-              animation: 'slideUp 0.25s ease-out forwards',
+              animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
@@ -928,6 +951,52 @@ export default function UserProfile() {
                 }}
               >
                 {blocking ? 'Blocking...' : 'Block'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCatchUp && connStats && (
+        <div onClick={() => setShowCatchUp(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 999, backgroundColor: 'rgba(15,15,30,0.45)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        }}>
+          <div onClick={e => e.stopPropagation()} className="ts-sheet-up" style={{
+            width: '100%', maxWidth: 520, backgroundColor: clr.white, borderRadius: '24px 24px 0 0',
+            padding: '24px 20px calc(24px + env(safe-area-inset-bottom))', boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
+          }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 19, fontWeight: 800, color: clr.textDark }}>
+              {(() => {
+                const first = person?.name?.split(' ')[0] || 'them'
+                const days = connStats.daysSinceHangout ?? connStats.daysConnected
+                if (days == null) return `Time to catch up with ${first}?`
+                const weeks = Math.round(days / 7)
+                return weeks >= 2
+                  ? `You haven't hung out with ${first} in ${weeks} weeks`
+                  : `You haven't hung out with ${first} in ${days} days`
+              })()}
+            </h3>
+            <p style={{ margin: '0 0 18px', fontSize: 14, lineHeight: 1.5, color: clr.textMid }}>
+              We show this when it's been longer than your reconnect window ({reconnectThresholdDays || 21} days, set in Settings) since you last met up in person.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={async () => {
+                setShowCatchUp(false)
+                try { const chatId = await startDM(person); navigate(`/chat/${chatId}`) }
+                catch (err) { console.error('[UserProfile] startDM failed', err) }
+              }} style={{
+                flex: 1, minHeight: 48, borderRadius: 999, border: `1.5px solid ${clr.border}`, background: 'transparent',
+                color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              }}>
+                Send a message
+              </button>
+              <button type="button" onClick={() => { setShowCatchUp(false); openSuggestModal() }} style={{
+                flex: 1, minHeight: 48, borderRadius: 999, border: 'none',
+                background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`, color: '#FFF',
+                fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              }}>
+                Plan a meetup
               </button>
             </div>
           </div>

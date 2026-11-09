@@ -100,15 +100,19 @@ export async function createChannel(chatId, name) {
 
 // ---------- messages ----------
 
-export async function listMessages(chatId, { channelId = null, limit = 100 } = {}) {
+export const MESSAGE_PAGE_SIZE = 50
+
+/** Newest `limit` messages, oldest first. Pass `before` (ISO) for older pages. */
+export async function listMessages(chatId, { channelId = null, limit = MESSAGE_PAGE_SIZE, before = null } = {}) {
   if (!chatId) return []
-  
+
   let q = supabase
     .from('messages')
     .select(MESSAGE_SELECT_FULL)
     .eq('chat_id', chatId)
     .order('created_at', { ascending: false })
     .limit(limit)
+  if (before) q = q.lt('created_at', before)
   if (channelId) q = q.eq('channel_id', channelId)
   else q = q.is('channel_id', null)
 
@@ -198,25 +202,6 @@ export async function hideChat(chatId) {
 
 export async function unhideChat(chatId) {
   const { error } = await supabase.rpc('unhide_chat', { p_chat_id: chatId })
-  if (error) throw error
-}
-
-export async function updateMessagePayload(messageId, payload) {
-  if (!messageId) return
-  try {
-    const { error } = await supabase.rpc('update_message_payload', {
-      p_message_id: messageId,
-      p_payload: payload,
-    })
-    if (!error) return
-  } catch {
-    // ignore RPC error and fallback
-  }
-
-  const { error } = await supabase
-    .from('messages')
-    .update({ payload })
-    .eq('id', messageId)
   if (error) throw error
 }
 

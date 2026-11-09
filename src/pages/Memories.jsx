@@ -157,7 +157,7 @@ export default function Memories() {
                   {e.title}
                 </h3>
                 <p style={{ margin: '0 0 14px 0', fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                  <Calendar size={13} color="currentColor" /> {e.date} {e.time ? `• ${e.time}` : ''} {e.location ? <>• <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPin size={13} color="currentColor" /> {e.location}</span></> : ''}
+                  <Calendar size={13} color="currentColor" /> {e.dateLabel || e.date} {e.timeLabel ? `• ${e.timeLabel}` : ''} {e.location ? <>• <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPin size={13} color="currentColor" /> {e.location}</span></> : ''}
                 </p>
 
                 {/* Overlapping attendee avatars */}

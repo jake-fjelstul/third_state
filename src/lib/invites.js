@@ -1,14 +1,11 @@
 import { supabase } from './supabase'
 
-function generateToken() {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 22)
-}
+// Links must open for other people, so they always use the public web
+// origin. On native, window.location.origin is capacitor://localhost.
+export const PUBLIC_APP_URL = (import.meta.env.VITE_PUBLIC_APP_URL || 'https://third-space-app.com').replace(/\/+$/, '')
 
 function getAppBaseUrl() {
-  return import.meta.env.VITE_PUBLIC_APP_URL
-    || (typeof window !== 'undefined' ? window.location.origin : 'https://third-space-app.com')
+  return PUBLIC_APP_URL
 }
 
 export function buildInviteUrl(token) {
@@ -17,18 +14,6 @@ export function buildInviteUrl(token) {
 
 export function buildJoinUrl(code) {
   return `${getAppBaseUrl()}/j/${code}`
-}
-
-export async function createInvite({ inviterId, recipientContact = null }) {
-  if (!inviterId) throw new Error('Missing inviterId')
-  const token = generateToken()
-  const { data, error } = await supabase
-    .from('invites')
-    .insert({ token, inviter_id: inviterId, recipient_contact: recipientContact })
-    .select()
-    .single()
-  if (error) throw error
-  return { token: data.token, url: buildInviteUrl(data.token), id: data.id }
 }
 
 export async function redeemInvite(token) {
@@ -52,6 +37,14 @@ export async function createPersonalInviteLink() {
   const { data, error } = await supabase.rpc('create_personal_invite_link')
   if (error) throw error
   return { code: data.code, url: buildJoinUrl(data.code) }
+}
+
+/** Public preview of one invite code: { kind, circle_name, inviter_name } or null. */
+export async function previewInvite(code) {
+  if (!code) return null
+  const { data, error } = await supabase.rpc('preview_invite', { p_code: code })
+  if (error) throw error
+  return data || null
 }
 
 export async function redeemInviteCode(code) {

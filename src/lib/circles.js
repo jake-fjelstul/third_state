@@ -324,25 +324,18 @@ export async function leaveCircle({ userId, circleId }) {
 
 // ---------- applications / hoops ----------
 
-export async function applyToCircle({ userId, circleId, answers }) {
-  // answers: [{ hoopId, answer }]
-  const { data: app, error: appErr } = await supabase
-    .from('applications')
-    .insert({ circle_id: circleId, applicant_id: userId, status: 'pending' })
-    .select()
-    .single()
-  if (appErr) throw appErr
-
-  if (answers && answers.length) {
-    const rows = answers.map(a => ({
-      application_id: app.id,
-      hoop_id: a.hoopId,
+export async function applyToCircle({ circleId, answers }) {
+  // answers: [{ hoopId, answer }]. The RPC also handles re-applying after a
+  // decline (resets the existing row to pending).
+  const { data, error } = await supabase.rpc('apply_to_circle', {
+    p_circle_id: circleId,
+    p_answers: (answers || []).map(a => ({
+      hoopId: a.hoopId,
       answer: a.answer == null ? null : String(a.answer),
-    }))
-    const { error: ansErr } = await supabase.from('application_answers').insert(rows)
-    if (ansErr) throw ansErr
-  }
-  return app
+    })),
+  })
+  if (error) throw error
+  return data
 }
 
 export async function listApplicationsForCircle(circleId) {
@@ -394,4 +387,26 @@ export async function approveApplication(applicationId) {
 export async function declineApplication(applicationId) {
   const { error } = await supabase.rpc('decline_application', { p_application_id: applicationId })
   if (error) throw error
+}
+
+// ---------- circle invites (direct, to connections) ----------
+
+/** Invite connections to a circle. Returns how many invites were sent. */
+export async function inviteToCircle(circleId, userIds) {
+  const { data, error } = await supabase.rpc('invite_to_circle', {
+    p_circle_id: circleId,
+    p_user_ids: userIds,
+  })
+  if (error) throw error
+  return data ?? 0
+}
+
+/** Accept or decline a circle invite. Returns { status, circle_id }. */
+export async function respondCircleInvite(inviteId, accept) {
+  const { data, error } = await supabase.rpc('respond_circle_invite', {
+    p_invite_id: inviteId,
+    p_accept: !!accept,
+  })
+  if (error) throw error
+  return data
 }

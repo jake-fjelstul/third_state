@@ -171,7 +171,7 @@ function DiscoveryCard({ card }) {
           )}
           <h2 style={{ margin:0, fontSize:24, fontWeight:800, color: clr.textDark }}>{e.title}</h2>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
-            <Calendar size={18} color="currentColor" /> {e.date} • {e.time}
+            <Calendar size={18} color="currentColor" /> {e.dateLabel || e.date} • {e.timeLabel || e.time}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, color:clr.textMid, fontSize:15 }}>
             <MapPin size={18} color="currentColor" /> {e.location}{card.distance != null ? <> • <span style={{ fontWeight: 700 }}>{card.distance} miles away</span></> : null}
@@ -852,7 +852,7 @@ export default function SwipeDiscovery({ onClose }) {
           <div style={{
             width: '100%', backgroundColor: clr.white,
             borderRadius: '24px 24px 0 0', padding: '24px 20px 40px',
-            animation: 'slideUp 0.3s ease-out forwards',
+            animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
           }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <img src={avatarFor(currentMatchCard.data)} alt="" style={{

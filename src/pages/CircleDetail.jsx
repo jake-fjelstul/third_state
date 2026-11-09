@@ -1,8 +1,6 @@
-import { useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect, Fragment } from 'react'
-import { Capacitor } from '@capacitor/core'
-import { Keyboard } from '@capacitor/keyboard'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getCircle, updateCircle, saveHoopsForCircle } from '../lib/circles'
+import { getCircle, updateCircle, saveHoopsForCircle, inviteToCircle } from '../lib/circles'
 import { listEventsForCircle } from '../lib/events'
 import { useAppContext } from '../context/AppContext.jsx'
 import EventDetailModal from '../components/EventDetailModal.jsx'
@@ -10,8 +8,7 @@ import HoopApplication from '../components/hoops/HoopApplication.jsx'
 import OrganizerReview from '../components/hoops/OrganizerReview.jsx'
 import HoopBuilder from '../components/hoops/HoopBuilder.jsx'
 import { buildMapsUrl } from '../lib/geocoding'
-import { useChatMessages } from '../hooks/useChatMessages.js'
-import { listChannels, createChannel as createChannelApi } from '../lib/chat.js'
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
 import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { resolveCircleCover } from '../lib/circleCover'
@@ -57,6 +54,7 @@ const VIBE_ICONS = {
 }
 
 export default function CircleDetail() {
+  const sheetKbHeight = useKeyboardHeight()
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -97,13 +95,20 @@ export default function CircleDetail() {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [reloadCircle])
-  const [activeTab, setActiveTab] = useState('about')
+  const [activeTab, setActiveTabRaw] = useState('about')
+  // The circle chat is the same thread view as every other chat (item 7):
+  // "Chat" opens it, and Back returns here.
+  const openCircleChat = () => {
+    const groupChat = Object.values(chatState || {}).find(c => c.circleId === circle?.id)
+    if (!groupChat?.id) return
+    navigate(`/chat/${groupChat.id}`, { state: { fromCircle: circle.id } })
+  }
+  const setActiveTab = (tab) => {
+    if (tab === 'chat') { openCircleChat(); return }
+    setActiveTabRaw(tab)
+  }
   const [showHoopApp, setShowHoopApp] = useState(false)
-  const [activeChannel, setActiveChannel] = useState('general')
-  const [chatInput, setChatInput] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
-  const [showNewChannel, setShowNewChannel] = useState(false)
-  const [newChannelName, setNewChannelName] = useState('')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteSearch, setInviteSearch] = useState('')
   const [toastMsg, setToastMsg] = useState(null)
@@ -114,13 +119,7 @@ export default function CircleDetail() {
   const [addMembersData, setAddMembersData] = useState(null)
   const [joinBusy, setJoinBusy] = useState(false)
   const [joinError, setJoinError] = useState('')
-  const msgsEndRef = useRef(null)
 
-  useEffect(() => {
-    if (activeTab === 'chat') {
-      msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [activeTab, activeChannel, chatState, circle?.chatId])
 
   useEffect(() => {
     if (!joinError) return
@@ -755,16 +754,16 @@ export default function CircleDetail() {
                       backgroundColor: going ? '#DCFCE7' : clr.indigoLt, borderRadius: 14, padding: '10px 6px',
                     }}>
                       <p style={{ fontSize: 22, fontWeight: 800, color: going ? '#059669' : clr.indigo, margin: 0, lineHeight: 1 }}>
-                        {event.date?.split(' ')[1] ?? event.date?.split('-')[2] ?? '—'}
+                        {event.dateObj ? event.dateObj.getDate() : '—'}
                       </p>
                       <p style={{ fontSize: 10, fontWeight: 700, color: going ? '#059669' : clr.indigo, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        {event.date?.split(' ')[0] ?? 'Mar'}
+                        {event.dateObj ? event.dateObj.toLocaleDateString([], { month: 'short' }) : ''}
                       </p>
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 15, fontWeight: 700, color: clr.textDark, margin: '0 0 4px 0' }}>{event.title}</p>
                       <p style={{ fontSize: 12, color: clr.textMid, margin: 0 }}>
-                        {event.time} ·{' '}
+                        {event.timeLabel || event.time} ·{' '}
                         {event.locationLat != null ? (
                           <a
                             onClick={(e) => e.stopPropagation()}
@@ -804,20 +803,6 @@ export default function CircleDetail() {
               })}
             </div>
           )
-        )}
-
-        {/* CHAT — Discord-style inline experience */}
-        {activeTab === 'chat' && (
-          <CircleChatPanel
-            circle={circle}
-            chatState={chatState}
-            sendMessage={sendMessage}
-            startChatPoll={startChatPoll}
-            markChatRead={markChatRead}
-            currentUser={currentUser}
-            activeChannel={activeChannel}
-            setActiveChannel={setActiveChannel}
-          />
         )}
 
         {/* APPLICATIONS */}
@@ -953,12 +938,15 @@ export default function CircleDetail() {
         <div style={{
           position: 'fixed', inset: 0, zIndex: 300,
           backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', flexDirection: 'column',
-          justifyContent: 'flex-end', alignItems: 'center'
+          justifyContent: 'flex-end', alignItems: 'center',
+          paddingBottom: sheetKbHeight, transition: 'padding-bottom 0.25s ease',
         }} onClick={() => { setShowInviteModal(false); setInviteSearch(''); }}>
           <div style={{
             backgroundColor: clr.white, width: '100%', maxWidth: 500,
-            borderRadius: '24px 24px 0 0', padding: '24px 20px 48px',
-            animation: 'slideUp 0.25s ease', maxHeight: '85vh', display: 'flex', flexDirection: 'column'
+            borderRadius: '24px 24px 0 0', padding: sheetKbHeight > 0 ? '24px 20px 16px' : '24px 20px 48px',
+            animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
+            maxHeight: sheetKbHeight > 0 ? `calc(100dvh - ${sheetKbHeight}px - 48px)` : '85vh',
+            display: 'flex', flexDirection: 'column'
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
               <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
@@ -998,14 +986,15 @@ export default function CircleDetail() {
                         disabled={alreadyMember}
                         onClick={async () => {
                           try {
-                            const chatId = await startDM(p)
-                            await sendMessage(chatId, `Hey ${p.name.split(' ')[0]}! I think you'd love this circle: ${circle.name}. You should check it out! 🌟`)
+                            const sent = await inviteToCircle(circle.id, [p.id])
                             setShowInviteModal(false)
                             setInviteSearch('')
-                            setToastMsg(`Invite sent to ${p.name}!`)
+                            setToastMsg(sent > 0 ? `Invite sent to ${p.name}!` : `${p.name} already has an invite`)
                             setTimeout(() => setToastMsg(null), 2500)
                           } catch (err) {
-                            console.error('[CircleDetail] startDM failed', err)
+                            console.error('[CircleDetail] inviteToCircle failed', err)
+                            setToastMsg(err.message || 'Could not send invite')
+                            setTimeout(() => setToastMsg(null), 3000)
                           }
                         }}
                         style={{
@@ -1116,7 +1105,7 @@ export default function CircleDetail() {
               maxHeight: 'calc(100dvh - 16px)',
               overflowY: 'auto',
               overscrollBehavior: 'contain',
-              animation: 'slideUp 0.25s ease',
+              animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -1156,621 +1145,6 @@ export default function CircleDetail() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-
-/* ── Discord-style circle chat panel ── */
-function CircleChatPanel({ circle, chatState, sendMessage, startChatPoll, markChatRead, currentUser, activeChannel, setActiveChannel }) {
-  const groupChat = Object.values(chatState || {}).find(c => c.circleId === circle.id)
-  const chatId = groupChat?.id || null
-
-  const [channels, setChannels] = useState([])
-  const [channelsLoading, setChannelsLoading] = useState(true)
-  const [showNewChannel, setShowNewChannel] = useState(false)
-  const [newChannelName, setNewChannelName] = useState('')
-  const [chatInput, setChatInput] = useState('')
-  const [showPollComposer, setShowPollComposer] = useState(false)
-  const msgsEndRef = useRef(null)
-
-  // Fetch channels for this chat
-  useEffect(() => {
-    if (!chatId) { setChannelsLoading(false); return }
-    let cancelled = false
-    setChannelsLoading(true)
-    listChannels(chatId)
-      .then(list => { if (!cancelled) setChannels(list) })
-      .catch(err => console.error('[CircleChatPanel] listChannels', err))
-      .finally(() => { if (!cancelled) setChannelsLoading(false) })
-    return () => { cancelled = true }
-  }, [chatId])
-
-  // Resolve the active channel slug → UUID
-  const resolvedChannelId = useMemo(() => {
-    if (!activeChannel || activeChannel === 'general') {
-      // "general" is the default channel
-      const gen = channels.find(c => c.name === 'general')
-      return gen?.id || null
-    }
-    return channels.find(c => c.name === activeChannel)?.id || null
-  }, [activeChannel, channels])
-
-  // Subscribe to real-time messages via hook
-  const { messages, loading: msgsLoading } = useChatMessages({
-    chatId,
-    channelId: resolvedChannelId,
-  })
-
-  // Mark read when viewing
-  useEffect(() => {
-    if (chatId) markChatRead(chatId)
-  }, [chatId, activeChannel, markChatRead])
-
-  const [kbHeight, setKbHeight] = useState(0)
-  const textareaRef = useRef(null)
-  const messagesContainerRef = useRef(null)
-  const hasInitiallyScrolled = useRef(false)
-  const stickToBottom = useRef(true)
-
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return
-
-    let isMounted = true
-    let showHandle = null
-    let hideHandle = null
-
-    const setupListeners = async () => {
-      const showH = await Keyboard.addListener('keyboardWillShow', (info) => {
-        if (!isMounted) return
-        setKbHeight(info.keyboardHeight)
-      })
-      if (!isMounted) {
-        showH.remove()
-        return
-      }
-      showHandle = showH
-
-      const hideH = await Keyboard.addListener('keyboardWillHide', () => {
-        if (!isMounted) return
-        setKbHeight(0)
-      })
-      if (!isMounted) {
-        showH.remove()
-        hideH.remove()
-        return
-      }
-      hideHandle = hideH
-    }
-
-    setupListeners()
-
-    return () => {
-      isMounted = false
-      if (showHandle) showHandle.remove()
-      if (hideHandle) hideHandle.remove()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (kbHeight > 0) {
-      const el = messagesContainerRef.current
-      if (el) {
-        el.scrollTop = el.scrollHeight
-      }
-    }
-  }, [kbHeight])
-
-  const showTimeSeparator = (msg, prev) => {
-    if (!prev) return true
-    const t1 = msg?.createdAt ? new Date(msg.createdAt).getTime() : 0
-    const t2 = prev?.createdAt ? new Date(prev.createdAt).getTime() : 0
-    if (!t1 || !t2) return false
-    return (t1 - t2) > 15 * 60 * 1000
-  }
-
-  const formatSeparator = (iso) => {
-    if (!iso) return ''
-    const d = new Date(iso)
-    const now = new Date()
-    const sameDay = d.toDateString() === now.toDateString()
-    const yest = new Date(now); yest.setDate(now.getDate() - 1)
-    const isYesterday = d.toDateString() === yest.toDateString()
-    const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    if (sameDay) return t
-    if (isYesterday) return `Yesterday ${t}`
-    const withinWeek = (now - d) < 7 * 24 * 60 * 60 * 1000
-    if (withinWeek) return `${d.toLocaleDateString([], { weekday: 'long' })} ${t}`
-    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${t}`
-  }
-
-  const handleScroll = () => {
-    const el = messagesContainerRef.current
-    if (!el) return
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    stickToBottom.current = distanceFromBottom <= 80
-  }
-
-  const adjustTextareaHeight = useCallback(() => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    const scHeight = el.scrollHeight
-    const newHeight = Math.min(scHeight, 120)
-    el.style.height = `${newHeight}px`
-    el.style.overflowY = scHeight >= 120 ? 'auto' : 'hidden'
-  }, [])
-
-  useEffect(() => {
-    adjustTextareaHeight()
-  }, [chatInput, adjustTextareaHeight])
-
-  // Reset initial scroll & stickiness flags when channel changes
-  useEffect(() => {
-    hasInitiallyScrolled.current = false
-    stickToBottom.current = true
-  }, [activeChannel])
-
-  // Instant jump before paint on initial load of messages
-  useLayoutEffect(() => {
-    if (!messages || messages.length === 0) return
-    if (hasInitiallyScrolled.current) return
-
-    const el = messagesContainerRef.current
-    if (el) {
-      el.scrollTop = el.scrollHeight
-    }
-    hasInitiallyScrolled.current = true
-    stickToBottom.current = true
-  }, [messages, activeChannel])
-
-  // Re-pin to bottom as late content loads (reactions, images, composer height), if user intends to stay at bottom
-  useEffect(() => {
-    const el = messagesContainerRef.current
-    if (!el) return
-
-    const handleRePin = () => {
-      if (stickToBottom.current) {
-        el.scrollTop = el.scrollHeight
-      }
-    }
-
-    const observer = new ResizeObserver(handleRePin)
-
-    const observeContent = () => {
-      observer.observe(el)
-      Array.from(el.children).forEach(child => observer.observe(child))
-    }
-
-    observeContent()
-
-    const handleImageLoad = () => handleRePin()
-
-    const attachImgListeners = (node) => {
-      if (node.tagName === 'IMG') {
-        if (!node.complete) {
-          node.addEventListener('load', handleImageLoad, { once: true })
-        }
-      }
-      if (node.querySelectorAll) {
-        node.querySelectorAll('img').forEach(img => {
-          if (!img.complete) {
-            img.addEventListener('load', handleImageLoad, { once: true })
-          }
-        })
-      }
-    }
-
-    attachImgListeners(el)
-
-    const mutationObserver = new MutationObserver((mutations) => {
-      observeContent()
-      mutations.forEach(m => {
-        m.addedNodes.forEach(node => {
-          if (node.nodeType === 1) attachImgListeners(node)
-        })
-      })
-    })
-
-    mutationObserver.observe(el, { childList: true, subtree: true })
-
-    return () => {
-      observer.disconnect()
-      mutationObserver.disconnect()
-    }
-  }, [activeChannel, messages.length])
-
-  // Smooth scroll to new incoming or sent messages, only if user intends to stick to bottom
-  useEffect(() => {
-    if (hasInitiallyScrolled.current && stickToBottom.current) {
-      msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages])
-
-  // Send handler
-  const handleSend = useCallback((e) => {
-    e.preventDefault()
-    if (!chatInput.trim() || !chatId) return
-    sendMessage(chatId, chatInput, resolvedChannelId)
-    setChatInput('')
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
-  }, [chatInput, chatId, resolvedChannelId, sendMessage])
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      const isNative = Capacitor.isNativePlatform()
-      if (!isNative && !e.shiftKey) {
-        e.preventDefault()
-        handleSend(e)
-      }
-    }
-  }
-
-  // Create channel handler
-  const handleCreateChannel = useCallback(async (e) => {
-    e.preventDefault()
-    const slug = newChannelName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
-    if (!slug || !chatId) return
-    if (channels.some(c => c.name === slug)) { setShowNewChannel(false); setNewChannelName(''); return }
-    try {
-      const newCh = await createChannelApi(chatId, slug)
-      if (newCh) {
-        setChannels(prev => [...prev, newCh])
-        setActiveChannel(newCh.name)
-      }
-    } catch (err) {
-      console.error('[CircleChatPanel] createChannel', err)
-    }
-    setShowNewChannel(false)
-    setNewChannelName('')
-  }, [newChannelName, chatId, channels, setActiveChannel])
-
-  if (!groupChat) {
-    return (
-      <div style={{
-        backgroundColor: clr.white, borderRadius: 20, padding: 40,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: `1px solid ${clr.border}`,
-        textAlign: 'center', minHeight: 200,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <p style={{ fontSize: 15, color: clr.textMid }}>
-          Join this circle to access the group chat.
-        </p>
-      </div>
-    )
-  }
-
-  const dk = {
-    panel: clr.white,
-    channelBar: clr.bg,
-    msgArea: clr.bg,
-    inputBar: clr.bg,
-    inputBg: clr.white,
-    inputBorder: clr.border,
-    text: clr.textDark,
-    textMuted: clr.textMid,
-    textFaint: clr.textLight,
-    otherBubble: clr.indigoLt,
-    activeCh: clr.indigo,
-    inactiveCh: 'transparent',
-  }
-
-  const pollClr = {
-    bg: dk.inputBg,
-    white: dk.panel,
-    border: dk.inputBorder,
-    textDark: dk.text,
-    textMid: dk.textMuted,
-    textLight: dk.textFaint,
-    indigo: dk.activeCh,
-    indigoLt: 'rgba(91,95,239,0.25)',
-  }
-
-  return (
-    <div style={kbHeight > 0 ? {
-      position: 'fixed',
-      top: 0, left: 0, right: 0,
-      bottom: kbHeight,
-      height: 'auto',
-      borderRadius: 0,
-      zIndex: 1000,
-      paddingTop: 'max(12px, env(safe-area-inset-top))',
-      backgroundColor: dk.panel,
-      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-      display: 'flex',
-      flexDirection: 'column',
-      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
-      overflow: 'hidden',
-    } : {
-      backgroundColor: dk.panel,
-      borderRadius: 20,
-      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-      display: 'flex',
-      flexDirection: 'column',
-      height: 520,
-      transition: 'all 250ms cubic-bezier(0.17, 0.59, 0.4, 0.77)',
-      overflow: 'hidden',
-    }}>
-      {/* ── Channel bar ── */}
-      <div style={{
-        display: 'flex', gap: 6, padding: '12px 16px',
-        borderBottom: `1px solid ${clr.border}`,
-        overflowX: 'auto', scrollbarWidth: 'none',
-        backgroundColor: dk.channelBar,
-        alignItems: 'center',
-      }}>
-        {channelsLoading ? (
-          <span style={{ fontSize: 13, color: dk.textMuted, padding: '6px 0' }}>Loading…</span>
-        ) : (
-          channels.map(ch => {
-            const isActive = activeChannel === ch.name
-            return (
-              <button
-                key={ch.id}
-                type="button"
-                onClick={() => setActiveChannel(ch.name)}
-                style={{
-                  padding: '7px 14px', borderRadius: 10, border: 'none',
-                  backgroundColor: isActive ? dk.activeCh : dk.inactiveCh,
-                  color: isActive ? '#fff' : dk.textMuted,
-                  fontSize: 13, fontWeight: isActive ? 700 : 600,
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease',
-                  display: 'flex', alignItems: 'center', gap: 4,
-                }}
-              >
-                <span style={{ opacity: isActive ? 1 : 0.45, fontSize: 14 }}>#</span>
-                {ch.name}
-              </button>
-            )
-          })
-        )}
-
-        {/* Add channel */}
-        {showNewChannel ? (
-          <form onSubmit={handleCreateChannel} style={{ display: 'flex', flexShrink: 0 }}>
-            <input
-              autoFocus
-              value={newChannelName}
-              onChange={e => setNewChannelName(e.target.value)}
-              onBlur={() => setTimeout(() => setShowNewChannel(false), 200)}
-              placeholder="new-channel"
-              style={{
-                padding: '7px 12px', borderRadius: 10,
-                border: `1.5px solid ${dk.activeCh}`,
-                backgroundColor: dk.inputBg, color: dk.text,
-                fontSize: 13, fontWeight: 600, outline: 'none', width: 110,
-              }}
-            />
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowNewChannel(true)}
-            style={{
-              padding: '7px 12px', borderRadius: 10,
-              border: `1.5px dashed ${dk.inputBorder}`,
-              backgroundColor: 'transparent', color: dk.textFaint,
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3,
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 15, lineHeight: 1 }}>+</span>
-          </button>
-        )}
-      </div>
-
-      {/* ── Messages area ── */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        style={{
-          flex: 1, overflowY: 'auto', padding: '16px 20px',
-          display: 'flex', flexDirection: 'column', gap: 10,
-          backgroundColor: dk.msgArea,
-        }}
-      >
-        {msgsLoading ? (
-          <div style={{ margin: 'auto', color: dk.textMuted, fontSize: 14 }}>Loading messages…</div>
-        ) : messages.length === 0 ? (
-          <div style={{ margin: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <MessageCircle size={24} color={dk.textMuted} style={{ marginBottom: 8 }} />
-            <p style={{ color: dk.textMuted, fontSize: 14, margin: 0 }}>
-              No messages in <strong style={{ color: dk.text }}>#{activeChannel}</strong> yet. Be the first!
-            </p>
-          </div>
-        ) : (
-          messages.map((msg, i, arr) => {
-            const prev = i > 0 ? arr[i - 1] : null
-            const needsSeparator = showTimeSeparator(msg, prev)
-            const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
-            const isSameSender = prev && (prev.senderId === msg.senderId || prev.senderName === msg.senderName)
-            const showHeader = !isMe && (needsSeparator || !isSameSender)
-            const timeStr = msg.createdAt ? formatSeparator(msg.createdAt) : (msg.time ?? '')
-
-            if (msg.kind === 'poll') {
-              return (
-                <Fragment key={msg.id || i}>
-                  {needsSeparator && (
-                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
-                    {showHeader && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                        {msg.senderAvatar && (
-                          <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                        )}
-                        <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
-                      </div>
-                    )}
-                    <PollMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
-                  </div>
-                </Fragment>
-              )
-            }
-
-            if (msg.kind === 'game') {
-              return (
-                <Fragment key={msg.id || i}>
-                  {needsSeparator && (
-                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
-                    {showHeader && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                        {msg.senderAvatar && (
-                          <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                        )}
-                        <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
-                      </div>
-                    )}
-                    <GameMessageCard payload={msg.payload} viewerId={currentUser?.id} />
-                  </div>
-                </Fragment>
-              )
-            }
-
-            if (msg.kind === 'question') {
-              return (
-                <Fragment key={msg.id || i}>
-                  {needsSeparator && (
-                    <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
-                    {showHeader && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                        {msg.senderAvatar && (
-                          <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                        )}
-                        <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
-                      </div>
-                    )}
-                    <QuestionMessageCard clr={pollClr} payload={msg.payload} viewerId={currentUser?.id} />
-                  </div>
-                </Fragment>
-              )
-            }
-
-            return (
-              <Fragment key={msg.id || i}>
-                {needsSeparator && (
-                  <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: dk.textFaint }}>{timeStr}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginTop: (!needsSeparator && isSameSender) ? 2 : 6 }}>
-                  {showHeader && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 }}>
-                      {msg.senderAvatar && (
-                        <img src={msg.senderAvatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
-                      )}
-                      <span style={{ fontSize: 11, color: dk.textMuted, fontWeight: 600 }}>{msg.senderName}</span>
-                    </div>
-                  )}
-                  <div style={{
-                    maxWidth: '75%',
-                    padding: '10px 14px',
-                    borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    backgroundColor: isMe ? dk.activeCh : dk.otherBubble,
-                    color: isMe ? '#FFFFFF' : dk.text,
-                    fontSize: 14, lineHeight: 1.5,
-                    boxShadow: isMe ? '0 4px 14px rgba(91,95,239,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
-                  }}>
-                    {msg.text}
-                  </div>
-                </div>
-              </Fragment>
-            )
-          })
-        )}
-        <div ref={msgsEndRef} />
-      </div>
-
-      {/* ── Input bar ── */}
-      <form
-        onSubmit={handleSend}
-        style={{
-          display: 'flex', gap: 10, padding: '12px 16px',
-          borderTop: `1px solid ${clr.border}`,
-          backgroundColor: dk.inputBar,
-          alignItems: 'flex-end',
-          flexShrink: 0,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setShowPollComposer(true)}
-          aria-label="Create a poll"
-          style={{
-            width: 40, height: 40, borderRadius: '50%',
-            border: `1.5px solid ${dk.inputBorder}`,
-            backgroundColor: dk.inputBg, color: dk.textMuted,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', flexShrink: 0, fontSize: 20, lineHeight: 1,
-            fontFamily: 'inherit',
-          }}
-        >
-          +
-        </button>
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={chatInput}
-          onChange={e => setChatInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={`Message #${activeChannel}…`}
-          style={{
-            flex: 1, padding: '11px 16px', borderRadius: 20,
-            border: `1.5px solid ${dk.inputBorder}`,
-            backgroundColor: dk.inputBg,
-            fontSize: 14, color: dk.text,
-            outline: 'none', fontFamily: 'inherit',
-            resize: 'none', lineHeight: '20px',
-            boxSizing: 'border-box', overflowY: 'hidden',
-          }}
-        />
-        <button type="submit" style={{
-          width: 40, height: 40, borderRadius: '50%', border: 'none',
-          background: `linear-gradient(135deg,#5B5FEF,#7B6FFF)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', flexShrink: 0,
-          boxShadow: '0 4px 12px rgba(91,95,239,0.35)',
-        }}>
-          <svg width="17" height="17" fill="none" stroke="#FFFFFF" strokeWidth="2.2" viewBox="0 0 24 24">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
-      </form>
-
-      {showPollComposer && (
-        <PollComposer
-          clr={pollClr}
-          onClose={() => setShowPollComposer(false)}
-          onCreate={async ({ question, options, allowMultiple }) => {
-            await startChatPoll({
-              chatId,
-              channelId: resolvedChannelId,
-              question,
-              options,
-              allowMultiple,
-            })
-            setShowPollComposer(false)
-          }}
-        />
-      )}
-
-
     </div>
   )
 }

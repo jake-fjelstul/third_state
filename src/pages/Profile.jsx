@@ -10,15 +10,12 @@ import { uploadAvatar, deleteAvatar } from '../lib/storage'
 import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { profileCompleteness, ProfileProgressRing } from '../lib/profileCompleteness.jsx'
-import { buildInviteMessage, classifyContact, createInvite, createPersonalInviteLink } from '../lib/invites.js'
+import { buildInviteMessage, classifyContact, createPersonalInviteLink } from '../lib/invites.js'
 import QRCard from '../components/ui/QRCard.jsx'
 import { INTENT_LABELS } from '../lib/intents.js'
 import { checkContent } from '../lib/contentFilter.js'
 
-const INTERESTS = [
-  'Rock Climbing','Hiking','Coffee','Startups','Photography','Chess',
-  'Running','Yoga','Book Club','Tech','Art','Cooking','Music','Travel','Film','Gaming',
-]
+import { INTERESTS } from '../lib/interests.js'
 
 const clr = {
   bg:       'var(--bg)',
@@ -202,10 +199,7 @@ export default function Profile() {
     }
 
     try {
-      const { url } = await createInvite({
-        inviterId: currentUser.id,
-        recipientContact: contact,
-      })
+      const { url } = await createPersonalInviteLink()
       const body = buildInviteMessage({ senderName: currentUser.name, url })
 
       if (kind === 'email') {
@@ -231,10 +225,7 @@ export default function Profile() {
   const handleCopyInviteLink = async () => {
     if (!currentUser?.id) return
     try {
-      const { url } = await createInvite({
-        inviterId: currentUser.id,
-        recipientContact: inviteInput.trim() || null,
-      })
+      const { url } = await createPersonalInviteLink()
       await navigator.clipboard.writeText(url)
       setToastMsg('Link copied')
       setTimeout(() => setToastMsg(null), 2500)
@@ -330,16 +321,22 @@ export default function Profile() {
             {currentUser?.name}
           </h1>
 
-          {/* Bio */}
-          <p style={{
-            fontSize: 15,
-            color: clr.textMid,
-            lineHeight: 1.6,
-            maxWidth: 300,
-            margin: 0,
-          }}>
-            {currentUser?.bio || `${currentUser?.city} · ${currentUser?.age}`}
-          </p>
+          {/* Bio, or city · age. Nothing at all when both are empty (item 1). */}
+          {(() => {
+            const line = currentUser?.bio?.trim()
+              || [currentUser?.city, currentUser?.age].filter(v => v !== undefined && v !== null && String(v).trim() !== '').join(' · ')
+            return line ? (
+              <p style={{
+                fontSize: 15,
+                color: clr.textMid,
+                lineHeight: 1.6,
+                maxWidth: 300,
+                margin: 0,
+              }}>
+                {line}
+              </p>
+            ) : null
+          })()}
         </div>
 
         {!completeness.isComplete && (
@@ -410,7 +407,8 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* ── My Interests ── */}
+        {/* ── My Interests (hidden when empty; the completion card covers it) ── */}
+        {(currentUser?.interests ?? []).length > 0 && (
         <div style={{ padding:'0 20px 28px' }}>
           <h2 style={{ fontSize:22, fontWeight:800, color: clr.textDark, margin:'0 0 14px 0', textAlign: 'center' }}>
             My Interests
@@ -431,6 +429,7 @@ export default function Profile() {
             ))}
           </div>
         </div>
+        )}
 
         {/* ── My Circles ── */}
         <div style={{ padding:'0 20px 28px' }}>
@@ -500,7 +499,7 @@ export default function Profile() {
                   transition: 'transform 0.15s ease',
                 }}>
                   <p style={{ fontSize:14, fontWeight:600, color: clr.textDark, margin:'0 0 4px 0' }}>{m.title}</p>
-                  <p style={{ fontSize:12, color: clr.textMid, margin:0 }}>{m.date} · {m.time} · {m.location}</p>
+                  <p style={{ fontSize:12, color: clr.textMid, margin:0 }}>{m.dateLabel || m.date} · {m.timeLabel || m.time} · {m.location}</p>
                 </div>
               ))}
             </div>
@@ -887,7 +886,7 @@ export default function Profile() {
           <div style={{
             backgroundColor: clr.white, width: '100%', maxWidth: 500,
             borderRadius: '24px 24px 0 0', padding: '24px 20px calc(32px + var(--safe-b))',
-            animation: 'slideUp 0.25s ease', display: 'flex', flexDirection: 'column',
+            animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both', display: 'flex', flexDirection: 'column',
             maxHeight: '100%',
             overflowY: 'auto',
             overscrollBehavior: 'contain',

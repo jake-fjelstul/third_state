@@ -57,6 +57,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [confirmSent, setConfirmSent] = useState(false)
   const [agreed, setAgreed] = useState(false)
 
   useEffect(() => {
@@ -147,16 +148,28 @@ function AuthPage() {
         if (!agreed) throw new Error('Please agree to the Terms of Service and Privacy Policy to continue.')
         if (!name.trim()) throw new Error('Name is required')
         if (!city?.label?.trim()) throw new Error('City is required')
-        await signUp({
+        // Age must be a whole number; handle_new_user casts it to int (L5).
+        let ageNum
+        if (String(age).trim() !== '') {
+          ageNum = Number(age)
+          if (!Number.isInteger(ageNum)) throw new Error('Age must be a whole number')
+          if (ageNum < 13 || ageNum > 120) throw new Error('You must be at least 13 to use Third Space')
+        }
+        const result = await signUp({
           email: emailTrimmed,
           password,
           name: name.trim(),
-          age: age ? Number(age) : undefined,
+          age: ageNum,
           city: city.label,
           latitude: city.lat,
           longitude: city.lng,
         })
-        navigate('/feed')
+        if (result?.session) {
+          navigate('/feed')
+        } else {
+          // Email confirmation is on: there's no session until they click the link.
+          setConfirmSent(true)
+        }
       } else if (mode === 'signin') {
         await signIn({ email: emailTrimmed, password })
         navigate('/feed')
@@ -219,6 +232,7 @@ function AuthPage() {
             </div>
           )}
           {error && <div style={{ color: '#E11D48', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#FFE4E6', borderRadius: 8 }}>{error}</div>}
+          {confirmSent && <div style={{ color: '#059669', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#D1FAE5', borderRadius: 8 }}>Check your email to confirm your account, then sign in.</div>}
           {resetSent && <div style={{ color: '#059669', fontSize: 14, fontWeight: 600, padding: '12px', backgroundColor: '#D1FAE5', borderRadius: 8 }}>Check your email for the reset link!</div>}
 
           {mode === 'signup' && (

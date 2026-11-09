@@ -28,6 +28,34 @@ export default function Settings() {
   const [reconnectDraft, setReconnectDraft] = useState(reconnectThresholdDays)
   const [dailyQuestionsEnabled, setDailyQuestionsEnabled] = useState(true)
   const [pushPermissionStatus, setPushPermissionStatus] = useState('unsupported')
+  const [shareBusy, setShareBusy] = useState(!!currentUser?.shareCalendarBusy)
+  const [shareBusyNote, setShareBusyNote] = useState('')
+  useEffect(() => { setShareBusy(!!currentUser?.shareCalendarBusy) }, [currentUser?.shareCalendarBusy])
+
+  const toggleShareBusy = async () => {
+    const next = !shareBusy
+    setShareBusy(next)
+    setShareBusyNote('')
+    try {
+      await updateProfile(currentUser.id, { share_calendar_busy: next })
+      setCurrentUser?.(prev => prev ? { ...prev, shareCalendarBusy: next } : prev)
+      if (next) {
+        // Older connections were granted write-only access; check that the
+        // free/busy permission is there and ask to reconnect if not.
+        const { getGoogleBusyForUser } = await import('../lib/availability')
+        const now = new Date()
+        const res = await getGoogleBusyForUser(currentUser.id, {
+          fromIso: now.toISOString(), toIso: new Date(now.getTime() + 86400000).toISOString(),
+        })
+        if (res.needsReconnect || !res.used) {
+          setShareBusyNote('Reconnect Google Calendar once to allow sharing busy times.')
+        }
+      }
+    } catch (err) {
+      console.error('[Settings] share_calendar_busy update failed', err)
+      setShareBusy(!next)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -869,6 +897,33 @@ export default function Settings() {
                 {isCalendarConnected ? 'Disconnect' : 'Connect'}
               </button>
             </div>
+            {isCalendarConnected && (
+              <div style={{ padding: '0 20px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 2px', color: clr.textDark }}>Share free/busy with connections</p>
+                  <p style={{ fontSize: 12, color: clr.textMid, margin: 0, lineHeight: 1.4 }}>
+                    Connections see when you're busy, never what the event is.
+                  </p>
+                  {shareBusyNote && (
+                    <button type="button" onClick={async () => { await disconnectCalendar(); await connectCalendar() }} style={{
+                      marginTop: 6, padding: 0, background: 'none', border: 'none', color: clr.indigo,
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
+                    }}>
+                      {shareBusyNote} Reconnect →
+                    </button>
+                  )}
+                </div>
+                <button type="button" role="switch" aria-checked={shareBusy} onClick={toggleShareBusy} style={{
+                  width: 50, height: 30, borderRadius: 999, border: 'none', flexShrink: 0, cursor: 'pointer',
+                  backgroundColor: shareBusy ? clr.indigo : clr.border, position: 'relative', transition: 'background-color 0.2s ease',
+                }}>
+                  <span style={{
+                    position: 'absolute', top: 3, left: shareBusy ? 23 : 3, width: 24, height: 24, borderRadius: '50%',
+                    backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s ease',
+                  }} />
+                </button>
+              </div>
+            )}
             {calendarError && (
               <p style={{
                 margin: '10px 0 0', fontSize: 13, fontWeight: 600,
