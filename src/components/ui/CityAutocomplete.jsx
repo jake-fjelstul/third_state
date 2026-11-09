@@ -99,10 +99,10 @@ export default function CityAutocomplete({ value, onChange, placeholder = 'Start
           cursor: 'pointer',
           fontSize: 12,
           fontWeight: 600,
-          color: clr?.indigo || '#5B5FEF',
+          color: clr?.indigo || 'var(--indigo)',
         }}
       >
-        <MapPin size={14} color={clr?.indigo || '#5B5FEF'} />
+        <MapPin size={14} color={clr?.indigo || 'var(--indigo)'} />
       </button>
 
       {open && (results.length > 0 || loading) && (

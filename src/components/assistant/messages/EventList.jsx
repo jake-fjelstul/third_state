@@ -5,7 +5,7 @@ import ConfirmCard from './ConfirmCard.jsx'
 import { assistantText } from '../../../lib/assistant/conversation.js'
 
 const EVENT_GRADIENTS = [
-  'linear-gradient(135deg,#5B5FEF,#818CF8)',
+  'var(--indigo)',
   'linear-gradient(135deg,#0D9488,#34D399)',
   'linear-gradient(135deg,#D97706,#FCD34D)',
   'linear-gradient(135deg,#E11D48,#FB7185)',
@@ -49,7 +49,7 @@ export default function EventList({ message, ctx, clr, onAppendMessages }) {
               key={event.id}
               style={{
                 backgroundColor: clr.white, borderRadius: 16, overflow: 'hidden',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+                boxShadow: '0 0 0 1px var(--border)',
                 display: 'flex', alignItems: 'stretch',
               }}
             >
@@ -113,9 +113,9 @@ export default function EventList({ message, ctx, clr, onAppendMessages }) {
                     onClick={() => setPendingRsvp(event)}
                     style={{
                       padding: '8px 14px', borderRadius: 999, border: 'none',
-                      background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                      color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      boxShadow: '0 4px 10px rgba(91,95,239,0.25)',
+                      background: `var(--indigo)`,
+                      color: 'var(--on-ink)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      boxShadow: 'none',
                     }}
                   >
                     RSVP

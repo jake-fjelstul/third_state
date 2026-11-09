@@ -83,7 +83,7 @@ function DiscoveryCard({ card }) {
             </div>
           )}
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-            <h2 style={{ margin:0, fontSize:26, fontWeight:800, color: clr.textDark, fontFamily:"'DM Serif Display','Georgia',serif" }}>
+            <h2 style={{ margin:0, fontSize:26, fontWeight:800, color: clr.textDark, fontFamily: 'inherit' }}>
               {p.name.split(' ')[0]}, {p.age}
             </h2>
             {p.online && <div style={{ width:12, height:12, borderRadius:'50%', backgroundColor: 'var(--green, #22C55E)' }} />}
@@ -595,7 +595,7 @@ export default function SwipeDiscovery({ onClose }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
-      backgroundColor: clr.bg, fontFamily: "'DM Sans', 'Inter', sans-serif",
+      backgroundColor: clr.bg, fontFamily: 'inherit',
       display: 'flex', flexDirection: 'column',
     }}>
       <style>{`
@@ -613,7 +613,7 @@ export default function SwipeDiscovery({ onClose }) {
             <button onClick={onClose} style={{
               width: 40, height: 40, borderRadius: '50%', border: 'none',
               backgroundColor: clr.white, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)', cursor: 'pointer'
+              boxShadow: '0 0 0 1px var(--border)', cursor: 'pointer'
             }}>
               <svg width="20" height="20" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -622,7 +622,7 @@ export default function SwipeDiscovery({ onClose }) {
           </div>
 
           <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: clr.textDark, fontFamily: "'DM Serif Display', 'Georgia', serif", letterSpacing: '-0.02em' }}>
+            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: clr.textDark, fontFamily: 'inherit', letterSpacing: '-0.02em' }}>
               Discover
             </h1>
           </div>
@@ -646,9 +646,9 @@ export default function SwipeDiscovery({ onClose }) {
                   padding: '10px 18px', borderRadius: 999, cursor: 'pointer',
                   border: isActive ? 'none' : `1.5px solid ${clr.border}`,
                   backgroundColor: isActive ? clr.indigo : clr.white,
-                  color: isActive ? '#FFFFFF' : clr.textDark,
+                  color: isActive ? 'var(--on-ink)' : clr.textDark,
                   fontSize: 14, fontWeight: 700,
-                  boxShadow: isActive ? '0 4px 12px rgba(91,95,239,0.3)' : 'none',
+                  boxShadow: isActive ? 'none' : 'none',
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}>
                   {IconComp && <IconComp size={14} color="currentColor" />}
@@ -696,7 +696,7 @@ export default function SwipeDiscovery({ onClose }) {
             {dragX > 40 && (
               <div style={{
                 position: 'absolute', top: 30, left: 30, zIndex: 10,
-                backgroundColor: clr.indigo, color: '#FFF',
+                backgroundColor: clr.indigo, color: 'var(--on-ink)',
                 padding: '8px 20px', borderRadius: 999, fontSize: 18, fontWeight: 800,
                 opacity: Math.min(dragX / 80, 1), border: '4px solid #FFF',
                 transform: 'rotate(-12deg)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
@@ -747,9 +747,9 @@ export default function SwipeDiscovery({ onClose }) {
                   setConsumedIds([])
                 }} style={{
                   padding: '16px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                  background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
-                  color: '#FFFFFF', fontSize: 15, fontWeight: 800,
-                  boxShadow: '0 6px 20px rgba(91,95,239,0.3)',
+                  background: `var(--indigo)`,
+                  color: 'var(--on-ink)', fontSize: 15, fontWeight: 800,
+                  boxShadow: 'none',
                 }}>
                   Reset Swipe Limits
                 </button>
@@ -788,7 +788,7 @@ export default function SwipeDiscovery({ onClose }) {
               border: `1.5px solid ${clr.border}`, cursor: actionPending ? 'not-allowed' : 'pointer',
               opacity: actionPending ? 0.5 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
+              boxShadow: '0 0 0 1px var(--border)'
             }}
           >
             <svg width="24" height="24" fill="none" stroke={clr.textLight} strokeWidth="2.5" viewBox="0 0 24 24">
@@ -816,12 +816,12 @@ export default function SwipeDiscovery({ onClose }) {
               width: 72, height: 72, borderRadius: '50%', border: 'none',
               cursor: actionPending ? 'not-allowed' : 'pointer',
               opacity: actionPending ? 0.5 : 1,
-              background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
+              background: 'var(--indigo)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(91,95,239,0.4)'
+              boxShadow: 'none'
             }}
           >
-            <svg width="32" height="32" fill="none" stroke="#FFFFFF" strokeWidth="3" viewBox="0 0 24 24">
+            <svg width="32" height="32" fill="none" stroke="var(--on-ink)" strokeWidth="3" viewBox="0 0 24 24">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </button>
@@ -925,10 +925,10 @@ export default function SwipeDiscovery({ onClose }) {
               }}
               style={{
                 width: '100%', padding: '15px 0', borderRadius: 999, border: 'none',
-                background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
-                color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: actionPending ? 'not-allowed' : 'pointer',
+                background: 'var(--indigo)',
+                color: 'var(--on-ink)', fontSize: 16, fontWeight: 700, cursor: actionPending ? 'not-allowed' : 'pointer',
                 opacity: actionPending ? 0.6 : 1,
-                boxShadow: '0 6px 20px rgba(91,95,239,0.38)', marginBottom: 16,
+                boxShadow: 'none', marginBottom: 16,
               }}
             >
               {actionPending ? 'Sending…' : 'Send Message →'}

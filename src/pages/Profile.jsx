@@ -237,13 +237,13 @@ export default function Profile() {
   }
 
   /* ── Circle icon colors ── */
-  const circleBgs     = ['#EEF0FF', '#FEF3C7', '#D1FAE5', '#FFE4E6']
+  const circleBgs     = ['var(--indigoLt)', '#FEF3C7', '#D1FAE5', '#FFE4E6']
 
   return (
     <div style={{
       minHeight: '100vh',
       backgroundColor: clr.bg,
-      fontFamily: "'DM Sans', 'Inter', sans-serif",
+      fontFamily: 'inherit',
     }}>
       
       {/* ── Centered Main Container ── */}
@@ -301,21 +301,15 @@ export default function Profile() {
                 {currentUser?.name ? currentUser?.name[0].toUpperCase() : '?'}
               </div>
             )}
-            <div style={{
-              position:'absolute', bottom:6, right:6,
-              width:18, height:18, borderRadius:'50%',
-              backgroundColor: clr.green,
-              border: '3px solid #F0F0F5',
-            }}/>
           </div>
 
           {/* Name */}
           <h1 style={{
-            fontSize: 36,
+            fontSize: 28,
             fontWeight: 800,
             color: clr.textDark,
-            margin: '0 0 8px 0',
-            fontFamily: "'DM Serif Display', 'Georgia', serif",
+            margin: '0 0 6px 0',
+            fontFamily: 'inherit',
             letterSpacing: '-0.02em',
           }}>
             {currentUser?.name}
@@ -348,7 +342,7 @@ export default function Profile() {
             padding: '14px 16px',
             backgroundColor: clr.white,
             borderRadius: 20,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            boxShadow: '0 0 0 1px var(--border)',
           }}>
             <ProfileProgressRing percent={completeness.percent} size={36} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -394,7 +388,7 @@ export default function Profile() {
                 borderRadius: 20,
                 padding: '18px 8px',
                 textAlign: 'center',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                boxShadow: '0 0 0 1px var(--border)',
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease',
               }}
@@ -422,7 +416,7 @@ export default function Profile() {
                 color: clr.indigo,
                 fontSize: 14,
                 fontWeight: 500,
-                border: `1.5px solid #D4D8FF`,
+                border: 'none',
               }}>
                 {interest}
               </span>
@@ -449,7 +443,7 @@ export default function Profile() {
                   backgroundColor: clr.white,
                   borderRadius: 20,
                   padding: '20px 16px',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                  boxShadow: '0 0 0 1px var(--border)',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -493,7 +487,7 @@ export default function Profile() {
                   backgroundColor: clr.white,
                   borderRadius: 16,
                   padding: '14px 16px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                  boxShadow: '0 0 0 1px var(--border)',
                   borderLeft: `4px solid ${clr.indigo}`,
                   cursor: 'pointer',
                   transition: 'transform 0.15s ease',
@@ -529,7 +523,7 @@ export default function Profile() {
                 padding: '16px 14px',
                 textAlign: 'center',
                 width: 110,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                boxShadow: '0 0 0 1px var(--border)',
                 cursor: 'pointer',
               }}>
                 <img
@@ -555,7 +549,7 @@ export default function Profile() {
                 padding: '16px 14px',
                 textAlign: 'center',
                 width: 110,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                boxShadow: '0 0 0 1px var(--border)',
                 cursor: 'pointer',
                 border: 'none',
                 fontFamily: 'inherit',
@@ -860,11 +854,11 @@ export default function Profile() {
               </button>
               <button type="button" disabled={saving} onClick={handleSave} style={{
                 padding:'10px 24px', borderRadius:999, border:'none',
-                background: `linear-gradient(135deg, var(--indigo), #8B84FF)`,
-                color:'#fff', fontSize:14, fontWeight:600,
+                background: `var(--indigo)`,
+                color:'var(--on-ink)', fontSize:14, fontWeight:600,
                 cursor: saving ? 'default' : 'pointer',
                 opacity: saving ? 0.7 : 1,
-                boxShadow:'0 4px 14px rgba(91,95,239,0.35)',
+                boxShadow:'none',
               }}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
@@ -983,10 +977,10 @@ export default function Profile() {
                   onClick={handleSendInvite}
                   style={{
                     width: '100%', padding: '16px', borderRadius: 999, border: 'none',
-                    background: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.border : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                    color: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.textMid : '#FFF',
+                    background: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.border : `var(--indigo)`,
+                    color: (!inviteInput.trim() || !classifyContact(inviteInput)) ? clr.textMid : 'var(--on-ink)',
                     fontSize: 16, fontWeight: 800, cursor: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'default' : 'pointer',
-                    boxShadow: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'none' : '0 6px 20px rgba(91,95,239,0.3)',
+                    boxShadow: (!inviteInput.trim() || !classifyContact(inviteInput)) ? 'none' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >

@@ -65,7 +65,7 @@ export default function CircleForm({ message, clr, onComplete }) {
   return (
     <div style={{
       backgroundColor: clr.white, borderRadius: 18, padding: 16,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      boxShadow: '0 0 0 1px var(--border)',
     }}>
       <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: clr.textDark }}>
         <SelectedComp size={16} color={clr.indigo} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }} /> {message.text}
@@ -139,11 +139,11 @@ export default function CircleForm({ message, clr, onComplete }) {
           style={{
             width: '100%', padding: '12px 0', borderRadius: 999, border: 'none',
             background: (busy || !name.trim())
-              ? '#A5B4FC'
-              : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
+              ? 'var(--surface-3)'
+              : `var(--indigo)`,
             color: '#FFF', fontSize: 14, fontWeight: 800,
             cursor: busy ? 'wait' : 'pointer',
-            boxShadow: '0 4px 14px rgba(91,95,239,0.3)',
+            boxShadow: 'none',
           }}
         >
           {busy ? 'Creating…' : 'Create Circle →'}

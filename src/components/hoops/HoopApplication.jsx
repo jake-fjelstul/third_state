@@ -12,7 +12,7 @@ const clr = {
   textDark:  '#E2E4F0',
   textMid:   '#8B8FA3',
   textLight: '#5C5F73',
-  indigo:    '#7B6FFF',
+  indigo:    'var(--indigo)',
   indigoLt:  'rgba(123, 111, 255, 0.18)',
   white:     '#FFFFFF',
   amber:     '#F59E0B',
@@ -78,8 +78,8 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
   const renderOverview = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ width: 80, height: 80, borderRadius: 24, background: `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)`, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <CircleIcon circle={circle} size={36} color="#FFFFFF" />
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: `var(--indigo)`, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircleIcon circle={circle} size={36} color="var(--on-ink)" />
         </div>
         <h2 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: '0 0 8px' }}>Join {circle.name}</h2>
         <p style={{ fontSize: 16, color: clr.textMid, margin: '0 0 32px' }}>
@@ -87,7 +87,7 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
         </p>
         
         {hoops.length > 0 && (
-          <div style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 24, boxShadow: '0 4px 16px rgba(0,0,0,0.05)', textAlign: 'left' }}>
+          <div style={{ backgroundColor: clr.panel, borderRadius: 20, padding: 24, boxShadow: '0 0 0 1px var(--border)', textAlign: 'left' }}>
             {hoops.map((h, i) => (
               <div key={h.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: i === hoops.length -1 ? 0 : 20 }}>
                 <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: clr.indigoLt, color: clr.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
@@ -106,7 +106,7 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
       </div>
       
       <div style={{ padding: 24, borderTop: `1px solid ${clr.border}`, backgroundColor: clr.panel }}>
-        <button onClick={handleNext} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)`, color: clr.white, fontSize: 16, fontWeight: 800, cursor: 'pointer', marginBottom: 12 }}>
+        <button onClick={handleNext} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: `var(--indigo)`, color: clr.white, fontSize: 16, fontWeight: 800, cursor: 'pointer', marginBottom: 12 }}>
           {hoops.length === 0 ? 'Continue' : 'Start Application'}
         </button>
         <button onClick={onClose} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: 'transparent', color: clr.textMid, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
@@ -190,7 +190,7 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
           <button 
             disabled={!isValid}
             onClick={handleNext} 
-            style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: isValid ? `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)` : clr.border, color: isValid ? clr.white : clr.textLight, fontSize: 16, fontWeight: 800, cursor: isValid ? 'pointer' : 'not-allowed' }}
+            style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: isValid ? `var(--indigo)` : clr.border, color: isValid ? clr.white : clr.textLight, fontSize: 16, fontWeight: 800, cursor: isValid ? 'pointer' : 'not-allowed' }}
           >
             Next
           </button>
@@ -236,7 +236,7 @@ export default function HoopApplication({ circle, onClose, onSubmitted }) {
       </div>
 
       <div style={{ padding: 24, borderTop: `1px solid ${clr.border}`, backgroundColor: clr.panel }}>
-        <button onClick={handleSubmit} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${clr.indigo}, #5B5FEF)`, color: clr.white, fontSize: 16, fontWeight: 800, cursor: 'pointer' }}>
+        <button onClick={handleSubmit} style={{ width: '100%', padding: 18, borderRadius: 999, border: 'none', background: `var(--indigo)`, color: clr.white, fontSize: 16, fontWeight: 800, cursor: 'pointer' }}>
           Submit Application
         </button>
       </div>

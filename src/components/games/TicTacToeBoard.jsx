@@ -27,7 +27,7 @@ export default function TicTacToeBoard({ state, myTurn, onMove }) {
             onMouseEnter={() => setHoverIdx(i)}
             onMouseLeave={() => setHoverIdx(null)}
             style={{
-              aspectRatio: '1', backgroundColor: isHovered ? clr.indigoLt : clr.white,
+              aspectRatio: '1', backgroundColor: isHovered ? 'var(--surface-2)' : clr.white,
               border: `2px solid ${clr.border}`, borderRadius: 16,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: canPlay ? 'pointer' : 'default',
@@ -35,7 +35,7 @@ export default function TicTacToeBoard({ state, myTurn, onMove }) {
             }}
           >
             {cell === 'x' && <span style={{ color: clr.indigo, fontSize: 64, fontWeight: 800 }}>X</span>}
-            {cell === 'o' && <span style={{ color: '#EF4444', fontSize: 64, fontWeight: 800 }}>O</span>}
+            {cell === 'o' && <span style={{ color: 'var(--accent)', fontSize: 64, fontWeight: 800 }}>O</span>}
           </div>
         )
       })}

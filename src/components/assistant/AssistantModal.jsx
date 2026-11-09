@@ -217,11 +217,11 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
             style={{
               padding: '12px 20px', borderRadius: 999, border: 'none',
               background: (busy || !input.trim())
-                ? '#A5B4FC'
-                : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
+                ? 'var(--surface-3)'
+                : `var(--indigo)`,
               color: '#FFF', fontSize: 14, fontWeight: 800,
               cursor: busy ? 'wait' : 'pointer',
-              boxShadow: '0 4px 14px rgba(91,95,239,0.3)',
+              boxShadow: 'none',
               opacity: busy ? 0.7 : 1,
               fontFamily: 'inherit',
             }}

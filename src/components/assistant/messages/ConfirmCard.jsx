@@ -2,7 +2,7 @@ export default function ConfirmCard({ clr, title, subtitle, primaryLabel = 'Conf
   return (
     <div style={{
       backgroundColor: clr.white, borderRadius: 18, padding: 16,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      boxShadow: '0 0 0 1px var(--border)',
     }}>
       <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: clr.textDark }}>{title}</p>
       {subtitle && (
@@ -18,9 +18,9 @@ export default function ConfirmCard({ clr, title, subtitle, primaryLabel = 'Conf
         </button>
         <button type="button" onClick={onConfirm} style={{
           flex: 2, padding: 12, borderRadius: 999, border: 'none',
-          background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-          color: '#FFF', fontSize: 14, fontWeight: 800, cursor: 'pointer',
-          boxShadow: '0 4px 14px rgba(91,95,239,0.3)',
+          background: `var(--indigo)`,
+          color: 'var(--on-ink)', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+          boxShadow: 'none',
         }}>
           {primaryLabel}
         </button>

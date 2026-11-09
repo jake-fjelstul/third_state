@@ -185,7 +185,7 @@ function AuthPage() {
   }
 
   const pageStyle = {
-    minHeight: '100vh', width: '100%', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 20, paddingRight: 20, fontFamily: "'DM Sans', 'Inter', sans-serif",
+    minHeight: '100vh', width: '100%', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 20, paddingRight: 20, fontFamily: 'inherit',
   }
   const wrapStyle = { width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }
   
@@ -195,10 +195,10 @@ function AuthPage() {
 
   const primaryBtnStyle = (disabled) => ({
     width: '100%', padding: '16px 0', borderRadius: 999, border: 'none',
-    background: disabled ? clr.indigoLt : `linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)`,
-    color: disabled ? clr.indigo : '#FFFFFF', fontSize: 16, fontWeight: 600,
+    background: disabled ? clr.indigoLt : `var(--indigo)`,
+    color: disabled ? clr.indigo : 'var(--on-ink)', fontSize: 16, fontWeight: 600,
     cursor: disabled ? 'not-allowed' : 'pointer',
-    boxShadow: disabled ? 'none' : `0 8px 24px rgba(91,95,239,0.38)`,
+    boxShadow: disabled ? 'none' : `none`,
     transition: 'all 0.2s ease', letterSpacing: '0.01em',
   })
 
@@ -225,7 +225,7 @@ function AuthPage() {
           {fromInvite && (
             <div style={{
               padding: 12, marginBottom: 4, borderRadius: 12,
-              backgroundColor: '#EEF2FF', color: '#4338CA', fontSize: 13, fontWeight: 600,
+              backgroundColor: 'var(--indigoLt)', color: '#4338CA', fontSize: 13, fontWeight: 600,
               textAlign: 'center',
             }}>
               You've been invited! Sign up or sign in to connect.

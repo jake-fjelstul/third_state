@@ -135,7 +135,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
-            color: clr?.indigo || '#5B5FEF', backgroundColor: 'var(--indigoLt, #EEF0FF)',
+            color: clr?.indigo || 'var(--indigo)', backgroundColor: 'var(--indigoLt, #EEF0FF)',
             padding: '3px 8px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
             <Lightbulb size={12} color="#D97706" /> Question pending for {pendingSq.recipientName || 'Connection'}
@@ -213,7 +213,7 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <span style={{
           fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
-          color: clr?.indigo || '#5B5FEF', backgroundColor: 'var(--indigoLt, #EEF0FF)',
+          color: clr?.indigo || 'var(--indigo)', backgroundColor: 'var(--indigoLt, #EEF0FF)',
           padding: '3px 8px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
         }}>
           <Lightbulb size={12} color="#D97706" /> {badgeLabel}
@@ -272,11 +272,11 @@ export default function QuestionPrompt({ clr, chat, messages = [] }) {
             disabled={!text.trim() || submitting}
             style={{
               padding: '10px 16px', borderRadius: 999, border: 'none',
-              background: `linear-gradient(135deg, ${clr?.indigo || '#5B5FEF'}, #7B6FFF)`,
-              color: '#FFFFFF', fontSize: 13, fontWeight: 700,
+              background: `var(--indigo)`,
+              color: 'var(--on-ink)', fontSize: 13, fontWeight: 700,
               cursor: text.trim() && !submitting ? 'pointer' : 'default',
               opacity: text.trim() && !submitting ? 1 : 0.55,
-              boxShadow: '0 2px 8px rgba(91,95,239,0.3)',
+              boxShadow: 'none',
               fontFamily: 'inherit', whiteSpace: 'nowrap',
             }}
           >

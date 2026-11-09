@@ -5,6 +5,10 @@ import './index.css'
 import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { Capacitor } from '@capacitor/core'
+import { installSheetSwipe } from './lib/sheetSwipe.js'
+
+// Every bottom sheet can be dragged down to dismiss.
+installSheetSwipe()
 
 // Native-only setup: let the WebView extend under the status bar, and keep
 // the status bar text color readable against the current theme.

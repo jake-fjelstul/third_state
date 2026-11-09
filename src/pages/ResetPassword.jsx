@@ -84,7 +84,7 @@ export default function ResetPassword() {
     <div style={{
       minHeight: '100vh', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      padding: 'var(--safe-top) 20px var(--safe-bottom)', fontFamily: "'DM Sans', 'Inter', sans-serif",
+      padding: 'var(--safe-top) 20px var(--safe-bottom)', fontFamily: 'inherit',
     }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: clr.textDark, textAlign: 'center', margin: '0 0 8px' }}>
@@ -105,7 +105,7 @@ export default function ResetPassword() {
         ) : (
           <form onSubmit={handleSubmit} style={{
             display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20,
-            backgroundColor: clr.white, borderRadius: 20, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            backgroundColor: clr.white, borderRadius: 20, padding: 24, boxShadow: '0 0 0 1px var(--border)',
           }}>
             {error && <div style={{ color: '#E11D48', fontSize: 14, fontWeight: 600, padding: 12, backgroundColor: '#FFE4E6', borderRadius: 8 }}>{error}</div>}
             <input type="password" autoComplete="new-password" placeholder="New password"
@@ -114,7 +114,7 @@ export default function ResetPassword() {
               value={confirm} onChange={e => setConfirm(e.target.value)} style={inputStyle} />
             <button type="submit" disabled={saving} style={{
               width: '100%', padding: '14px 0', borderRadius: 999, border: 'none',
-              background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)', color: '#fff',
+              background: 'var(--indigo)', color: 'var(--on-ink)',
               fontSize: 16, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
             }}>
               {saving ? 'Saving…' : 'Save password'}

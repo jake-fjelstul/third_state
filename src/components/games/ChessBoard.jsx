@@ -3,7 +3,7 @@ import * as chess from '../../lib/games/chess'
 
 const LIGHT = '#F0D9B5'
 const DARK = '#B58863'
-const SELECTED_BG = 'rgba(91,95,239,0.4)'
+const SELECTED_BG = 'rgba(255,90,54,0.45)'
 const LAST_MOVE_BG = 'rgba(255,255,0,0.25)'
 const CHECK_BG = 'rgba(239, 68, 68, 0.4)'
 
@@ -11,7 +11,9 @@ const FILES = ['a','b','c','d','e','f','g','h']
 
 // Unicode chess pieces
 const PIECE_CHARS = {
-  wk: '♔', wq: '♕', wr: '♖', wb: '♗', wn: '♘', wp: '♙',
+  // Solid glyphs for both sides; the side is shown by fill colour, so pieces
+  // read the same in light and dark mode.
+  wk: '♚', wq: '♛', wr: '♜', wb: '♝', wn: '♞', wp: '♟',
   bk: '♚', bq: '♛', br: '♜', bb: '♝', bn: '♞', bp: '♟',
 }
 
@@ -141,11 +143,13 @@ export default function ChessBoard({ state, myToken, myTurn, onMove }) {
               lineHeight: 1,
               userSelect: 'none',
               pointerEvents: 'none',
+              fontVariantEmoji: 'text',
+              color: piece.color === 'b' ? '#1C1C1E' : '#FFFFFF',
               filter: piece.color === 'b'
-                ? 'drop-shadow(0 1px 1px rgba(255,255,255,0.3))'
-                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+                ? 'drop-shadow(0 1px 0 rgba(255,255,255,0.35))'
+                : 'drop-shadow(0 0 1px rgba(0,0,0,0.9)) drop-shadow(0 1px 1px rgba(0,0,0,0.5))',
             }}>
-              {PIECE_CHARS[piece.color + piece.type]}
+              {PIECE_CHARS[piece.color + piece.type] + '\uFE0E'}
             </span>
           )}
         </div>

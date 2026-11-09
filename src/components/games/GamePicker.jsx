@@ -48,7 +48,7 @@ export default function GamePicker({ opponent, chatId, onChallenge, onSoloSelect
             <div key={game.id} style={{
               backgroundColor: clr.white, borderRadius: 20, padding: 16,
               display: 'flex', flexDirection: 'column', gap: 14,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+              boxShadow: '0 0 0 1px var(--border)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ fontSize: 36 }}>{game.emoji}</div>
@@ -61,8 +61,8 @@ export default function GamePicker({ opponent, chatId, onChallenge, onSoloSelect
                 {opponent && (
                   <button onClick={() => onChallenge(game.id)} type="button" style={{
                     flex: 1, padding: '10px 12px', borderRadius: 12, border: 'none',
-                    background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    background: `var(--indigo)`,
+                    color: 'var(--on-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                   }}>
                     Play {opponent.firstName || opponent.name?.split(' ')[0] || 'them'}

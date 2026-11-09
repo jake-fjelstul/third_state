@@ -134,7 +134,7 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
                   width: 88, height: 88, borderRadius: '50%',
                   objectFit: 'cover',
                   border: '4px solid var(--white)',
-                  boxShadow: '0 4px 14px rgba(91,95,239,0.3)',
+                  boxShadow: 'none',
                   marginBottom: 16,
                 }}
               />
@@ -142,7 +142,7 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
                 margin: '0 0 8px',
                 fontSize: 22, fontWeight: 800,
                 color: 'var(--textDark)',
-                fontFamily: "'DM Serif Display','Georgia',serif",
+                fontFamily: 'inherit',
               }}>
                 You and {firstName} are now friends!
               </h2>
@@ -166,7 +166,7 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
                 margin: '0 0 8px',
                 fontSize: 22, fontWeight: 800,
                 color: 'var(--textDark)',
-                fontFamily: "'DM Serif Display','Georgia',serif",
+                fontFamily: 'inherit',
                 textAlign: 'center',
               }}>
                 Why are you here?
@@ -240,10 +240,10 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
                   disabled={busy || !canSave}
                   style={{
                     width: '100%', padding: 14, borderRadius: 999, border: 'none',
-                    background: (busy || !canSave) ? '#A5B4FC' : 'linear-gradient(135deg, var(--indigo), #7B6FFF)',
-                    color: '#FFF', fontSize: 15, fontWeight: 800,
+                    background: (busy || !canSave) ? 'var(--surface-3)' : 'var(--indigo)',
+                    color: 'var(--on-ink)', fontSize: 15, fontWeight: 800,
                     cursor: (busy || !canSave) ? 'not-allowed' : 'pointer',
-                    boxShadow: (busy || !canSave) ? 'none' : '0 8px 20px rgba(91,95,239,0.25)',
+                    boxShadow: (busy || !canSave) ? 'none' : 'none',
                     opacity: (busy || !canSave) ? 0.85 : 1,
                   }}
                 >
@@ -288,10 +288,10 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
                   disabled={busy}
                   style={{
                     width: '100%', padding: 14, borderRadius: 999, border: 'none',
-                    background: 'linear-gradient(135deg, var(--indigo), #7B6FFF)',
-                    color: '#FFF', fontSize: 15, fontWeight: 800,
+                    background: 'var(--indigo)',
+                    color: 'var(--on-ink)', fontSize: 15, fontWeight: 800,
                     cursor: busy ? 'wait' : 'pointer',
-                    boxShadow: '0 8px 20px rgba(91,95,239,0.25)',
+                    boxShadow: 'none',
                     opacity: busy ? 0.7 : 1,
                   }}
                 >
@@ -339,10 +339,10 @@ export default function OnboardingModal({ inviter, showIntent, onClose }) {
                   disabled={busy || !canSave}
                   style={{
                     flex: 2, padding: 14, borderRadius: 999, border: 'none',
-                    background: (busy || !canSave) ? '#A5B4FC' : 'linear-gradient(135deg, var(--indigo), #7B6FFF)',
-                    color: '#FFF', fontSize: 15, fontWeight: 800,
+                    background: (busy || !canSave) ? 'var(--surface-3)' : 'var(--indigo)',
+                    color: 'var(--on-ink)', fontSize: 15, fontWeight: 800,
                     cursor: (busy || !canSave) ? 'not-allowed' : 'pointer',
-                    boxShadow: (busy || !canSave) ? 'none' : '0 8px 20px rgba(91,95,239,0.25)',
+                    boxShadow: (busy || !canSave) ? 'none' : 'none',
                     opacity: (busy || !canSave) ? 0.85 : 1,
                   }}
                 >

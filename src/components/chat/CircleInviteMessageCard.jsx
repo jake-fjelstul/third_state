@@ -39,8 +39,8 @@ export default function CircleInviteMessageCard({ message, viewerId, clr }) {
 
   const btn = (primary) => ({
     flex: 1, minHeight: 40, padding: '9px 0', borderRadius: 12, border: primary ? 'none' : `1.5px solid ${clr.border}`,
-    background: primary ? 'linear-gradient(135deg, #5B5FEF, #7B6FFF)' : 'transparent',
-    color: primary ? '#FFFFFF' : clr.textDark, fontSize: 13, fontWeight: 700,
+    background: primary ? 'var(--indigo)' : 'transparent',
+    color: primary ? 'var(--on-ink)' : clr.textDark, fontSize: 13, fontWeight: 700,
     cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1, fontFamily: 'inherit',
   })
 
@@ -48,7 +48,7 @@ export default function CircleInviteMessageCard({ message, viewerId, clr }) {
     <div style={{
       maxWidth: 300, width: '100%', borderRadius: 20, overflow: 'hidden',
       backgroundColor: clr.white, border: `1.5px solid ${clr.border}`,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
     }}>
       <button type="button" onClick={() => navigate(`/circles/${payload.circleId}`)} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: 14,

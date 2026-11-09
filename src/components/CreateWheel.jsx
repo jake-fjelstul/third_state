@@ -170,11 +170,13 @@ export default function CreateWheel({ onAction }) {
 
   return (
     <div 
+      data-no-sheet-drag
+      data-tour="wheel"
       style={{ 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        margin: '30px auto',
+        margin: '0 auto',
         touchAction: 'pan-y',
         width: '100%',
         maxWidth: 380,

@@ -10,6 +10,8 @@ import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { listStagger } from '../lib/motion.js'
 import { Calendar, CheckCircle2, XCircle, MessageCircle, UserPlus } from 'lucide-react'
+import { NavBar } from '../components/ui/ds.jsx'
+import { canGoBack } from '../lib/tabActive.js'
 
 function friendlyJoinError(err) {
   const m = String(err?.message || '')
@@ -115,9 +117,9 @@ export default function Notifications() {
         backgroundColor: clr.white,
         borderRadius: 16,
         padding: '16px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        boxShadow: '0 0 0 1px var(--border)',
         border: `1px solid ${clr.border}`,
-        borderLeft: notif.isRead ? `1px solid ${clr.border}` : '3px solid #F59E0B',
+        borderLeft: notif.isRead ? `1px solid ${clr.border}` : '3px solid var(--accent)',
         display: 'flex',
         gap: 16,
         position: 'relative',
@@ -274,7 +276,7 @@ export default function Notifications() {
                 }}
                 disabled={actionState === 'accepting' || actionState === 'declining'}
                 style={{
-                  flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0',
+                  flex: 1, backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 0',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: actionState === 'accepting' || actionState === 'declining' ? 'not-allowed' : 'pointer', opacity: actionState === 'accepting' || actionState === 'declining' ? 0.7 : 1,
                 }}>
                 {actionState === 'accepting' ? 'Accepting...' : 'Accept'}
@@ -324,7 +326,7 @@ export default function Notifications() {
                 }}
                 disabled={actionState === 'accepting' || actionState === 'declining'}
                 style={{
-                  flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0', minHeight: 40,
+                  flex: 1, backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 0', minHeight: 40,
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: actionState === 'accepting' ? 0.7 : 1,
                 }}>
                 {actionState === 'accepting' ? 'Joining...' : 'Join'}
@@ -355,7 +357,7 @@ export default function Notifications() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => dismissNotification(notif.id)}
                 style={{
-                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                 }}>
                 Dismiss
@@ -384,7 +386,7 @@ export default function Notifications() {
                 }}
                   disabled={actionState === 'checking_in' || actionState === 'declining_event'}
                   style={{
-                    backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                    backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                     borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                   }}>
                   {actionState === 'checking_in' ? 'Saving...' : 'Check In'}
@@ -446,7 +448,7 @@ export default function Notifications() {
                 <button type="submit" disabled={!drafts[notif.id]?.trim() || sentStates[notif.id]}
                   style={{
                     background: sentStates[notif.id] ? '#10B981' : drafts[notif.id]?.trim() ? clr.indigo : clr.indigoLt,
-                    color: drafts[notif.id]?.trim() || sentStates[notif.id] ? '#FFF' : clr.textLight,
+                    color: drafts[notif.id]?.trim() || sentStates[notif.id] ? 'var(--on-ink)' : clr.textLight,
                     border: 'none', borderRadius: 999, padding: '0 16px',
                     fontSize: 13, fontWeight: 700, cursor: drafts[notif.id]?.trim() ? 'pointer' : 'default', transition: 'background 0.2s', fontFamily: 'inherit'
                   }}>
@@ -507,7 +509,7 @@ export default function Notifications() {
                     <button type="submit" disabled={!drafts[notif.id]?.trim() || sentStates[notif.id]}
                       style={{
                         background: sentStates[notif.id] ? '#10B981' : drafts[notif.id]?.trim() ? clr.indigo : clr.indigoLt,
-                        color: drafts[notif.id]?.trim() || sentStates[notif.id] ? '#FFF' : clr.textLight,
+                        color: drafts[notif.id]?.trim() || sentStates[notif.id] ? 'var(--on-ink)' : clr.textLight,
                         border: 'none', borderRadius: 999, padding: '0 16px',
                         fontSize: 13, fontWeight: 700, cursor: drafts[notif.id]?.trim() ? 'pointer' : 'default', transition: 'background 0.2s', fontFamily: 'inherit'
                       }}>
@@ -538,7 +540,7 @@ export default function Notifications() {
                   navigate(`/chat/${notif.chatId}`)
                 }}
                 style={{
-                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                 }}
               >
@@ -555,7 +557,7 @@ export default function Notifications() {
                   navigate('/feed')
                 }}
                 style={{
-                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                 }}
               >
@@ -572,7 +574,7 @@ export default function Notifications() {
                   navigate('/feed')
                 }}
                 style={{
-                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                 }}
               >
@@ -627,7 +629,7 @@ export default function Notifications() {
                 }}
                 disabled={actionState === 'pending'}
                 style={{
-                  flex: 1, backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 0',
+                  flex: 1, backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 0',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: actionState === 'pending' ? 'not-allowed' : 'pointer', opacity: actionState === 'pending' ? 0.7 : 1,
                 }}
               >
@@ -657,7 +659,7 @@ export default function Notifications() {
                   navigate(`/chat/${notif.chatId}`)
                 }}
                 style={{
-                  backgroundColor: clr.indigo, color: '#FFF', border: 'none', padding: '8px 16px',
+                  backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                   borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                 }}
               >
@@ -676,43 +678,23 @@ export default function Notifications() {
     <div style={{
       minHeight: '100vh',
       backgroundColor: clr.bg,
-      fontFamily: "'DM Sans', 'Inter', sans-serif",
+      fontFamily: 'inherit',
     }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 20px 0' }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
-          <svg width="24" height="24" fill="none" stroke={clr.textDark} strokeWidth="2.5" viewBox="0 0 24 24">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-      </div>
+      <NavBar
+        onBack={() => (canGoBack() ? navigate(-1) : navigate('/feed'))}
+        title="Notifications"
+        right={unreadCount > 0 ? (
+          <button type="button" onClick={markAllNotificationsRead} style={{
+            background: 'none', border: 'none', color: 'var(--textMid)', fontSize: 15, fontWeight: 500,
+            cursor: 'pointer', padding: '10px 12px', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          }}>Read all</button>
+        ) : null}
+      />
       <div style={{
-        maxWidth: '500px',
+        maxWidth: '560px',
         margin: '0 auto',
-        padding: '12px 20px 80px',
+        padding: '16px 16px 80px',
       }}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{
-            fontSize: 28, fontWeight: 800, color: clr.textDark,
-            margin: 0, textAlign: 'center',
-          }}>
-            Notifications
-          </h1>
-          {unreadCount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-              <button
-                onClick={markAllNotificationsRead}
-                style={{
-                  background: 'none', border: 'none', color: clr.indigo,
-                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  padding: '4px 8px', minHeight: 32,
-                }}
-              >
-                Mark all read
-              </button>
-            </div>
-          )}
-        </div>
-
         {visibleNotifications.length === 0 ? (
            <div style={{ padding: 40, textAlign: 'center' }}>
              <p style={{ fontSize: 15, color: clr.textLight }}>You have no notifications yet.</p>

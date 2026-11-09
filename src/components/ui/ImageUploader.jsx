@@ -32,7 +32,7 @@ export default function ImageUploader({
     height: isCircle ? 120 : 180,
     borderRadius: isCircle ? '50%' : 16,
     overflow: 'hidden',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    boxShadow: '0 0 0 1px var(--border)',
     border: '1px solid rgba(148,163,184,0.3)',
     cursor: disabled ? 'default' : 'pointer',
     outline: hovered ? '2px solid var(--indigo)' : 'none',

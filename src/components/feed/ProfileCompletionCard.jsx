@@ -38,7 +38,7 @@ export default function ProfileCompletionCard({ completeness }) {
         marginBottom: 16,
         backgroundColor: 'var(--white)',
         borderRadius: 20,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        boxShadow: '0 0 0 1px var(--border)',
       }}
     >
       <button
@@ -108,10 +108,10 @@ export default function ProfileCompletionCard({ completeness }) {
           border: 'none',
           fontSize: 12,
           fontWeight: 700,
-          color: '#fff',
+          color: 'var(--on-ink)',
           cursor: 'pointer',
-          background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)',
-          boxShadow: '0 4px 14px rgba(91,95,239,0.35)',
+          background: 'var(--indigo)',
+          boxShadow: 'none',
         }}
       >
         Complete

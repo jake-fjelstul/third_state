@@ -6,7 +6,7 @@ export default function DisambiguationCard({ message, clr, onSelectCandidate }) 
       backgroundColor: clr.white,
       borderRadius: 18,
       padding: 14,
-      boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
       display: 'flex',
       flexDirection: 'column',
       gap: 10

@@ -13,7 +13,7 @@ export default function NavSuggestion({ message, clr, onClose }) {
         border: `1.5px solid ${clr.border}`,
         cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        boxShadow: '0 0 0 1px var(--border)',
         width: '100%',
       }}
     >

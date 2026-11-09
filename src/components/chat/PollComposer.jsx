@@ -137,8 +137,8 @@ export default function PollComposer({ clr, onClose, onCreate }) {
             disabled={!valid || busy}
             style={{
               flex: 2, padding: 12, borderRadius: 999, border: 'none',
-              background: (!valid || busy) ? clr.indigoLt : `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-              color: (!valid || busy) ? clr.indigo : '#FFF',
+              background: (!valid || busy) ? clr.indigoLt : `var(--indigo)`,
+              color: (!valid || busy) ? clr.indigo : 'var(--on-ink)',
               fontSize: 14, fontWeight: 800,
               cursor: (!valid || busy) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',

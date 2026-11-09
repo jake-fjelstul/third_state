@@ -121,14 +121,14 @@ export default function TimePicker({ value, onChange }) {
   }
 
   return (
-    <div style={{ 
+    <div data-no-sheet-drag style={{ 
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       gap: 12, backgroundColor: clr.bg, border: `1.5px solid ${clr.border}`,
       borderRadius: 20, padding: '8px 24px', position: 'relative', width: '100%', boxSizing: 'border-box'
     }}>
       <div style={{
         position: 'absolute', top: '50%', left: 16, right: 16, height: 40,
-        transform: 'translateY(-50%)', backgroundColor: 'rgba(91,95,239,0.08)',
+        transform: 'translateY(-50%)', backgroundColor: 'none',
         borderRadius: 12, pointerEvents: 'none'
       }} />
 

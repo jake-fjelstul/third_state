@@ -304,7 +304,7 @@ function EventRecapModalBody({ event, onClose }) {
                 style={{
                   flex: 1, padding: '10px 0', borderRadius: 16, border: `1.5px solid ${clr.border}`,
                   backgroundColor: clr.white, fontSize: 22, cursor: 'pointer',
-                  transition: 'transform 0.15s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  transition: 'transform 0.15s ease', boxShadow: '0 0 0 1px var(--border)',
                 }}
               >
                 {emoji}

@@ -6,6 +6,8 @@ import { avatarFor } from '../lib/avatar'
 import EventRecapModal from '../components/EventRecapModal.jsx'
 import { canGoBack } from '../lib/tabActive.js'
 import { Camera, Calendar, MapPin } from 'lucide-react'
+import { NavBar } from '../components/ui/ds.jsx'
+import { SkeletonRows } from '../components/ui/Skeleton.jsx'
 
 const clr = {
   bg: 'var(--bg)',
@@ -30,17 +32,6 @@ export default function Memories({ embedded = false }) {
 
   const backTo = location.state?.from || '/schedule'
 
-  const getBackLabel = (path) => {
-    if (!path) return 'Schedule'
-    if (path.startsWith('/schedule')) return 'Schedule'
-    if (path.startsWith('/feed')) return 'Feed'
-    if (path.startsWith('/profile')) return 'Profile'
-    if (path.startsWith('/circles')) return 'Circle'
-    if (path.startsWith('/chat')) return 'Chat'
-    return 'Back'
-  }
-
-  const backLabel = getBackLabel(backTo)
 
   useEffect(() => {
     if (!currentUser?.id) return
@@ -58,42 +49,11 @@ export default function Memories({ embedded = false }) {
   }, [currentUser?.id])
 
   return (
-    <div style={{ padding: embedded ? '0 0 24px' : '24px 20px', maxWidth: 600, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Back button */}
-      {!embedded && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-        <button
-          type="button"
-          onClick={() => (canGoBack() ? navigate(-1) : navigate(backTo))}
-          aria-label={`Back to ${backLabel}`}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
-            display: 'flex', alignItems: 'center', gap: 4, color: clr.indigo,
-            fontSize: 15, fontWeight: 700, fontFamily: 'inherit',
-          }}
-        >
-          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          <span>{backLabel}</span>
-        </button>
-      </div>}
-
-      {/* Header */}
-      {!embedded && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ margin: '0 0 4px 0', fontSize: 26, fontWeight: 800, color: clr.textDark, fontFamily: "'DM Serif Display', serif" }}>
-            Event Memories
-          </h1>
-          <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>
-            Look back at past meetups, photos, and connections.
-          </p>
-        </div>
-      </div>}
-
+    <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      {!embedded && <NavBar onBack={() => (canGoBack() ? navigate(-1) : navigate(backTo))} title="Memories" />}
+      <div style={{ padding: embedded ? '0 0 24px' : '16px 16px 24px' }}>
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: clr.textMid, fontSize: 14 }}>
-          Loading memories…
-        </div>
+        <SkeletonRows count={3} avatar={0} />
       ) : events.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '48px 24px', backgroundColor: clr.white,
@@ -110,7 +70,7 @@ export default function Memories({ embedded = false }) {
             onClick={() => navigate('/schedule')}
             style={{
               padding: '12px 24px', borderRadius: 999, border: 'none',
-              backgroundColor: clr.indigo, color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              backgroundColor: clr.indigo, color: 'var(--on-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
             }}
           >
             Explore Upcoming Events →
@@ -124,7 +84,7 @@ export default function Memories({ embedded = false }) {
               onClick={() => setSelectedEvent(e)}
               style={{
                 backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden',
-                border: `1px solid ${clr.border}`, boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                border: `1px solid ${clr.border}`, boxShadow: '0 0 0 1px var(--border)',
                 cursor: 'pointer', transition: 'transform 0.15s ease',
               }}
             >
@@ -135,10 +95,10 @@ export default function Memories({ embedded = false }) {
                 ) : (
                   <div style={{
                     width: '100%', height: '100%',
-                    background: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
+                    background: 'var(--surface-3)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Calendar size={48} color="#FFFFFF" />
+                    <Calendar size={40} color="var(--textLight)" />
                   </div>
                 )}
                 {e.circleName && (
@@ -195,6 +155,7 @@ export default function Memories({ embedded = false }) {
           onClose={() => setSelectedEvent(null)}
         />
       )}
+      </div>
     </div>
   )
 }

@@ -25,7 +25,7 @@ const SEGMENTS = 5
 export function batteryLevel(points) {
   const p = Math.max(0, Math.min(100, points ?? 0))
   if (p >= 80) return { word: 'Up for anything', hint: "You've been out a lot lately.", color: '#16A34A' }
-  if (p >= 60) return { word: 'Social', hint: 'Good momentum. Keep it going.', color: '#4F46E5' }
+  if (p >= 60) return { word: 'Social', hint: 'Good momentum. Keep it going.', color: 'var(--indigo)' }
   if (p >= 40) return { word: 'Open to plans', hint: 'A coffee or an event would top you up.', color: '#0EA5E9' }
   if (p >= 20) return { word: 'Low-key', hint: "It's been quiet. A message to a friend helps.", color: '#D97706' }
   return { word: 'Recharging', hint: 'Join a circle or say hi to someone to start filling up.', color: '#DC2626' }
@@ -70,6 +70,7 @@ export function ExplainerSheet({ onClose }) {
       }}
     >
       <motion.div
+        data-sheet
         role="dialog" aria-modal="true" aria-labelledby="battery-explainer-title"
         initial={reduced ? false : { y: '100%' }} animate={{ y: 0 }} exit={reduced ? undefined : { y: '100%' }}
         transition={{ type: 'spring', stiffness: 380, damping: 32 }}
@@ -89,7 +90,7 @@ export function ExplainerSheet({ onClose }) {
         {row('Who can see it', 'Only you.')}
         <button type="button" onClick={onClose} style={{
           width: '100%', minHeight: 48, marginTop: 6, borderRadius: 999, border: 'none',
-          backgroundColor: clr.indigo, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+          backgroundColor: clr.indigo, color: 'var(--on-ink)', fontSize: 16, fontWeight: 700, cursor: 'pointer',
         }}>
           Got it
         </button>
@@ -153,7 +154,7 @@ export default function SocialBattery() {
         aria-expanded={showHistory}
         style={{
           backgroundColor: clr.white, borderRadius: showHistory ? '20px 20px 0 0' : 20,
-          padding: '16px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          padding: '16px 18px', boxShadow: '0 0 0 1px var(--border)',
           cursor: 'pointer', position: 'relative',
         }}
       >
@@ -210,7 +211,7 @@ export default function SocialBattery() {
           <motion.div
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            style={{ overflow: 'hidden', backgroundColor: clr.white, borderRadius: '0 0 20px 20px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+            style={{ overflow: 'hidden', backgroundColor: clr.white, borderRadius: '0 0 20px 20px', boxShadow: '0 0 0 1px var(--border)' }}
           >
             <div style={{ padding: '4px 18px 18px' }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>

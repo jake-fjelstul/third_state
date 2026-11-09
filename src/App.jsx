@@ -2,6 +2,9 @@ import { lazy, useEffect, useRef } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { routeDepth } from './lib/motion.js'
 import AppShell from './components/shell/AppShell.jsx'
+import { Bell, CalendarDays, Home, MessageCircle, Plus, UserRound, Users } from 'lucide-react'
+import { Avatar } from './components/ui/ds.jsx'
+import { useMyStatus, requestOpenStatus } from './lib/statusBus.js'
 import { HARDWARE_BACK_EVENT } from './lib/hardwareBack.js'
 import { Capacitor } from '@capacitor/core'
 import './App.css'
@@ -13,6 +16,7 @@ import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
 import JoinLandingPage from './pages/JoinLanding.jsx'
 import OnboardingModal from './components/feed/OnboardingModal.jsx'
+import AppTour from './components/tour/AppTour.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
 import LandingPage from './pages/Landing.jsx'
 import ResetPasswordPage from './pages/ResetPassword.jsx'
@@ -55,58 +59,15 @@ const clr = {
   border: 'var(--border)',
 }
 
-/* ── SVG icons (no lucide dependency in shell) ── */
-const Icons = {
-  Home: ({ active }) => (
-    <svg width="22" height="22" fill="none" stroke={active ? clr.indigo : clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  ),
-  Circles: ({ active }) => (
-    <svg width="22" height="22" fill="none" stroke={active ? clr.indigo : clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  ),
-  Schedule: ({ active }) => (
-    <svg width="22" height="22" fill="none" stroke={active ? clr.indigo : clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  ),
-  Chat: ({ active }) => (
-    <svg width="22" height="22" fill={active ? clr.indigo : 'none'} stroke={active ? clr.indigo : clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  ),
-  Profile: ({ active }) => (
-    <svg width="22" height="22" fill="none" stroke={active ? clr.indigo : clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  ),
-  Settings: ({ active }) => (
-    <svg width="22" height="22" fill="none" stroke={active ? clr.indigo : clr.textLight} strokeWidth="2" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="3"></circle>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-    </svg>
-  ),
-}
-
+/* ── Tab bar: icons only, ink when active (design v2) ── */
 const NAV_ITEMS = [
-  { to: '/feed', label: 'Home', Icon: Icons.Home },
-  { to: '/circles', label: 'Circles', Icon: Icons.Circles },
-  { to: '/schedule', label: 'Schedule', Icon: Icons.Schedule },
-  { to: '/chat', label: 'Chat', Icon: Icons.Chat },
-  { to: '/profile', label: 'Profile', Icon: Icons.Profile },
+  { to: '/feed', label: 'Home', Icon: Home, fillActive: true },
+  { to: '/circles', label: 'Circles', Icon: Users },
+  { to: '/schedule', label: 'Schedule', Icon: CalendarDays },
+  { to: '/chat', label: 'Chat', Icon: MessageCircle },
+  { to: '/profile', label: 'Profile', Icon: UserRound },
 ]
 
-/* ── Bottom tab bar — always fixed ── */
 function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -114,66 +75,41 @@ function BottomNav() {
   const hasUnreadChat = Object.values(chatState || {}).some(chat => chat.unread > 0)
 
   return (
-    <nav style={{
-      position: 'fixed',
-      bottom: 0, left: 0, right: 0,
-      zIndex: 100,
-      backgroundColor: clr.white,
-      borderTop: `1px solid ${clr.border}`,
-      display: 'flex',
-      justifyContent: 'center',
-      paddingTop: '10px',
-      paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
+    <nav aria-label="Tabs" style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+      background: 'color-mix(in srgb, var(--bg) 88%, transparent)',
+      backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+      borderTop: '0.5px solid var(--border)',
+      display: 'flex', justifyContent: 'center',
+      paddingTop: 4, paddingBottom: 'max(6px, env(safe-area-inset-bottom))',
     }}>
-      <div style={{
-        width: '100%',
-        maxWidth: 900,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-      }}>
-        {NAV_ITEMS.map(({ to, label, Icon }) => {
-          const active = location.pathname === to ||
-            (to !== '/feed' && location.pathname.startsWith(to))
+      <div style={{ width: '100%', maxWidth: 900, display: 'flex', justifyContent: 'space-around' }}>
+        {NAV_ITEMS.map(({ to, label, Icon, fillActive }) => {
+          const active = location.pathname === to || (to !== '/feed' && location.pathname.startsWith(to))
           return (
             <button
               key={to}
               type="button"
+              aria-label={label}
+              aria-current={active ? 'page' : undefined}
+              data-tour={`tab-${to.slice(1)}`}
               onClick={() => {
                 if (location.pathname === to) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
                 navigate(to)
               }}
               style={{
-                flex: 1,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4,
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '4px 0',
+                flex: 1, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', cursor: 'pointer', position: 'relative',
+                color: active ? 'var(--textDark)' : 'var(--textLight)',
               }}
             >
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                backgroundColor: active ? clr.indigoLt : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'background-color 0.15s ease',
-                position: 'relative',
-              }}>
-                <Icon active={active} />
-                {to === '/chat' && hasUnreadChat && (
-                  <div style={{
-                    position: 'absolute', top: 8, right: 8,
-                    width: 8, height: 8, borderRadius: '50%',
-                    backgroundColor: '#EF4444', border: `1.5px solid ${active ? clr.indigoLt : clr.white}`
-                  }} />
-                )}
-              </div>
-              {/* Active dot */}
-              <div style={{
-                width: 4, height: 4, borderRadius: '50%',
-                backgroundColor: active ? clr.indigo : 'transparent',
-                transition: 'background-color 0.15s ease',
-              }} />
+              <Icon size={26} strokeWidth={active ? 2.3 : 1.8} fill={active && fillActive ? 'currentColor' : 'none'} />
+              {to === '/chat' && hasUnreadChat && (
+                <span style={{
+                  position: 'absolute', top: 10, left: 'calc(50% + 8px)', width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--accent)', boxShadow: '0 0 0 2px var(--bg)',
+                }} />
+              )}
             </button>
           )
         })}
@@ -182,41 +118,76 @@ function BottomNav() {
   )
 }
 
-/* ── Top nav bar — always fixed at top ── */
+/* ── "+" in the top bar: set your free-now status, or see it when it's live ── */
+function StatusButton() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { currentUser } = useAppContext()
+  const status = useMyStatus()
+  return (
+    <button
+      type="button"
+      data-tour="status"
+      aria-label={status ? `Your status: ${status.activity}` : 'Set your status'}
+      onClick={() => {
+        if (location.pathname !== '/feed') navigate('/feed')
+        requestOpenStatus()
+      }}
+      style={{
+        width: 44, height: 44, padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--textDark)',
+      }}
+    >
+      {status
+        ? <Avatar person={currentUser} size={24} ring />
+        : (
+          <span style={{
+            width: 30, height: 30, borderRadius: '50%', border: '2px solid var(--textDark)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}><Plus size={18} strokeWidth={2.6} /></span>
+        )}
+    </button>
+  )
+}
+
+/* ── Top bar: wordmark left; battery ring and bell right ── */
 function TopNav() {
   const { notifications } = useAppContext()
   const hasUnread = notifications.some(n => !n.isRead)
   const navigate = useNavigate()
   return (
     <nav style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0,
-      zIndex: 100,
-      backgroundColor: clr.bg,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 'max(8px, env(safe-area-inset-top)) 12px 8px 20px',
-      borderBottom: `1px solid ${clr.border}`,
-      boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+      background: 'color-mix(in srgb, var(--bg) 90%, transparent)',
+      backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+      display: 'flex', justifyContent: 'center',
+      padding: 'max(8px, env(safe-area-inset-top)) 8px 4px 20px',
     }}>
-      <div style={{
-        width: '100%',
-        maxWidth: 900,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <button type="button" onClick={() => navigate('/feed')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <svg width="28" height="28" viewBox="0 0 56 56" fill="none"><circle cx="22" cy="28" r="14" stroke={clr.indigo} strokeWidth="3.5" fill="none"/><circle cx="34" cy="28" r="14" stroke={clr.indigo} strokeWidth="3.5" fill="none"/></svg>
-          <span style={{ fontSize: 17, fontWeight: 800, color: clr.textDark }}>Third Space</span>
+      <div style={{ width: '100%', maxWidth: 900, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 48 }}>
+        <button type="button" onClick={() => navigate('/feed')} aria-label="Third Space home" style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-display)',
+          fontSize: 24, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--textDark)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <svg width="28" height="28" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+            <circle cx="22" cy="28" r="14" stroke="currentColor" strokeWidth="4" />
+            <circle cx="34" cy="28" r="14" stroke="currentColor" strokeWidth="4" />
+          </svg>
+          <span>third space<span style={{ color: 'var(--accent)' }}>.</span></span>
         </button>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <StatusButton />
           <BatteryWidget />
-          <button type="button" onClick={() => navigate('/notifications')} aria-label="Notifications" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <button type="button" onClick={() => navigate('/notifications')} aria-label="Notifications" style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', color: 'var(--textDark)',
+          }}>
+            <Bell size={25} strokeWidth={1.9} />
+            {hasUnread && <span style={{
+              position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: '50%',
+              background: 'var(--accent)', boxShadow: '0 0 0 2px var(--bg)',
+            }} />}
           </button>
-          {hasUnread && <div style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F59E0B', pointerEvents: 'none' }}/>}
         </div>
       </div>
     </nav>
@@ -241,7 +212,7 @@ const PUSHED_ROUTES = [
   <Route key="memories" path="/memories" element={<MemoriesPage />} />,
 ]
 // These draw their own header and handle the safe areas themselves.
-const SELF_HEADED = ['/chat/', '/game/']
+const SELF_HEADED = ['/chat/', '/game/', '/circles/']
 
 function ShellLayout() {
   return (
@@ -250,9 +221,10 @@ function ShellLayout() {
         tabElements={TAB_ELEMENTS}
         pushedRoutes={PUSHED_ROUTES}
         selfHeadedPrefixes={SELF_HEADED}
+        lockedPrefixes={['/chat/', '/game/']}
         topNav={<TopNav />}
         bottomNav={<BottomNav />}
-        extras={<PushPrompt />}
+        extras={<><PushPrompt /><AppTour /></>}
       />
       <style>{`
         * { box-sizing: border-box; }
@@ -358,6 +330,7 @@ function App() {
           return
         }
         if (type === 'lfg_post' || type === 'lfg_join') { navigate('/feed'); return }
+        if (type === 'daily_question') { navigate(data.chatId ? `/chat/${data.chatId}` : '/chat'); return }
         if (data.chatId) { navigate(`/chat/${data.chatId}`); return }
         navigate('/notifications')
       }, 0)

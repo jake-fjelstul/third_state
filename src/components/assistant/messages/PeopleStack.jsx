@@ -5,8 +5,8 @@ import { assistantText } from '../../../lib/assistant/conversation.js'
 
 const smallPrimary = (clr) => ({
   flex: 1, padding: '8px 12px', borderRadius: 999, border: 'none',
-  background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-  color: '#FFF', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+  background: `var(--indigo)`,
+  color: 'var(--on-ink)', fontSize: 12, fontWeight: 800, cursor: 'pointer',
 })
 const smallSecondary = (clr) => ({
   flex: 1, padding: '8px 12px', borderRadius: 999,
@@ -56,7 +56,7 @@ export default function PeopleStack({ message, ctx, clr, onClose, onAppendMessag
               flexShrink: 0, width: 240,
               backgroundColor: clr.white,
               borderRadius: 18, padding: 14,
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              boxShadow: '0 0 0 1px var(--border)',
               scrollSnapAlign: 'start',
               display: 'flex', flexDirection: 'column', gap: 8,
             }}>

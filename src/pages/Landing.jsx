@@ -8,7 +8,7 @@ const cardStyle = {
   borderRadius: '16px',
   padding: '32px',
   textAlign: 'left',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)',
+  boxShadow: '0 0 0 1px var(--border)',
   transition: 'transform 0.2s, boxShadow 0.2s, border-color 0.2s',
 }
 
@@ -177,12 +177,12 @@ export default function LandingPage() {
               padding: '16px 40px',
               borderRadius: '999px',
               border: 'none',
-              background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)',
-              color: '#FFFFFF',
+              background: 'var(--indigo)',
+              color: 'var(--on-ink)',
               fontSize: '18px',
               fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(91,95,239,0.38)',
+              boxShadow: 'none',
             }} className="primary-btn">
               Get Started
             </button>
@@ -331,12 +331,12 @@ export default function LandingPage() {
             padding: '16px 40px',
             borderRadius: '999px',
             border: 'none',
-            background: 'linear-gradient(135deg, #5B5FEF 0%, #7B6FFF 100%)',
-            color: '#FFFFFF',
+            background: 'var(--indigo)',
+            color: 'var(--on-ink)',
             fontSize: '18px',
             fontWeight: 600,
             cursor: 'pointer',
-            boxShadow: '0 8px 24px rgba(91,95,239,0.38)',
+            boxShadow: 'none',
           }} className="primary-btn">
             Get Started
           </button>

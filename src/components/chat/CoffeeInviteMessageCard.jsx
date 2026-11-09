@@ -73,7 +73,7 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
     <div style={{
       maxWidth: 310, width: '100%', borderRadius: 20,
       backgroundColor: clr.white, border: `1.5px solid ${clr.border}`,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
       overflow: 'hidden', fontFamily: 'inherit',
     }}>
       {/* Header */}
@@ -149,10 +149,10 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
                 disabled={loading}
                 style={{
                   flex: 2, padding: '10px 0', borderRadius: 999, border: 'none',
-                  background: 'linear-gradient(135deg, #5B5FEF, #7B6FFF)',
-                  color: '#FFFFFF', fontSize: 13, fontWeight: 700,
+                  background: 'var(--indigo)',
+                  color: 'var(--on-ink)', fontSize: 13, fontWeight: 700,
                   cursor: loading ? 'wait' : 'pointer',
-                  boxShadow: '0 4px 12px rgba(91,95,239,0.3)',
+                  boxShadow: 'none',
                   opacity: loading ? 0.7 : 1,
                   fontFamily: 'inherit',
                 }}

@@ -8,6 +8,7 @@ import TimePicker from '../components/TimePicker.jsx'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { Camera, Calendar, CalendarCheck } from 'lucide-react'
 import { readCache, writeCache } from '../lib/localCache.js'
+import { Button, LargeTitle } from '../components/ui/ds.jsx'
 import { useRefreshOnTabReturn } from '../lib/tabActive.js'
 
 // Color system
@@ -81,7 +82,7 @@ function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails }) {
         backgroundColor: clr.white,
         borderRadius: 20,
         padding: '18px 18px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        boxShadow: '0 0 0 1px var(--border)',
         marginBottom: 14,
         borderLeft: `4px solid ${clr.indigo}`,
         cursor: 'pointer',
@@ -374,34 +375,23 @@ export default function Schedule() {
   return (
     <div style={{
       minHeight: '100vh', backgroundColor: clr.bg,
-      fontFamily: "'DM Sans', 'Inter', sans-serif",
+      fontFamily: 'inherit',
       paddingBottom: 100,
     }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif" }}>
-          Schedule
-        </h1>
-        <button
-          type="button"
-          onClick={() => navigate('/memories', { state: { from: location.pathname + location.search } })}
-          style={{
-            padding: '8px 16px', borderRadius: 999,
-            border: `1.5px solid ${clr.indigo}`, backgroundColor: clr.indigoLt,
-            color: clr.indigo, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}
-        >
-          <Camera size={14} color="currentColor" /> Memories
-        </button>
-      </div>
+      <LargeTitle right={
+        <Button size="sm" variant="secondary" icon={<Camera size={16} />}
+          onClick={() => navigate('/memories', { state: { from: location.pathname + location.search } })}>
+          Memories
+        </Button>
+      }>Schedule</LargeTitle>
 
       <div style={{ padding: '16px 20px 0', margin: '0 auto' }}>
         {/* SECTION A: Google Calendar Connection Bar */}
         {showConnectionBar && (
           <div style={{
-            backgroundColor: isConnected ? '#F0FFF4' : clr.white,
-            border: `1px solid ${isConnected ? '#86EFAC' : clr.border}`,
+            backgroundColor: clr.white,
+            border: `1px solid ${clr.border}`,
             borderRadius: 16, padding: '12px 16px',
             display: 'block',
             marginBottom: 16,
@@ -411,17 +401,17 @@ export default function Schedule() {
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
-                  backgroundColor: isConnected ? '#DCFCE7' : clr.bg,
+                  backgroundColor: 'var(--surface-2)',
                   display: 'flex', alignItems: 'center', 
                   justifyContent: 'center',
                 }}>
-                  <Calendar size={18} color={isConnected ? '#059669' : clr.indigo} />
+                  <Calendar size={18} color={isConnected ? 'var(--good)' : clr.textDark} />
                 </div>
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: isConnected ? '#064E3B' : clr.textDark, margin: 0 }}>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: clr.textDark, margin: 0 }}>
                     {isConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
                   </p>
-                  <p style={{ fontSize: 11, color: isConnected ? '#059669' : clr.textMid, margin: 0 }}>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
                     {isConnected ? 'Your events are syncing' : 'See all your events in one place'}
                   </p>
                 </div>
@@ -435,11 +425,11 @@ export default function Schedule() {
                   style={{
                     padding: '8px 16px', borderRadius: 999,
                     border: 'none',
-                    background: !isConfigured ? clr.textLight : `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
-                    color: '#FFFFFF',
+                    background: !isConfigured ? clr.textLight : `var(--indigo)`,
+                    color: 'var(--on-ink)',
                     fontSize: 13, fontWeight: 700,
                     cursor: isLoading || !isConfigured ? 'not-allowed' : 'pointer',
-                    boxShadow: !isConfigured ? 'none' : '0 2px 8px rgba(91,95,239,0.3)',
+                    boxShadow: !isConfigured ? 'none' : 'none',
                   }}
                 >
                   {isLoading ? 'Connecting…' : 'Connect'}
@@ -471,7 +461,7 @@ export default function Schedule() {
                 color: calView === v ? clr.textDark : clr.textMid,
                 fontSize: 13, fontWeight: calView === v ? 700 : 500,
                 cursor: 'pointer',
-                boxShadow: calView === v ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                boxShadow: calView === v ? '0 0 0 1px var(--border)' : 'none',
                 textTransform: 'capitalize',
               }}>
                 {v}
@@ -482,7 +472,7 @@ export default function Schedule() {
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <button onClick={() => advance(-1)} style={{
               width:32, height:32, borderRadius:'50%', border:'none',
-              backgroundColor: clr.white, boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+              backgroundColor: clr.white, boxShadow: '0 0 0 1px var(--border)',
               cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
             }}>
               <svg width="14" height="14" fill="none" stroke={clr.textMid} strokeWidth="2.5" viewBox="0 0 24 24">
@@ -497,7 +487,7 @@ export default function Schedule() {
             </button>
             <button onClick={() => advance(1)} style={{
               width:32, height:32, borderRadius:'50%', border:'none',
-              backgroundColor: clr.white, boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+              backgroundColor: clr.white, boxShadow: '0 0 0 1px var(--border)',
               cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
             }}>
               <svg width="14" height="14" fill="none" stroke={clr.textMid} strokeWidth="2.5" viewBox="0 0 24 24">
@@ -510,7 +500,7 @@ export default function Schedule() {
         {/* SECTION C: Calendar grid */}
         {calView === 'week' && <div style={{
           backgroundColor: clr.white, borderRadius: 20,
-          overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          overflow: 'hidden', boxShadow: '0 0 0 1px var(--border)',
           marginBottom: 24,
         }}>
           <div style={{ 
@@ -537,7 +527,7 @@ export default function Schedule() {
                     backgroundColor: isToday ? clr.indigo : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto',
                   }}>
-                    <span style={{ fontSize: 14, fontWeight: isToday ? 700 : 500, color: isToday ? '#FFFFFF' : clr.textDark }}>
+                    <span style={{ fontSize: 14, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--on-ink)' : clr.textDark }}>
                       {day.getDate()}
                     </span>
                   </div>
@@ -575,7 +565,7 @@ export default function Schedule() {
         </div>}
 
         {calView === 'day' && (
-          <div style={{ backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+          <div style={{ backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden', boxShadow: '0 0 0 1px var(--border)', marginBottom: 24 }}>
             <div style={{ padding: 16, textAlign: 'center', borderBottom: `1px solid ${clr.border}` }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 4px' }}>
                 {selectedDay.toLocaleDateString('en-US', { weekday: 'long' })}
@@ -617,7 +607,7 @@ export default function Schedule() {
             cells.push(new Date(monthRefDate.getFullYear(), monthRefDate.getMonth(), d))
           }
           return (
-            <div style={{ backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+            <div style={{ backgroundColor: clr.white, borderRadius: 20, overflow: 'hidden', boxShadow: '0 0 0 1px var(--border)', marginBottom: 24 }}>
               <div style={{ padding: 16, textAlign: 'center' }}>
                 <p style={{ fontSize: 20, fontWeight: 800, color: clr.textDark, margin: 0 }}>
                   {monthRefDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -669,7 +659,7 @@ export default function Schedule() {
                 .map(event => (
                   <div key={event.id} onClick={() => openEventDetail(event)} style={{
                     backgroundColor: clr.white, borderRadius: 16, padding: '14px 16px',
-                    display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 0 0 1px var(--border)',
                     borderLeft: `4px solid ${event.color}`,
                     cursor: 'pointer', transition: 'box-shadow 0.15s ease',
                   }}>
@@ -706,9 +696,9 @@ export default function Schedule() {
             </h2>
             <button onClick={() => setShowForm(true)} style={{
               padding: '12px 24px', borderRadius: 999, border: 'none',
-              background: `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
-              color: '#FFFFFF', fontSize: 15, fontWeight: 800, cursor: 'pointer',
-              boxShadow: '0 6px 16px rgba(91,95,239,0.35)',
+              background: `var(--indigo)`,
+              color: 'var(--on-ink)', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+              boxShadow: 'none',
             }}>
               + New Meetup
             </button>
@@ -745,9 +735,9 @@ export default function Schedule() {
           <div style={{
             backgroundColor: clr.white,
             width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
-            borderTopLeftRadius: 32, borderTopRightRadius: 32,
-            padding: '32px 24px calc(32px + env(safe-area-inset-bottom))',
-            maxHeight: 'calc(100dvh - 16px)',
+            borderTopLeftRadius: 20, borderTopRightRadius: 20,
+            padding: '20px 20px calc(24px + env(safe-area-inset-bottom))',
+            maxHeight: 'var(--sheet-max)',
             boxShadow: '0 -10px 40px rgba(0,0,0,0.1)',
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
@@ -874,10 +864,10 @@ export default function Schedule() {
                 style={{
                   width:'100%', padding:'15px 0', borderRadius:14, border:'none', marginTop: 10,
                   background: (!form.title || !form.circleId || !form.date || !form.time)
-                    ? clr.textLight : `linear-gradient(135deg, #5B5FEF, #7B6FFF)`,
+                    ? clr.textLight : `var(--indigo)`,
                   color:'#FFFFFF', fontSize:16, fontWeight:700,
                   cursor: (!form.title || !form.circleId || !form.date || !form.time) ? 'not-allowed' : 'pointer',
-                  boxShadow: (!form.title || !form.circleId || !form.date || !form.time) ? 'none' : '0 6px 20px rgba(91,95,239,0.38)',
+                  boxShadow: (!form.title || !form.circleId || !form.date || !form.time) ? 'none' : 'none',
                   transition:'all 0.2s ease',
                 }}>
                 Create Meetup

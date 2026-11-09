@@ -45,7 +45,7 @@ export default function CircleList({ message, ctx, clr, onClose, onAppendMessage
               key={c.id}
               style={{
                 backgroundColor: clr.white, borderRadius: 16, padding: '12px 14px',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+                boxShadow: '0 0 0 1px var(--border)',
                 display: 'flex', alignItems: 'center', gap: 12,
               }}
             >

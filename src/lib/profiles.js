@@ -19,6 +19,7 @@ export function defaultNotificationPrefs() {
     reconnect_nudges: true,
     chat_activity: true,
     messages: true,
+    daily_question: true,
   }
 }
 

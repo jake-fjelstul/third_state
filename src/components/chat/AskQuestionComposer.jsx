@@ -139,7 +139,7 @@ export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, o
           <label style={{ fontSize: 11, fontWeight: 700, color: clr?.textMid || '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Question
           </label>
-          <span style={{ fontSize: 11, fontWeight: 600, color: clr?.indigo || '#5B5FEF' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: clr?.indigo || 'var(--indigo)' }}>
             {isCustom ? 'Custom question' : 'App generated'}
           </span>
         </div>
@@ -157,7 +157,7 @@ export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, o
           <div style={{
             padding: '12px 14px', borderRadius: 12,
             backgroundColor: 'var(--indigoLt, #EEF0FF)',
-            border: `1.5px solid ${clr?.indigo || '#5B5FEF'}`,
+            border: `1.5px solid ${clr?.indigo || 'var(--indigo)'}`,
             fontSize: 14, fontWeight: 700, color: clr?.textDark || '#1F2937',
             lineHeight: 1.4, marginBottom: 8,
           }}>
@@ -187,9 +187,9 @@ export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, o
             onClick={handleToggleCustom}
             style={{
               padding: '6px 12px', borderRadius: 8,
-              border: `1.5px solid ${isCustom ? clr?.indigo || '#5B5FEF' : clr?.border || '#E5E7EB'}`,
+              border: `1.5px solid ${isCustom ? clr?.indigo || 'var(--indigo)' : clr?.border || '#E5E7EB'}`,
               backgroundColor: isCustom ? 'var(--indigoLt, #EEF0FF)' : clr?.bg || '#F9FAFB',
-              color: isCustom ? clr?.indigo || '#5B5FEF' : clr?.textDark || '#1F2937',
+              color: isCustom ? clr?.indigo || 'var(--indigo)' : clr?.textDark || '#1F2937',
               fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
@@ -233,8 +233,8 @@ export default function AskQuestionComposer({ clr, onClose, onSend, pendingSq, o
             disabled={!valid || busy}
             style={{
               flex: 2, padding: 12, borderRadius: 999, border: 'none',
-              background: (!valid || busy) ? 'var(--indigoLt, #EEF0FF)' : `linear-gradient(135deg, ${clr?.indigo || '#5B5FEF'}, #7B6FFF)`,
-              color: (!valid || busy) ? clr?.indigo || '#5B5FEF' : '#FFF',
+              background: (!valid || busy) ? 'var(--indigoLt, #EEF0FF)' : `var(--indigo)`,
+              color: (!valid || busy) ? clr?.indigo || 'var(--indigo)' : 'var(--on-ink)',
               fontSize: 14, fontWeight: 800,
               cursor: (!valid || busy) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',

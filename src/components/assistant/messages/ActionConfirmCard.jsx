@@ -44,7 +44,7 @@ export default function ActionConfirmCard({ message, ctx, clr, onComplete, onCan
       backgroundColor: clr.white,
       borderRadius: 18,
       padding: 16,
-      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+      boxShadow: '0 0 0 1px var(--border)',
       border: `1.5px solid ${clr.indigo}30`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -79,9 +79,9 @@ export default function ActionConfirmCard({ message, ctx, clr, onComplete, onCan
           onClick={handleConfirm}
           style={{
             flex: 2, padding: '10px 14px', borderRadius: 999, border: 'none',
-            background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-            color: '#FFF', fontSize: 13, fontWeight: 800, cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(91,95,239,0.3)',
+            background: `var(--indigo)`,
+            color: 'var(--on-ink)', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+            boxShadow: 'none',
             fontFamily: 'inherit',
           }}
         >

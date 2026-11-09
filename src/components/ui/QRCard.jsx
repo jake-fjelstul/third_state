@@ -154,9 +154,9 @@ export default function QRCard({ url, code, title, subtitle, message }) {
           onClick={handleShare}
           style={{
             flex: 1, padding: '12px 0', borderRadius: 999, border: 'none',
-            backgroundColor: clr.indigo, color: '#FFFFFF',
+            backgroundColor: clr.indigo, color: 'var(--on-ink)',
             fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(91,95,239,0.3)',
+            boxShadow: 'none',
             fontFamily: 'inherit',
           }}
         >

@@ -216,7 +216,7 @@ function EventEditModalBody({ event, onClose, onSaved }) {
         <form onSubmit={handleSave}>
           {/* Cover Photo Picker */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>
               Cover Photo
             </label>
             <label style={{
@@ -262,7 +262,7 @@ function EventEditModalBody({ event, onClose, onSaved }) {
           {/* Date & Time */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Date</label>
               <input
                 required
                 type="date"
@@ -275,12 +275,12 @@ function EventEditModalBody({ event, onClose, onSaved }) {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Start Time</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Start Time</label>
             <TimePicker value={time} onChange={setTime} />
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Duration</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Duration</label>
             <select value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))} style={{
               width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 14,
               border: `1.5px solid ${clr.border}`, backgroundColor: clr.bg, fontSize: 15, color: clr.textDark, fontFamily: 'inherit',
@@ -291,7 +291,7 @@ function EventEditModalBody({ event, onClose, onSaved }) {
 
           {/* Location */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: clr.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Location</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Location</label>
             <LocationAutocomplete
               value={eventLocation}
               onChange={setEventLocation}
@@ -345,9 +345,9 @@ function EventEditModalBody({ event, onClose, onSaved }) {
             disabled={submitting || deleting}
             style={{
               width: '100%', padding: '16px', borderRadius: 999, border: 'none',
-              background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-              color: '#FFF', fontSize: 16, fontWeight: 800, cursor: submitting ? 'wait' : 'pointer',
-              boxShadow: '0 6px 20px rgba(91,95,239,0.3)', marginBottom: 12,
+              background: `var(--indigo)`,
+              color: 'var(--on-ink)', fontSize: 16, fontWeight: 800, cursor: submitting ? 'wait' : 'pointer',
+              boxShadow: 'none', marginBottom: 12,
             }}
           >
             {submitting ? 'Saving…' : 'Save Changes'}

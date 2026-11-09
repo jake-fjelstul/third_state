@@ -7,7 +7,7 @@ export default function ConnectFourBoard({ state, myTurn, onMove }) {
 
   return (
     <div style={{
-      backgroundColor: '#1E40AF', padding: 12, borderRadius: 20,
+      backgroundColor: 'var(--surface-3)', padding: 12, borderRadius: 20,
       display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 6,
       width: '100%', maxWidth: 400, margin: '0 auto'
     }}>
@@ -27,9 +27,9 @@ export default function ConnectFourBoard({ state, myTurn, onMove }) {
             {Array.from({ length: ROWS }).map((_, r) => {
               const idx = r * COLS + c
               const val = cells[idx]
-              let bg = '#1E3A8A'
-              if (val === 'x') bg = '#EF4444' // Red
-              if (val === 'o') bg = '#FBBF24' // Yellow
+              let bg = 'var(--bg)'
+              if (val === 'x') bg = 'var(--accent)'
+              if (val === 'o') bg = 'var(--ink)'
               
               return (
                 <div key={r} style={{

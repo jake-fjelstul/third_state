@@ -87,11 +87,11 @@ export default function LocationAutocomplete({
         value={query}
         onChange={onInput}
         onFocus={(e) => {
-          e.target.style.borderColor = clr?.indigo || '#5B5FEF';
+          e.target.style.borderColor = 'var(--textLight)';
           setOpen(true);
         }}
         onBlur={(e) => {
-          e.target.style.borderColor = clr?.border || '#E5E7EB';
+          e.target.style.borderColor = 'transparent';
           setTimeout(() => setOpen(false), 150);
         }}
         placeholder={placeholder}
@@ -101,9 +101,9 @@ export default function LocationAutocomplete({
           boxSizing: 'border-box',
           padding: '12px 14px',
           paddingLeft: 40,
-          borderRadius: 12,
-          border: `1.5px solid ${clr?.border || '#E5E7EB'}`,
-          backgroundColor: clr?.bg || '#FFF',
+          borderRadius: 14,
+          border: '1.5px solid transparent',
+          backgroundColor: 'var(--surface-2)',
           fontSize: 16,
           color: clr?.textDark || '#111',
           outline: 'none',
@@ -128,10 +128,10 @@ export default function LocationAutocomplete({
           cursor: 'pointer',
           fontSize: 12,
           fontWeight: 600,
-          color: clr?.indigo || '#5B5FEF',
+          color: clr?.indigo || 'var(--indigo)',
         }}
       >
-        <MapPin size={14} color={clr?.indigo || '#5B5FEF'} />
+        <MapPin size={14} color={clr?.indigo || 'var(--indigo)'} />
       </button>
 
       {open && (results.length > 0 || loading || (query.trim().length >= 2 && results.length === 0)) && (

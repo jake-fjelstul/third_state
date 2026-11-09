@@ -10,7 +10,8 @@ import SoloGameModal from '../components/games/SoloGameModal.jsx'
 import SwipeableRow from '../components/chat/SwipeableRow.jsx'
 import ConfirmCard from '../components/assistant/messages/ConfirmCard.jsx'
 import ThreadView, { clr, GroupAvatar, UserAvatar, normChat } from '../components/chat/ThreadView.jsx'
-import { Gamepad2 } from 'lucide-react'
+import { Gamepad2, Search, SquarePen } from 'lucide-react'
+import { Avatar, IconButton, LargeTitle, ListRow } from '../components/ui/ds.jsx'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
 import { canGoBack } from '../lib/tabActive.js'
 
@@ -192,7 +193,7 @@ export default function Chat() {
 
     if (!chat) {
       return (
-        <div style={{ height:'100dvh', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily:"'DM Sans','Inter',sans-serif" }}>
+        <div style={{ height:'100dvh', display:'flex', flexDirection:'column', backgroundColor:clr.bg, fontFamily: 'inherit' }}>
           <div style={{ display:'flex', alignItems:'center', gap:12, padding:'max(16px, calc(env(safe-area-inset-top) + 12px)) 20px 16px', backgroundColor:clr.bg, borderBottom:`1px solid ${clr.border}` }}>
             <button onClick={() => (canGoBack() ? navigate(-1) : navigate('/chat'))} style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
               <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2.2" viewBox="0 0 24 24">
@@ -234,28 +235,12 @@ export default function Chat() {
     return tB - tA
   })
  
-  /* alternate group avatar colors */
-  const groupColors = [clr.indigo, '#6B7280', '#10B981', '#F43F5E']
- 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 80px)',
-      backgroundColor: clr.bg,
-      fontFamily: "'DM Sans','Inter',sans-serif",
-    }}>
- 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 16px' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: clr.textDark, margin: 0, letterSpacing: '-0.02em', fontFamily: "'DM Serif Display', 'Georgia', serif" }}>
-          Chat
-        </h1>
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => setShowGamePicker(true)} style={{
-            padding: '6px 12px', borderRadius: 16, border: `1.5px solid ${clr.border}`,
-            backgroundColor: clr.white, color: clr.textDark, fontSize: 13, fontWeight: 700,
-            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
-          }}>
-            <Gamepad2 size={16} color={clr.textDark} /> Games
-          </button>
+    <div style={{ minHeight: 'calc(100vh - 80px)', backgroundColor: 'var(--bg)' }}>
+      <LargeTitle right={
+        <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+          <IconButton label="Games" onClick={() => setShowGamePicker(true)}><Gamepad2 size={24} strokeWidth={1.9} /></IconButton>
+          <IconButton label="New message" onClick={() => setShowCompose(true)}><SquarePen size={23} strokeWidth={1.9} /></IconButton>
           {showGamePicker && (
             <GamePicker
               anchor="top-right"
@@ -266,49 +251,31 @@ export default function Chat() {
             />
           )}
         </div>
-      </div>
+      }>Messages</LargeTitle>
 
-      {/* ── Search bar + Compose ── */}
-      <div style={{ padding:'0 20px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ position:'relative', flex: 1 }}>
-          <svg width="18" height="18" fill="none" stroke={clr.textLight} strokeWidth="2" viewBox="0 0 24 24"
-            style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
+      {/* Search */}
+      <div style={{ padding: '4px 16px 8px' }}>
+        <div style={{ height: 40, borderRadius: 12, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
+          <Search size={18} color="var(--textLight)" aria-hidden="true" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search messages"
-            style={{
-              width:'100%', boxSizing:'border-box',
-              padding:'13px 16px 13px 44px',
-              borderRadius:999,
-              border:`1.5px solid ${clr.border}`,
-              backgroundColor: clr.bg,
-              fontSize:15, color: clr.textDark,
-              outline:'none', fontFamily:'inherit',
-            }}
+            placeholder="Search"
+            aria-label="Search messages"
+            style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontSize: 16, color: 'var(--textDark)', fontFamily: 'inherit' }}
           />
         </div>
-        <button type="button" onClick={() => setShowCompose(true)} style={{
-          width: 44, height: 44, borderRadius: '50%', border: 'none', flexShrink: 0,
-          background: `linear-gradient(135deg, ${clr.indigo}, #7B6FFF)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', boxShadow: '0 3px 10px rgba(91,95,239,0.3)',
-        }}>
-          <svg width="20" height="20" fill="none" stroke="#FFFFFF" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
       </div>
 
-      {/* ── Chat list ── */}
-      <div style={{ marginTop:4 }}>
-        {filtered.map((chat, idx) => {
-          const { isGroup, name, preview, time, unread, avatar, online } = normChat(chat)
-          const isActive = unread > 0
-
+      {/* Chat list: edge-to-edge rows; circles get rounded-square avatars */}
+      <div>
+        {filtered.length === 0 && (
+          <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--textMid)', fontSize: 15 }}>
+            {search.trim() ? 'No chats match that search.' : 'No messages yet. Start one with the pencil above.'}
+          </div>
+        )}
+        {filtered.map((chat) => {
+          const { isGroup, name, preview, time, unread, avatar } = normChat(chat)
           return (
             <SwipeableRow
               key={chat.id}
@@ -318,63 +285,20 @@ export default function Chat() {
               onClick={() => navigate(`/chat/${chat.id}`)}
               onLongPress={() => setActionSheetChat({ id: chat.id, name })}
               onDelete={() => { setOpenRowId(null); setConfirmDeleteChat({ id: chat.id, name }) }}
-              background={clr.bg}
+              background="var(--bg)"
             >
               <div
                 // Start loading on finger-down so the thread opens with messages (item 3).
                 onPointerDown={() => { if (!isGroup) prefetchMessages(chat.id, null, () => listMessages(chat.id)) }}
-                style={{
-                  width:'100%', boxSizing:'border-box', display:'flex', alignItems:'center', gap:14,
-                  padding:'14px 20px',
-                  backgroundColor: 'transparent',
-                  border:'none',
-                  cursor:'pointer', textAlign:'left',
-                  transition:'background-color 0.15s ease',
-                }}
+                style={{ width: '100%' }}
               >
-                {/* Avatar */}
-                {isGroup
-                  ? <GroupAvatar name={name} color={groupColors[idx % groupColors.length]} />
-                  : <UserAvatar src={avatar} name={name} online={online} />
-                }
-
-                {/* Text */}
-                <div style={{ flex:1, minWidth:0, borderBottom:`0.5px solid ${clr.border}`, paddingBottom:14 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                    <span style={{
-                      fontSize:16, fontWeight: isActive ? 700 : 600, color: clr.textDark,
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                    }}>
-                      {name}
-                    </span>
-                    <span style={{
-                      fontSize:12, color: isActive ? clr.indigo : clr.textLight,
-                      fontWeight: isActive ? 600 : 400, flexShrink:0, marginLeft:8,
-                    }}>
-                      {time}
-                    </span>
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <span style={{
-                      fontSize:14, color: clr.textMid,
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                      maxWidth:'85%',
-                    }}>
-                      {preview}
-                    </span>
-                    {unread > 0 && (
-                      <div style={{
-                        minWidth:22, height:22, borderRadius:999,
-                        backgroundColor: clr.indigo,
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:11, fontWeight:700, color:'#FFFFFF',
-                        padding:'0 6px', flexShrink:0,
-                      }}>
-                        {unread}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ListRow
+                  leading={<Avatar src={avatar} name={name} size={56} square={isGroup} />}
+                  title={name}
+                  subtitle={preview}
+                  meta={time}
+                  unread={unread > 0}
+                />
               </div>
             </SwipeableRow>
           )
