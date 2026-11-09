@@ -38,3 +38,20 @@ export function relativeTime(iso) {
   if (w < 5) return `${w}w ago`
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
+
+/**
+ * This week's goal: { target, count, met, streak, weekStart }.
+ * Reading it also records a reached week (and its battery boost) server-side.
+ */
+export async function getWeeklyGoal() {
+  const { data, error } = await supabase.rpc('get_weekly_goal')
+  if (error) throw error
+  return data
+}
+
+/** Change the weekly target (1 to 5). Returns the refreshed goal. */
+export async function setWeeklyGoal(target) {
+  const { data, error } = await supabase.rpc('set_weekly_goal', { p_target: target })
+  if (error) throw error
+  return data
+}

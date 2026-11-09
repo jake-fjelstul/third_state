@@ -1,22 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ChevronRight } from 'lucide-react'
+import { Check, ChevronRight, Minus, Plus } from 'lucide-react'
 import { useAppContext } from '../../context/AppContext.jsx'
-import { listBatteryHistory, relativeTime } from '../../lib/battery.js'
+import { getWeeklyGoal, listBatteryHistory, relativeTime, setWeeklyGoal } from '../../lib/battery.js'
 import { useHardwareBack } from '../../lib/hardwareBack.js'
 import { batteryLevel, ExplainerSheet } from './SocialBattery.jsx'
+
+const stepBtn = (disabled) => ({
+  width: 32, height: 32, borderRadius: '50%', border: 'none', padding: 0, flexShrink: 0,
+  background: 'var(--surface-3)', color: 'var(--textDark)', opacity: disabled ? 0.35 : 1,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: disabled ? 'default' : 'pointer',
+})
 
 const SIZE = 30
 const STROKE = 3
 
 /**
  * Social battery as a small progress ring in the top bar (issue 3).
- * Tap for a minimal dropdown: status word, five-segment bar, the last three
- * changes, and a link to the explainer.
+ * Tap for a minimal dropdown: status word, five-segment bar, this week's
+ * meetup goal (adjustable, with a streak), the last three changes, and a link
+ * to the explainer. A green tick on the ring means the week's goal is reached.
  */
 export default function BatteryWidget() {
-  const { batteryPoints, currentUser } = useAppContext()
+  const { batteryPoints, currentUser, refreshProfile } = useAppContext()
   const reduced = useReducedMotion()
   const points = Math.max(0, Math.min(100, batteryPoints ?? 0))
   const level = batteryLevel(points)
@@ -25,6 +32,35 @@ export default function BatteryWidget() {
   const [history, setHistory] = useState(null)
   const [anchor, setAnchor] = useState(null)
   const btnRef = useRef(null)
+  const [goal, setGoal] = useState(null) // { target, count, met, streak }
+
+  // The weekly goal loads at launch, whenever the battery moves (a meetup
+  // just counted) and each time the popup opens.
+  useEffect(() => {
+    if (!currentUser?.id) return
+    let cancelled = false
+    getWeeklyGoal()
+      .then(g => {
+        if (cancelled || !g) return
+        setGoal(prev => {
+          // Reaching the goal adds battery server-side; pull the new value once.
+          if (g.met && prev && !prev.met) refreshProfile?.()?.catch?.(() => {})
+          return g
+        })
+      })
+      .catch(err => console.error('[BatteryWidget] weekly goal failed', err))
+    return () => { cancelled = true }
+  }, [currentUser?.id, points, open, refreshProfile])
+
+  const changeTarget = (delta) => {
+    if (!goal) return
+    const next = Math.max(1, Math.min(5, goal.target + delta))
+    if (next === goal.target) return
+    setGoal({ ...goal, target: next }) // instant; the server answer follows
+    setWeeklyGoal(next)
+      .then(g => { if (g) setGoal(g) })
+      .catch(err => console.error('[BatteryWidget] set goal failed', err))
+  }
 
   const close = useCallback(() => setOpen(false), [])
   const closeExplainer = useCallback(() => setExplainer(false), [])
@@ -82,6 +118,23 @@ export default function BatteryWidget() {
           />
         </svg>
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '-0.02em', position: 'relative' }}>{points}</span>
+        <AnimatePresence>
+          {goal?.met && (
+            <motion.span
+              key="met"
+              aria-hidden="true"
+              initial={reduced ? false : { scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+              style={{
+                position: 'absolute', right: 3, bottom: 5, width: 14, height: 14, borderRadius: '50%',
+                background: 'var(--good)', color: '#FFFFFF', boxShadow: '0 0 0 2px var(--bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Check size={9} strokeWidth={4} />
+            </motion.span>
+          )}
+        </AnimatePresence>
       </button>
 
       {createPortal(
@@ -126,6 +179,37 @@ export default function BatteryWidget() {
                     }} />
                   ))}
                 </div>
+
+                {goal && (
+                  <div style={{ padding: '10px 0 12px', margin: '0 0 6px', borderTop: '0.5px solid var(--border)', borderBottom: '0.5px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: 'var(--textMid)', fontWeight: 500 }}>This week's goal</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>
+                          {goal.met ? 'Goal reached' : `${Math.min(goal.count, goal.target)} of ${goal.target} ${goal.target === 1 ? 'meetup' : 'meetups'}`}
+                        </div>
+                      </div>
+                      <button type="button" aria-label="Lower weekly goal" disabled={goal.target <= 1} onClick={() => changeTarget(-1)} style={stepBtn(goal.target <= 1)}><Minus size={16} /></button>
+                      <span aria-label={`Goal: ${goal.target} a week`} style={{ width: 16, textAlign: 'center', fontSize: 16, fontWeight: 700 }}>{goal.target}</span>
+                      <button type="button" aria-label="Raise weekly goal" disabled={goal.target >= 5} onClick={() => changeTarget(1)} style={stepBtn(goal.target >= 5)}><Plus size={16} /></button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }} aria-hidden="true">
+                      {Array.from({ length: goal.target }, (_, i) => (
+                        <motion.span
+                          key={i} layout={!reduced}
+                          animate={{ backgroundColor: i < goal.count ? 'var(--good)' : 'var(--surface-3)' }}
+                          transition={{ duration: 0.25 }}
+                          style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF' }}
+                        >
+                          {i < goal.count && <Check size={12} strokeWidth={3.5} />}
+                        </motion.span>
+                      ))}
+                      <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--textMid)' }}>
+                        {goal.streak > 0 ? `${goal.streak} ${goal.streak === 1 ? 'week' : 'weeks'} in a row` : 'Events, coffee, "I\'m free"'}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {history === null ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
