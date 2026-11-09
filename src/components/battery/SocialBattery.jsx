@@ -86,6 +86,7 @@ export function ExplainerSheet({ onClose }) {
         </h2>
         {row('What it is', 'A rough read on how connected you have been lately, from 0 to 100. It is a nudge, not a score.')}
         {row('What fills it', 'Going to events you RSVP’d to (+20), joining a new circle (+15), and messaging people (+5, up to three times a day).')}
+        {row('Weekly goal', 'Pick how many times a week you want to meet up in person. Events, coffee chats and “I’m free” meetups count. Reaching it gives +15 and keeps your streak going.')}
         {row('What drains it', 'Days without opening the app, and connections you haven’t seen in a while.')}
         {row('Who can see it', 'Only you.')}
         <button type="button" onClick={onClose} style={{

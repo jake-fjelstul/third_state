@@ -24,7 +24,7 @@ import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
 import OnboardingFlow from '../components/onboarding/OnboardingFlow.jsx'
 import { readCache, writeCache, reviveEvents } from '../lib/localCache.js'
-import { useRefreshOnTabReturn } from '../lib/tabActive.js'
+import { useRefreshOnTabReturn, useIsTabActive } from '../lib/tabActive.js'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { buildMapsUrl, searchVenues } from '../lib/geocoding.js'
 import AssistantBar from '../components/feed/AssistantBar.jsx'
@@ -1246,6 +1246,58 @@ function SearchResults({ query, results, actions, joinedCircles, onJoinCircle, o
   )
 }
 
+/* ── Search, before you type: discovery lives here ── */
+function SearchDiscover({ people, circles, onJoinCircle, onDiscover, onOpenPerson, onOpenCircle }) {
+  const groupLabel = { margin: '18px 0 4px', fontSize: 13, fontWeight: 600, color: 'var(--textMid)' }
+  const row = {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', minHeight: 56,
+    background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: 'var(--textDark)',
+  }
+  const title = { fontSize: 16, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  const sub = { fontSize: 14, color: 'var(--textMid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  return (
+    <div style={{ animation: 'tsTabIn 0.2s ease-out', paddingBottom: 24 }}>
+      <button type="button" onClick={onDiscover} style={{
+        ...row, marginTop: 8, padding: '14px 16px', borderRadius: 'var(--r-lg)', background: 'var(--accent-soft)',
+      }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <UserPlus size={20} strokeWidth={2} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={title}>Meet someone new</div>
+          <div style={sub}>Swipe through people, circles and events</div>
+        </div>
+        <ChevronRight size={18} color="var(--textMid)" />
+      </button>
+
+      {people.length > 0 && (
+        <section>
+          <p style={groupLabel}>People you might like</p>
+          {people.map(p => (
+            <button key={p.id} type="button" style={row} onClick={() => onOpenPerson(p)}>
+              <Avatar person={p} size={44} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={title}>{p.name}</div>
+                <div style={sub}>{(p.interests || []).slice(0, 3).join(' · ') || p.bio || p.city || ''}</div>
+              </div>
+              <ChevronRight size={18} color="var(--textLight)" />
+            </button>
+          ))}
+        </section>
+      )}
+
+      {circles.length > 0 && (
+        <section>
+          <p style={groupLabel}>Circles to join</p>
+          {circles.map(c => (
+            <CircleRow key={c.id} circle={c} isJoined={false} onJoin={() => onJoinCircle(c.id)} onClick={() => onOpenCircle(c)} />
+          ))}
+        </section>
+      )}
+    </div>
+  )
+}
+
 /* ── Home sections (design v2) ── */
 
 function DateBlock({ d }) {
@@ -1347,6 +1399,7 @@ export default function Feed() {
   const [searchQuery, setSearchQuery] = useState('')
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [assistantPrompt, setAssistantPrompt] = useState(null) // null = closed, string = open
+  const [searchOpen, setSearchOpen] = useState(false) // field tapped: show suggestions until Cancel
   const [soloGame, setSoloGame] = useState(null) // game type opened from a search action
 
   const [myLfg, setMyLfg] = useState([])
@@ -1538,6 +1591,20 @@ export default function Feed() {
     return () => window.removeEventListener('resize', measure)
   })
 
+  // Home (not searching, nothing below the wheel) is one fixed screen: no
+  // page scroll, no bounce.
+  const tabActive = useIsTabActive()
+  // With upcoming meetups, "Up next" sits below the wheel and Home scrolls to it.
+  const homeLocked = !searchOpen && !searchQuery.trim() && upcomingMeetups.length === 0
+  useEffect(() => {
+    if (!tabActive || !homeLocked) return
+    const root = document.documentElement
+    const prev = root.style.overflow
+    window.scrollTo(0, 0)
+    root.style.overflow = 'hidden'
+    return () => { root.style.overflow = prev }
+  }, [tabActive, homeLocked])
+
   // People search runs on the server so it isn't limited to who's loaded (M3).
   const [serverPeople, setServerPeople] = useState([])
   useEffect(() => {
@@ -1573,7 +1640,7 @@ export default function Feed() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: 'inherit', paddingBottom: 110 }}>
+    <div style={{ minHeight: homeLocked ? 0 : '100vh', backgroundColor: clr.bg, fontFamily: 'inherit', paddingBottom: homeLocked ? 0 : 110 }}>
 
       <div style={{ padding: '0 16px', margin: '0 auto' }}>
         {!completeness.isComplete && <ProfileCompletionCard completeness={completeness} />}
@@ -1586,6 +1653,9 @@ export default function Feed() {
             onChange={setSearchQuery}
             placeholder="Search people, circles, events"
             onSubmit={() => {}}
+            active={searchOpen || !!searchQuery}
+            onFocus={() => setSearchOpen(true)}
+            onCancel={() => { setSearchQuery(''); setSearchOpen(false) }}
           />
         </div>
 
@@ -1615,16 +1685,25 @@ export default function Feed() {
             }}
             onAsk={() => { const q = searchQuery.trim(); if (q) { setAssistantPrompt(q); setSearchQuery('') } }}
           />
+        ) : searchOpen ? (
+          <SearchDiscover
+            people={people.filter(p => !blockedUserIds?.includes(p.id) && p.id !== currentUser?.id && !connections?.some(c => c.id === p.id)).slice(0, 4)}
+            circles={circles.filter(c => !joinedCircles.includes(c.id)).slice(0, 3)}
+            onJoinCircle={joinCircle}
+            onDiscover={() => setShowDiscovery(true)}
+            onOpenPerson={(p) => navigate(`/user/${p.id}`)}
+            onOpenCircle={(c) => navigate(`/circles/${c.id}`)}
+          />
         ) : (
           <>
             {/* First screen: search (above), Free now when anyone is free, and
-                the create wheel sized to whatever height is left. Everything
-                else starts below the fold. */}
+                the create wheel sized to whatever height is left. Up next,
+                when there is one, starts below the fold. */}
             <div ref={firstScreenRef} style={{
               height: firstScreenTop == null
                 ? 'calc(100dvh - 200px)'
-                : `calc(100dvh - ${firstScreenTop}px - 64px - env(safe-area-inset-bottom))`,
-              minHeight: 280, display: 'flex', flexDirection: 'column',
+                : `calc(100dvh - ${firstScreenTop}px - 80px - env(safe-area-inset-bottom))`,
+              minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column',
             }}>
               {(myLfg.length > 0 || freeNowOthers.length > 0) && (
                 <FreeNowRow
@@ -1670,23 +1749,6 @@ export default function Feed() {
                 ))}
               </section>
             )}
-
-            <button type="button" onClick={() => setShowDiscovery(true)} style={{
-              width: '100%', margin: '20px 0 8px', padding: '14px 16px', borderRadius: 'var(--r-lg)',
-              border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit', textAlign: 'left', color: 'var(--textDark)',
-            }}>
-              <div style={{ display: 'flex' }}>
-                {people.filter(p => !blockedUserIds?.includes(p.id)).slice(0, 3).map((p, i) => (
-                  <div key={p.id} style={{ marginLeft: i ? -10 : 0, borderRadius: '50%', boxShadow: '0 0 0 2px var(--white)' }}><Avatar person={p} size={32} /></div>
-                ))}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 16, fontWeight: 600 }}>Meet someone new</div>
-                <div style={{ fontSize: 14, color: 'var(--textMid)' }}>Swipe through people, circles and events</div>
-              </div>
-              <ChevronRight size={18} color="var(--textLight)" />
-            </button>
           </>
         )}
       </div>

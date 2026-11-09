@@ -14,7 +14,7 @@ const STEPS = [
   { target: 'wheel', title: 'Start something', body: 'Tap a slice to start a circle, host an event, invite someone for coffee or post that you are free.' },
   { target: 'status', title: "Say you're free", body: 'Tap + to tell friends you are free right now. People who are free show up in a row at the top of Home.' },
   { target: 'battery', title: 'Your social battery', body: 'It fills up when you meet people and drains when you go quiet. Tap it to see what changed.' },
-  { target: 'search', title: 'Search everything', body: 'Find people, circles and events, or type something like "chess" to jump straight in.' },
+  { target: 'search', title: 'Search everything', body: 'Tap to meet new people and find circles, or type something like "chess" to jump straight in.' },
   { target: 'tab-circles', title: 'Circles', body: 'Communities built around what you like. Join one or start your own.' },
   { target: 'tab-schedule', title: 'Schedule', body: 'Your events and meetups in one calendar, plus when friends are free.' },
   { target: 'tab-chat', title: 'Messages', body: 'Chats with friends and circles, with polls, questions and games built in.' },
