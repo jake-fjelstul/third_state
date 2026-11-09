@@ -151,7 +151,8 @@ body {
 @keyframes tsSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes tsSheetDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
 @keyframes tsFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes tsTabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Opacity only: a transform here would trap position:fixed sheets inside. */
+@keyframes tsTabIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tsShimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
 
 .ts-sheet-up { animation: tsSheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both; }

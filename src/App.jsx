@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutlet } from 'react-router-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { pageSlide, springs, routeDepth } from './lib/motion.js'
+import { lazy, useEffect, useRef } from 'react'
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { routeDepth } from './lib/motion.js'
+import AppShell from './components/shell/AppShell.jsx'
 import { HARDWARE_BACK_EVENT } from './lib/hardwareBack.js'
 import { Capacitor } from '@capacitor/core'
 import './App.css'
@@ -9,25 +9,41 @@ import { useAppContext } from './context/AppContext.jsx'
 import { isProfileSessionFatalError } from './lib/auth.js'
 import AuthPage from './pages/Auth.jsx'
 import FeedPage from './pages/Feed.jsx'
-import CirclesPage from './pages/Circles.jsx'
-import CircleDetailPage from './pages/CircleDetail.jsx'
-import SchedulePage from './pages/Schedule.jsx'
-import ChatPage from './pages/Chat.jsx'
-import GamePlay from './pages/GamePlay.jsx'
-import ProfilePage from './pages/Profile.jsx'
-import UserProfilePage from './pages/UserProfile.jsx'
-import SettingsPage from './pages/Settings.jsx'
-import NotificationsPage from './pages/Notifications.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
 import JoinLandingPage from './pages/JoinLanding.jsx'
 import OnboardingModal from './components/feed/OnboardingModal.jsx'
-import MemoriesPage from './pages/Memories.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
 import LandingPage from './pages/Landing.jsx'
 import ResetPasswordPage from './pages/ResetPassword.jsx'
 import PushPrompt from './components/push/PushPrompt.jsx'
+import BatteryWidget from './components/battery/BatteryWidget.jsx'
 import { supabase } from './lib/supabase'
+
+// Code-split pages (issue 5). Feed ships in the main bundle; the rest load
+// on demand and are preloaded once the app is idle.
+const PAGE_LOADERS = {
+  CirclesPage: () => import('./pages/Circles.jsx'),
+  CircleDetailPage: () => import('./pages/CircleDetail.jsx'),
+  SchedulePage: () => import('./pages/Schedule.jsx'),
+  ChatPage: () => import('./pages/Chat.jsx'),
+  GamePlay: () => import('./pages/GamePlay.jsx'),
+  ProfilePage: () => import('./pages/Profile.jsx'),
+  UserProfilePage: () => import('./pages/UserProfile.jsx'),
+  SettingsPage: () => import('./pages/Settings.jsx'),
+  NotificationsPage: () => import('./pages/Notifications.jsx'),
+  MemoriesPage: () => import('./pages/Memories.jsx'),
+}
+const CirclesPage = lazy(PAGE_LOADERS.CirclesPage)
+const CircleDetailPage = lazy(PAGE_LOADERS.CircleDetailPage)
+const SchedulePage = lazy(PAGE_LOADERS.SchedulePage)
+const ChatPage = lazy(PAGE_LOADERS.ChatPage)
+const GamePlay = lazy(PAGE_LOADERS.GamePlay)
+const ProfilePage = lazy(PAGE_LOADERS.ProfilePage)
+const UserProfilePage = lazy(PAGE_LOADERS.UserProfilePage)
+const SettingsPage = lazy(PAGE_LOADERS.SettingsPage)
+const NotificationsPage = lazy(PAGE_LOADERS.NotificationsPage)
+const MemoriesPage = lazy(PAGE_LOADERS.MemoriesPage)
 const clr = {
   bg: 'var(--bg)',
   white: 'var(--white)',
@@ -124,7 +140,10 @@ function BottomNav() {
             <button
               key={to}
               type="button"
-              onClick={() => navigate(to)}
+              onClick={() => {
+                if (location.pathname === to) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+                navigate(to)
+              }}
               style={{
                 flex: 1,
                 display: 'flex', flexDirection: 'column',
@@ -177,7 +196,7 @@ function TopNav() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 'max(14px, env(safe-area-inset-top)) 20px 14px',
+      padding: 'max(8px, env(safe-area-inset-top)) 12px 8px 20px',
       borderBottom: `1px solid ${clr.border}`,
       boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
     }}>
@@ -192,135 +211,49 @@ function TopNav() {
           <svg width="28" height="28" viewBox="0 0 56 56" fill="none"><circle cx="22" cy="28" r="14" stroke={clr.indigo} strokeWidth="3.5" fill="none"/><circle cx="34" cy="28" r="14" stroke={clr.indigo} strokeWidth="3.5" fill="none"/></svg>
           <span style={{ fontSize: 17, fontWeight: 800, color: clr.textDark }}>Third Space</span>
         </button>
-        <div style={{ position: 'relative' }}>
-          <button type="button" onClick={() => navigate('/notifications')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <BatteryWidget />
+          <button type="button" onClick={() => navigate('/notifications')} aria-label="Notifications" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="22" height="22" fill="none" stroke={clr.textDark} strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </button>
-          {hasUnread && <div style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F59E0B' }}/>}
+          {hasUnread && <div style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F59E0B', pointerEvents: 'none' }}/>}
         </div>
       </div>
     </nav>
   )
 }
 
-/* ── Animated page container (items 3 and 9) ──
-   Going deeper (list → chat) slides the new page in from the right; going
-   back slides it out. Tab switches cross-fade. A swipe from the left edge on
-   a pushed page goes back, like iOS. */
-function AnimatedOutlet() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const outlet = useOutlet()
-  const reduced = useReducedMotion()
-  const pageRef = useRef(null)
-  const swipe = useRef(null)
-
-  // Direction of the last route change, derived during render (no refs).
-  const [routeAnim, setRouteAnim] = useState({ path: location.pathname, dir: 0 })
-  if (routeAnim.path !== location.pathname) {
-    const from = routeDepth(routeAnim.path)
-    const to = routeDepth(location.pathname)
-    setRouteAnim({ path: location.pathname, dir: to > from ? 1 : to < from ? -1 : 0 })
-  }
-  const dir = routeAnim.dir
-  const canSwipeBack = routeDepth(location.pathname) > 0
-
-  const onTouchStart = (e) => {
-    const t = e.touches[0]
-    if (!canSwipeBack || t.clientX > 24) return
-    swipe.current = { x0: t.clientX, y0: t.clientY, dx: 0, active: false }
-  }
-  const onTouchMove = (e) => {
-    const s = swipe.current
-    if (!s) return
-    const t = e.touches[0]
-    s.dx = Math.max(0, t.clientX - s.x0)
-    if (!s.active && Math.abs(t.clientY - s.y0) > 12 && Math.abs(t.clientY - s.y0) > s.dx) { swipe.current = null; return }
-    if (s.dx > 8) s.active = true
-    if (s.active && pageRef.current) {
-      pageRef.current.style.transition = 'none'
-      pageRef.current.style.transform = `translateX(${s.dx}px)`
-    }
-  }
-  const onTouchEnd = () => {
-    const s = swipe.current
-    swipe.current = null
-    if (!s?.active || !pageRef.current) return
-    const el = pageRef.current
-    if (s.dx > window.innerWidth * 0.33) {
-      el.style.transition = 'transform 0.2s ease-out'
-      el.style.transform = 'translateX(100%)'
-      setTimeout(() => {
-        el.style.transition = ''
-        el.style.transform = ''
-        navigate(-1)
-      }, 180)
-    } else {
-      el.style.transition = 'transform 0.2s ease-out'
-      el.style.transform = 'translateX(0)'
-      setTimeout(() => { el.style.transition = ''; el.style.transform = '' }, 220)
-    }
-  }
-
-  if (reduced) return outlet
-
-  return (
-    <div
-      style={{ position: 'relative', overflowX: 'clip' }}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchEnd}
-    >
-      <AnimatePresence mode="popLayout" initial={false} custom={dir}>
-        <motion.div
-          key={location.pathname}
-          ref={pageRef}
-          custom={dir}
-          variants={pageSlide}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={dir === 0 ? { duration: 0.16 } : springs.page}
-          style={{ width: '100%', backgroundColor: 'var(--bg)', minHeight: '100%' }}
-        >
-          {outlet}
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  )
+/* ── Shell: kept-alive tabs + a stack of pushed screens (see AppShell) ── */
+const TAB_ELEMENTS = {
+  '/feed': <FeedPage />,
+  '/circles': <CirclesPage />,
+  '/schedule': <SchedulePage />,
+  '/chat': <ChatPage />,
+  '/profile': <ProfilePage />,
 }
+const PUSHED_ROUTES = [
+  <Route key="chat" path="/chat/:id" element={<ChatPage />} />,
+  <Route key="circle" path="/circles/:id" element={<CircleDetailPage />} />,
+  <Route key="game" path="/game/:gameId" element={<GamePlay />} />,
+  <Route key="user" path="/user/:id" element={<UserProfilePage />} />,
+  <Route key="settings" path="/settings" element={<SettingsPage />} />,
+  <Route key="notifications" path="/notifications" element={<NotificationsPage />} />,
+  <Route key="memories" path="/memories" element={<MemoriesPage />} />,
+]
+// These draw their own header and handle the safe areas themselves.
+const SELF_HEADED = ['/chat/', '/game/']
 
-/* ── Shell layout wrapping all authenticated pages ── */
 function ShellLayout() {
-  const location = useLocation()
-  // Hide top nav when inside a chat thread or game
-  const hideTopNav = /^\/chat\/.+/.test(location.pathname) || /^\/game\/.+/.test(location.pathname)
-
   return (
     <>
-      {/* Top nav bar — hidden in chat threads and games */}
-      {!hideTopNav && <TopNav />}
-
-      <div style={{
-        minHeight: '100vh',
-        paddingTop: hideTopNav ? 0 : 'calc(60px + env(safe-area-inset-top))', /* space for top nav bar */
-        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', /* space for bottom tab bar */
-        backgroundColor: clr.bg,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}>
-        <div style={{ width: '100%', maxWidth: 900 }}>
-          <AnimatedOutlet />
-        </div>
-      </div>
-
-      {/* Bottom tab bar — always visible */}
-      <BottomNav />
-
-      <PushPrompt />
-
+      <AppShell
+        tabElements={TAB_ELEMENTS}
+        pushedRoutes={PUSHED_ROUTES}
+        selfHeadedPrefixes={SELF_HEADED}
+        topNav={<TopNav />}
+        bottomNav={<BottomNav />}
+        extras={<PushPrompt />}
+      />
       <style>{`
         * { box-sizing: border-box; }
         body { margin: 0; }
@@ -446,6 +379,14 @@ function App() {
     return () => { cancelled = true; cleanup() }
   }, [session?.user?.id, navigate])
 
+  // Preload the code-split pages once signed in and idle.
+  useEffect(() => {
+    if (!session?.user) return
+    const run = () => Object.values(PAGE_LOADERS).forEach(load => load().catch(() => {}))
+    const id = 'requestIdleCallback' in window ? window.requestIdleCallback(run, { timeout: 2500 }) : setTimeout(run, 1200)
+    return () => ('cancelIdleCallback' in window ? window.cancelIdleCallback(id) : clearTimeout(id))
+  }, [session?.user])
+
   // Password-reset links on web land with a recovery session.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -530,19 +471,23 @@ function App() {
       <Route element={<AuthGuard />}>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        {/* Matched here, rendered by AppShell (tabs stay mounted, pushed screens stack).
+            No named params on purpose: React Router hands a parent route's params
+            to every nested <Routes>, so "/chat/:id" here made the hidden Chat tab
+            also render a thread, which crashed on a duplicate realtime channel. */}
         <Route element={<ShellLayout />}>
-          <Route path="/feed" element={<FeedPage />} />
-          <Route path="/circles" element={<CirclesPage />} />
-          <Route path="/circles/:id" element={<CircleDetailPage />} />
-          <Route path="/schedule" element={<SchedulePage />} />
-          <Route path="/memories" element={<MemoriesPage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat/:id" element={<ChatPage />} />
-          <Route path="/game/:gameId" element={<GamePlay />} />
-          <Route path="/user/:id" element={<UserProfilePage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/feed" element={null} />
+          <Route path="/circles" element={null} />
+          <Route path="/circles/*" element={null} />
+          <Route path="/schedule" element={null} />
+          <Route path="/memories" element={null} />
+          <Route path="/chat" element={null} />
+          <Route path="/chat/*" element={null} />
+          <Route path="/game/*" element={null} />
+          <Route path="/user/*" element={null} />
+          <Route path="/profile" element={null} />
+          <Route path="/settings" element={null} />
+          <Route path="/notifications" element={null} />
         </Route>
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Route>

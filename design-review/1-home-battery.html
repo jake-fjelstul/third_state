@@ -1,0 +1,113 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="shared.css"><script src="icons.js"></script>
+<title>Home and battery</title></head>
+<body>
+<div class="board">
+  <div class="board-title">Home + social battery widget</div>
+  <div class="board-sub">The battery leaves the feed and becomes a small progress ring in the top bar, left of the bell. Tap it for a minimal dropdown. The feed itself leads with people and plans, not stats.</div>
+  <div class="row">
+
+    <!-- 1. Home, light -->
+    <div>
+      <div class="phone" id="home"></div>
+      <div class="caption"><b>Home.</b> Left-aligned wordmark, one accent color, edge-to-edge sections, no gradients or emoji in the UI. "Free now" uses story-style rings because it's live and time-boxed.</div>
+    </div>
+
+    <!-- 2. Battery dropdown -->
+    <div>
+      <div class="phone" id="battery"></div>
+      <div class="caption"><b>Battery dropdown.</b> Ring shows progress at a glance. Tap: status word, five-segment bar, last three changes, one link to the explainer. Tap outside to close.</div>
+    </div>
+
+    <!-- 3. Home, dark -->
+    <div>
+      <div class="phone dark" id="homeDark"></div>
+      <div class="caption"><b>Dark mode.</b> True black background like Instagram, with surfaces stepping up in gray instead of tinted purple-navy.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function homeBody() {
+  const free = [
+    ['Your status', 'Set', 'You', 210, false, true],
+    ['Maya', 'Coffee · 1h', 'MR', 18, true],
+    ['Theo', 'Climbing', 'TL', 200, true],
+    ['Priya', 'Walk · 40m', 'PS', 330, true],
+    ['Jonah', 'Board games', 'JK', 140, true],
+  ]
+  return `
+  ${statusBar()}
+  <div class="topbar">
+    <div class="wordmark">third space<span>.</span></div>
+    <div class="top-actions">${batteryRing(58)}<div class="icon-btn">${ic('bell', 25)}<span class="dot"></span></div></div>
+  </div>
+  <div class="search">${ic('search', 18)}<span>Search people, circles, events</span></div>
+
+  <div class="sec"><h3>Free now</h3><a>See all</a></div>
+  <div class="stories">
+    ${free.map(([n, s, ini, hue, ring, me]) => `
+      <div class="story">
+        ${me ? `<div style="position:relative;width:70px;height:70px;margin:0 auto">${avatar('JF', 70, 210)}<div style="position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--surface);display:flex;align-items:center;justify-content:center;border:2.5px solid var(--surface)">${ic('plus', 14, 3)}</div></div>`
+             : `<div style="width:70px;margin:0 auto">${avatar(ini, 60, hue, true)}</div>`}
+        <div class="label">${n}</div><div class="sub">${s}</div>
+      </div>`).join('')}
+  </div>
+
+  <div class="sec"><h3>Up next</h3><a>Schedule</a></div>
+  <div style="padding:0 16px 14px">
+    <div class="card">
+      <div class="cover" style="background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 150%22><rect width=%22400%22 height=%22150%22 fill=%22%23C9D6C3%22/><circle cx=%2280%22 cy=%22140%22 r=%22110%22 fill=%22%23A9BFA0%22/><circle cx=%22320%22 cy=%22160%22 r=%22140%22 fill=%22%238FA985%22/><circle cx=%22330%22 cy=%2240%22 r=%2222%22 fill=%22%23F3E6C8%22/></svg>') center/cover">
+        <div style="position:absolute;left:14px;bottom:12px;color:#fff">
+          <div style="font:700 13px var(--font);opacity:.9;letter-spacing:.02em">TOMORROW · 7:30 PM</div>
+          <div style="font:700 20px var(--font-display);letter-spacing:-.02em;margin-top:2px">Sunset hike at Bluff Point</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex">${['MR', 'TL', 'PS'].map((x, i) => `<div style="margin-left:${i ? -8 : 0}px;border:2px solid var(--surface);border-radius:50%">${avatar(x, 26, [18, 200, 330][i])}</div>`).join('')}</div>
+          <span style="font-size:14px;color:var(--ink-2)">Maya and 6 others going</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;color:var(--good);font-weight:600;font-size:14px">${ic('check', 16, 2.6)} Going</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec"><h3>Circles near you</h3><a>Browse</a></div>
+  <div style="display:flex;gap:12px;padding:0 16px;overflow:hidden">
+    ${[['Morning Run Club', '42 members · 0.8 mi', '#F2C5B5'], ['Board Game Nights', '18 members · 1.2 mi', '#C9CDF2'], ['Film Society', '27 members']].map(([n, s, bg]) => `
+      <div style="width:170px;flex-shrink:0">
+        <div style="height:78px;border-radius:16px;background:${bg || '#E5E0D5'}"></div>
+        <div style="font-size:15px;font-weight:600;margin-top:8px">${n}</div>
+        <div style="font-size:13px;color:var(--ink-2)">${s}</div>
+      </div>`).join('')}
+  </div>
+  ${tabbar(0)}`
+}
+
+document.getElementById('home').innerHTML = homeBody()
+document.getElementById('homeDark').innerHTML = homeBody()
+
+document.getElementById('battery').innerHTML = homeBody() + `
+  <div class="scrim"></div>
+  <div class="popover">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div>
+        <div style="font-size:13px;color:var(--ink-2);font-weight:500">Social battery</div>
+        <div style="font:700 20px var(--font-display);letter-spacing:-.02em;margin-top:2px">Open to plans</div>
+      </div>
+      <div style="font:700 28px var(--font-display);letter-spacing:-.03em">58</div>
+    </div>
+    <div class="bar5"><div class="f"></div><div class="f"></div><div class="f"></div><div></div><div></div></div>
+    ${[['+5', 'Messaged Theo', '2h ago'], ['+20', 'Went to Trivia Night', 'Yesterday'], ['−8', 'A quiet day', 'Mon']].map(([d, t, w]) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+        <span style="width:34px;font-weight:700;font-size:14px;color:${d.startsWith('+') ? 'var(--good)' : 'var(--ink-3)'}">${d}</span>
+        <span style="flex:1;font-size:15px">${t}</span>
+        <span style="font-size:13px;color:var(--ink-3)">${w}</span>
+      </div>`).join('')}
+    <div style="border-top:0.5px solid var(--line);margin-top:8px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--ink-2)">
+      <span>How it works</span>${ic('chevR', 18)}
+    </div>
+  </div>`
+</script>
+</body></html>

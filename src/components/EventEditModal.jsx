@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
 import { updateEvent, deleteEvent, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events.js'
 import { uploadEventCover } from '../lib/storage.js'
@@ -22,7 +23,8 @@ const clr = {
 // wrapper and the body below always has an event.
 export default function EventEditModal(props) {
   if (!props.event) return null
-  return <EventEditModalBody {...props} />
+  // Rendered at <body> so no transformed/animated ancestor can trap it.
+  return createPortal(<EventEditModalBody {...props} />, document.body)
 }
 
 function EventEditModalBody({ event, onClose, onSaved }) {

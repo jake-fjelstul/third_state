@@ -7,6 +7,8 @@ import EventDetailModal from '../components/EventDetailModal.jsx'
 import TimePicker from '../components/TimePicker.jsx'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { Camera, Calendar, CalendarCheck } from 'lucide-react'
+import { readCache, writeCache } from '../lib/localCache.js'
+import { useRefreshOnTabReturn } from '../lib/tabActive.js'
 
 // Color system
 const clr = {
@@ -197,17 +199,23 @@ export default function Schedule() {
     }, 300)
   }
 
-  const [circles, setCircles] = useState([])
+  const [circles, setCircles] = useState(() => readCache('schedule.circles') || [])
   useEffect(() => {
     let cancelled = false
-    listCircles().then(list => { if (!cancelled) setCircles(list) })
+    listCircles().then(list => {
+      if (cancelled) return
+      setCircles(list)
+      writeCache('schedule.circles', list)
+    }).catch(err => console.error('[Schedule] listCircles failed', err))
     return () => { cancelled = true }
   }, [])
 
   const {
     isConfigured, isConnected, isLoading, error: calendarError, googleEvents,
-    connect, disconnect, addEventToGoogle,
+    connect, disconnect, addEventToGoogle, refresh: refreshCalendar,
   } = useCalendar()
+  // The tab stays mounted; pick up calendar changes when you come back.
+  useRefreshOnTabReturn(() => { refreshCalendar().catch(() => {}) })
 
   const initialConnectedRef = useRef(null)
   if (initialConnectedRef.current === null && isConnected !== undefined) {

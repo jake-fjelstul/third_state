@@ -8,7 +8,9 @@ import {
 import { supabase } from '../lib/supabase'
 import { signalPushMoment } from '../lib/pushMoment.js'
 import { clearChatCache } from '../lib/chatCache.js'
+import { setCacheScope, clearLocalCache } from '../lib/localCache.js'
 import { haptic } from '../lib/motion.js'
+import { uniqueTopic } from '../lib/realtimeTopic.js'
 import { updatePrivacy, defaultPrivacy, defaultNotificationPrefs } from '../lib/profiles'
 import {
   fetchProfileForUser,
@@ -58,7 +60,7 @@ import {
   cancelSpontaneousQuestion as cancelSpontaneousQuestionDb,
 } from '../lib/questions'
 
-const AppContext = createContext(null)
+export const AppContext = createContext(null)
 
 const UI_STORAGE_KEY = 'ts-ui-state'
 const PENDING_INVITE_KEY = 'ts.pendingInviteToken'
@@ -206,6 +208,7 @@ export function AppProvider({ children }) {
     }
     let cancelled = false
     const userId = session.user.id
+    setCacheScope(userId)
 
     setProfileLoading(true)
     setProfileError(null)
@@ -374,7 +377,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!session?.user) return
     const sub = supabase
-      .channel(`my-incoming-messages:${session.user.id}`)
+      .channel(uniqueTopic(`my-incoming-messages:${session.user.id}`))
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
@@ -422,7 +425,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!session?.user?.id) return
     const sub = supabase
-      .channel(`my-chat-members:${session.user.id}`)
+      .channel(uniqueTopic(`my-chat-members:${session.user.id}`))
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_members', filter: `user_id=eq.${session.user.id}` },
@@ -460,7 +463,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!session?.user) return
     const sub = supabase
-      .channel(`my-notifications:${session.user.id}`)
+      .channel(uniqueTopic(`my-notifications:${session.user.id}`))
       .on(
         'postgres_changes',
         {
@@ -498,7 +501,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!session?.user?.id) return
     const sub = supabase
-      .channel(`my-profile-changes:${session.user.id}`)
+      .channel(uniqueTopic(`my-profile-changes:${session.user.id}`))
       .on(
         'postgres_changes',
         {
@@ -593,6 +596,7 @@ export function AppProvider({ children }) {
     await authSignOut()
     resetLocalAuthState()
     clearChatCache()
+    clearLocalCache()
   }
 
   const updateMyPrivacy = useCallback(async (patch) => {

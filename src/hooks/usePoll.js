@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchPoll } from '../lib/polls'
+import { uniqueTopic } from '../lib/realtimeTopic.js'
 
 export function usePoll(pollId) {
   const [poll, setPoll] = useState(null)
@@ -34,7 +35,7 @@ export function usePoll(pollId) {
     }
 
     const sub = supabase
-      .channel(`poll:${pollId}`)
+      .channel(uniqueTopic(`poll:${pollId}`))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'poll_votes', filter: `poll_id=eq.${pollId}` },
         refresh)

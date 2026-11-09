@@ -1,0 +1,103 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="shared.css"><script src="icons.js"></script>
+<title>Design language</title></head>
+<body>
+<div id="root"></div>
+<script>
+document.getElementById('root').innerHTML = `<div class="board">
+  <div class="board-title">Third Space design language</div>
+  <div class="board-sub">Why it feels "vibe coded" today: purple-indigo gradients on every button, glows and shadows on every card, emoji as UI, a different radius, size and color on almost every screen, and helper text everywhere. Polished apps do the opposite. The rules below are the whole system.</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 430px;gap:28px;align-items:start">
+
+    <!-- Color + type -->
+    <div class="spec">
+      <h4>Color</h4>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+        ${''}
+      </div>
+      <div id="swatches" style="display:flex;gap:14px;flex-wrap:wrap"></div>
+      <div id="swatchesDark" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:18px"></div>
+      <p style="font-size:14px;color:#5E5E66;margin-top:16px;line-height:1.5">Neutrals do 95% of the work. <b>Ember</b> appears only for: your own message bubbles, unread dots, the battery ring, and a single key action. Primary buttons are ink (black / white), not accent.</p>
+
+      <h4 style="margin-top:32px">Type: SF Pro (system font), 5 sizes</h4>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;gap:16px"><span style="width:90px;font-size:12px;color:#9C9CA4">Large title<br>34 / 800</span><span style="font:800 34px var(--font-display);letter-spacing:-.03em">Messages</span></div>
+        <div style="display:flex;align-items:baseline;gap:16px"><span style="width:90px;font-size:12px;color:#9C9CA4">Title<br>22 / 700</span><span style="font:700 22px var(--font-display);letter-spacing:-.02em">Sunset hike at Bluff Point</span></div>
+        <div style="display:flex;align-items:baseline;gap:16px"><span style="width:90px;font-size:12px;color:#9C9CA4">Body<br>17 / 400</span><span style="font-size:17px">Down for coffee Thursday?</span></div>
+        <div style="display:flex;align-items:baseline;gap:16px"><span style="width:90px;font-size:12px;color:#9C9CA4">Secondary<br>15 / 400</span><span style="font-size:15px;color:#5E5E66">Maya and 6 others going</span></div>
+        <div style="display:flex;align-items:baseline;gap:16px"><span style="width:90px;font-size:12px;color:#9C9CA4">Caption<br>13 / 500</span><span style="font-size:13px;font-weight:500;color:#9C9CA4">Tomorrow · 7:30 PM</span></div>
+      </div>
+      <p style="font-size:14px;color:#5E5E66;margin-top:14px;line-height:1.5">Drop DM Sans and the DM Serif headings. Titles are left-aligned, tight tracking. No all-caps labels except tiny date blocks.</p>
+    </div>
+
+    <!-- Components + rules -->
+    <div class="spec">
+      <h4>Components</h4>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <div class="btn primary" style="flex:1">Join circle</div>
+        <div class="btn secondary" style="flex:1">Message</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center">
+        <div class="btn accent sm">Accept</div>
+        <div class="btn secondary sm">Decline</div>
+        <div class="chip on">Hiking</div><div class="chip">Coffee</div><div class="chip">Film</div>
+      </div>
+      <div style="border:1px solid #E7E7EA;border-radius:16px;overflow:hidden;margin-bottom:22px">
+        <div class="list-row" style="padding:10px 14px">${avatar('TL', 44, 200)}<div class="main"><div class="t">Theo Lin</div><div class="s">2 circles in common</div></div><div class="btn secondary sm">Connect</div></div>
+        <div style="height:.5px;background:#E7E7EA;margin-left:70px"></div>
+        <div class="list-row" style="padding:10px 14px">${avatar('PS', 44, 330)}<div class="main"><div class="t">Priya Shah</div><div class="s">Free now · Walk</div></div><span style="color:#9C9CA4">${ic('chevR', 20)}</span></div>
+      </div>
+
+      <h4>Spacing, shape, motion</h4>
+      <div style="font-size:15px;line-height:1.6;color:#3A3A40">
+        <div><b>Spacing</b> on a 4 pt grid: 4, 8, 12, 16, 20, 24, 32. Screen gutter 16–20.</div>
+        <div><b>Radius</b>: 10 small controls · 14 buttons/inputs · 20 cards/sheets · full for avatars and chips.</div>
+        <div><b>Elevation</b>: none by default. Hairline borders for structure; shadow only on floating things (popovers, sheets, dragged rows).</div>
+        <div><b>Icons</b>: Lucide, 24 px, 1.9 stroke, filled when active in the tab bar. No emoji in buttons, labels or headers.</div>
+        <div><b>Motion</b>: 200–300 ms, iOS curves, springs only for sheets and push. Nothing bounces, nothing animates on every render.</div>
+      </div>
+    </div>
+
+    <!-- Do / don't -->
+    <div class="spec">
+      <h4>Rules of thumb</h4>
+      ${[
+        ['yes', 'One primary action per screen, in ink. Everything else is secondary or a text button.'],
+        ['yes', 'Lists, not card stacks. Cards only when there is a photo.'],
+        ['yes', 'Real photos (covers, avatars, recaps) carry the color. The UI stays quiet.'],
+        ['yes', 'Short copy. "Going" beats "You’re attending this event! 🎉".'],
+        ['yes', 'Every screen has a loading skeleton shaped like its content, and shows cached data instantly.'],
+        ['no', 'Gradients on buttons, headers or backgrounds.'],
+        ['no', 'Glows, drop shadows on every card, colored shadows.'],
+        ['no', 'Centered page titles, decorative badges, "pts" counters.'],
+        ['no', 'Different color per feature (pink coffee, blue memories, purple circles).'],
+        ['no', 'Inline styles per component: everything comes from tokens and ~12 shared components.'],
+      ].map(([k, t]) => `<div class="rule"><span class="x ${k}">${k === 'yes' ? '✓' : '✕'}</span><span>${t}</span></div>`).join('')}
+
+      <h4 style="margin-top:26px">Schedule, loading state</h4>
+      <div class="phone" style="width:366px;height:430px;border-radius:30px;box-shadow:0 0 0 1px #E7E7EA">
+        <div style="padding:18px 18px 8px;display:flex;justify-content:space-between;align-items:center">
+          <div style="font:800 30px var(--font-display);letter-spacing:-.03em">Schedule</div>
+          <div class="btn primary sm" style="height:32px">${ic('plus', 16, 2.4)}&nbsp;New</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 14px 12px">
+          ${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => `<div style="width:40px;text-align:center"><div style="font-size:12px;color:var(--ink-3);font-weight:600">${d}</div><div style="margin:6px auto 0;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;${i === 2 ? 'background:var(--ink);color:var(--surface)' : ''}">${i + 2}</div>${[2, 4, 5].includes(i) ? '<div style="width:4px;height:4px;border-radius:50%;background:var(--accent);margin:4px auto 0"></div>' : ''}</div>`).join('')}
+        </div>
+        <div style="height:.5px;background:var(--line)"></div>
+        <div style="padding:12px 18px 4px;font-size:13px;font-weight:600;color:var(--ink-3)">TODAY</div>
+        <div class="list-row" style="padding:8px 18px"><div style="width:48px;font-size:14px;font-weight:600">7:30<div style="font-size:12px;color:var(--ink-3);font-weight:500">PM</div></div><div style="width:3px;align-self:stretch;border-radius:2px;background:var(--accent)"></div><div class="main"><div class="t">Trivia Night</div><div class="s" style="font-size:14px">Board Game Nights · The Page</div></div></div>
+        <div style="padding:12px 18px 4px;font-size:13px;font-weight:600;color:var(--ink-3)">THURSDAY</div>
+        ${[1, 2].map(() => `<div class="list-row" style="padding:10px 18px"><div style="width:48px;height:28px;border-radius:6px;background:var(--surface-2)"></div><div style="width:3px;height:36px;border-radius:2px;background:var(--surface-3)"></div><div class="main"><div style="height:14px;width:62%;border-radius:4px;background:var(--surface-2)"></div><div style="height:12px;width:44%;border-radius:4px;background:var(--surface-2);margin-top:8px"></div></div></div>`).join('')}
+      </div>
+      <p style="font-size:13px;color:#5E5E66;margin-top:10px;line-height:1.45">Cached events show immediately; only the Google Calendar rows still loading show as skeletons.</p>
+    </div>
+  </div>
+</div>`
+</script>
+<script>
+const sw = (el, list) => { document.getElementById(el).innerHTML = list.map(([n, h, dark]) => `<div class="sw"><div class="c" style="background:${h}"></div><div class="n">${n}</div><div class="h">${h}${dark ? ' · dark' : ''}</div></div>`).join('') }
+sw('swatches', [['Ink', '#0B0B0C'], ['Ink 2', '#5E5E66'], ['Ink 3', '#9C9CA4'], ['Line', '#E7E7EA'], ['Surface 2', '#F4F4F6'], ['Ember', '#FF5A36']])
+sw('swatchesDark', [['Ink', '#F5F5F7', 1], ['Ink 2', '#A1A1A8', 1], ['Surface', '#000000', 1], ['Surface 2', '#121214', 1], ['Surface 3', '#1C1C1F', 1], ['Good', '#1FA855']])
+</script>
+</body></html>

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
@@ -28,7 +29,8 @@ const clr = {
 // wrapper and the body below always has an event.
 export default function EventRecapModal(props) {
   if (!props.event) return null
-  return <EventRecapModalBody {...props} />
+  // Rendered at <body> so no transformed/animated ancestor can trap it.
+  return createPortal(<EventRecapModalBody {...props} />, document.body)
 }
 
 function EventRecapModalBody({ event, onClose }) {

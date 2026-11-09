@@ -1,3 +1,4 @@
+import { PageSkeleton } from '../components/ui/Skeleton.jsx'
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProfileById } from '../lib/profiles'
@@ -240,7 +241,7 @@ export default function UserProfile() {
   }, [showMeetupModal, meetupDate, meetupTime, person])
   
   if (personLoading) {
-    return <div style={{ padding:40, textAlign:'center', color:clr.textMid, fontFamily:"'DM Sans',sans-serif" }}>Loading…</div>
+    return <PageSkeleton />
   }
   if (!person) {
     return <div style={{ padding:40, textAlign:'center', color:clr.textMid, fontFamily:"'DM Sans',sans-serif" }}>User not found.</div>

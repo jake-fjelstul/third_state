@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext.jsx'
 import { listPastEventsForUser } from '../lib/events'
 import { avatarFor } from '../lib/avatar'
 import EventRecapModal from '../components/EventRecapModal.jsx'
+import { canGoBack } from '../lib/tabActive.js'
 import { Camera, Calendar, MapPin } from 'lucide-react'
 
 const clr = {
@@ -17,7 +18,8 @@ const clr = {
   border: 'var(--border)',
 }
 
-export default function Memories() {
+// `embedded`: shown inside the Circles tab, so no back button or page title.
+export default function Memories({ embedded = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { currentUser } = useAppContext()
@@ -56,12 +58,12 @@ export default function Memories() {
   }, [currentUser?.id])
 
   return (
-    <div style={{ padding: '24px 20px', maxWidth: 600, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ padding: embedded ? '0 0 24px' : '24px 20px', maxWidth: 600, margin: '0 auto', fontFamily: "'DM Sans', sans-serif" }}>
       {/* Back button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      {!embedded && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
         <button
           type="button"
-          onClick={() => navigate(backTo)}
+          onClick={() => (canGoBack() ? navigate(-1) : navigate(backTo))}
           aria-label={`Back to ${backLabel}`}
           style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
@@ -74,10 +76,10 @@ export default function Memories() {
           </svg>
           <span>{backLabel}</span>
         </button>
-      </div>
+      </div>}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      {!embedded && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: '0 0 4px 0', fontSize: 26, fontWeight: 800, color: clr.textDark, fontFamily: "'DM Serif Display', serif" }}>
             Event Memories
@@ -86,7 +88,7 @@ export default function Memories() {
             Look back at past meetups, photos, and connections.
           </p>
         </div>
-      </div>
+      </div>}
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: clr.textMid, fontSize: 14 }}>

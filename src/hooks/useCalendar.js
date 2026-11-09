@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { readCache, writeCache } from '../lib/localCache.js'
 import {
   addEventToCalendar,
   connectCalendar,
@@ -11,7 +12,8 @@ import {
 
 export function useCalendar() {
   const [isConnected, setIsConnected] = useState(() => !!getStoredCalendarToken())
-  const [events, setEvents] = useState([])
+  // Last fetched Google events show immediately; the fetch replaces them.
+  const [events, setEvents] = useState(() => (getStoredCalendarToken() ? readCache('gcal.events') || [] : []))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -31,6 +33,7 @@ export function useCalendar() {
     try {
       const list = await listExternalEvents()
       setEvents(list)
+      writeCache('gcal.events', list)
       return list
     } catch (e) {
       if (String(e?.message || '').toLowerCase().includes('expired')) {
@@ -88,13 +91,10 @@ export function useCalendar() {
     }
   }, [refresh])
 
+  // refresh() checks the connection itself; checking first doubled the round trips.
   useEffect(() => {
-    checkStatus().then(connected => {
-      if (connected) {
-        refresh().catch(() => {})
-      }
-    })
-  }, [checkStatus, refresh])
+    refresh().catch(() => {})
+  }, [refresh])
 
   useEffect(() => {
     const onTokenChange = () => {

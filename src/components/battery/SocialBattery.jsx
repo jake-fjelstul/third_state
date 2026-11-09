@@ -52,7 +52,7 @@ function SegmentedBattery({ points, color }) {
   )
 }
 
-function ExplainerSheet({ onClose }) {
+export function ExplainerSheet({ onClose }) {
   const reduced = useReducedMotion()
   const row = (title, body) => (
     <div style={{ marginBottom: 14 }}>
