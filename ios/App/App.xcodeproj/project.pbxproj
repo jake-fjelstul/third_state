@@ -3,11 +3,13 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		239C5ED8301AF9540070BF81 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 239C5ED7301AF9540070BF81 /* PrivacyInfo.xcprivacy */; };
+		23DE969930A4AD6A00D6555C /* Messages.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23DE969830A4AD6A00D6555C /* Messages.framework */; };
+		23DE96A530A4AD6B00D6555C /* ThirdSpaceMessages.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 23DE969630A4AD6A00D6555C /* ThirdSpaceMessages.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -18,9 +20,35 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		23DE96A330A4AD6B00D6555C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 23DE969530A4AD6A00D6555C;
+			remoteInfo = ThirdSpaceMessages;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		23DE96A630A4AD6B00D6555C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				23DE96A530A4AD6B00D6555C /* ThirdSpaceMessages.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		239C5ED7301AF9540070BF81 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		23A07A92301A714B0012D2DD /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		23DE969630A4AD6A00D6555C /* ThirdSpaceMessages.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ThirdSpaceMessages.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		23DE969830A4AD6A00D6555C /* Messages.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Messages.framework; path = System/Library/Frameworks/Messages.framework; sourceTree = SDKROOT; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -33,7 +61,30 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		23DE96A930A4AD6B00D6555C /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				SETUP.md,
+			);
+			target = 23DE969530A4AD6A00D6555C /* ThirdSpaceMessages */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		23DE969A30A4AD6A00D6555C /* ThirdSpaceMessages */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (23DE96A930A4AD6B00D6555C /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ThirdSpaceMessages; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		23DE969330A4AD6A00D6555C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				23DE969930A4AD6A00D6555C /* Messages.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3011FED79650016851F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -45,11 +96,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		23DE969730A4AD6A00D6555C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				23DE969830A4AD6A00D6555C /* Messages.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				23DE969A30A4AD6A00D6555C /* ThirdSpaceMessages */,
+				23DE969730A4AD6A00D6555C /* Frameworks */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -58,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				23DE969630A4AD6A00D6555C /* ThirdSpaceMessages.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +144,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		23DE969530A4AD6A00D6555C /* ThirdSpaceMessages */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 23DE96AA30A4AD6B00D6555C /* Build configuration list for PBXNativeTarget "ThirdSpaceMessages" */;
+			buildPhases = (
+				23DE969230A4AD6A00D6555C /* Sources */,
+				23DE969330A4AD6A00D6555C /* Frameworks */,
+				23DE969430A4AD6A00D6555C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				23DE969A30A4AD6A00D6555C /* ThirdSpaceMessages */,
+			);
+			name = ThirdSpaceMessages;
+			packageProductDependencies = (
+			);
+			productName = ThirdSpaceMessages;
+			productReference = 23DE969630A4AD6A00D6555C /* ThirdSpaceMessages.appex */;
+			productType = "com.apple.product-type.app-extension.messages";
+		};
 		504EC3031FED79650016851F /* App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 504EC3161FED79650016851F /* Build configuration list for PBXNativeTarget "App" */;
@@ -89,10 +173,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				23DE96A630A4AD6B00D6555C /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				23DE96A430A4AD6B00D6555C /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -109,9 +195,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastSwiftUpdateCheck = 0920;
+				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					23DE969530A4AD6A00D6555C = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
@@ -136,11 +225,19 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				23DE969530A4AD6A00D6555C /* ThirdSpaceMessages */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		23DE969430A4AD6A00D6555C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3021FED79650016851F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -158,6 +255,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		23DE969230A4AD6A00D6555C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3001FED79650016851F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -167,6 +271,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		23DE96A430A4AD6B00D6555C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 23DE969530A4AD6A00D6555C /* ThirdSpaceMessages */;
+			targetProxy = 23DE96A330A4AD6B00D6555C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -188,6 +300,82 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		23DE96A730A4AD6B00D6555C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "iMessage App Icon";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThirdSpaceMessages/ThirdSpaceMessages.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RRRT73TTF6;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ThirdSpaceMessages/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Third Space";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 3.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thirdspace.social.ThirdSpaceMessages;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		23DE96A830A4AD6B00D6555C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "iMessage App Icon";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = ThirdSpaceMessages/ThirdSpaceMessages.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RRRT73TTF6;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ThirdSpaceMessages/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Third Space";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 3.1;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thirdspace.social.ThirdSpaceMessages;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		504EC3141FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
@@ -323,7 +511,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 3.1;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.thirdspace.social;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -350,7 +538,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thirdspace.social;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -366,6 +554,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		23DE96AA30A4AD6B00D6555C /* Build configuration list for PBXNativeTarget "ThirdSpaceMessages" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				23DE96A730A4AD6B00D6555C /* Debug */,
+				23DE96A830A4AD6B00D6555C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

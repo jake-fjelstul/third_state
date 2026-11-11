@@ -378,6 +378,18 @@ export function AppProvider({ children }) {
     return () => { cancelled = true }
   }, [mapProfileToCurrentUser, resetLocalAuthState, userId])
 
+  // Sign the iMessage app in too, and retry whenever the app comes back to
+  // the foreground (iOS only; no-op elsewhere).
+  useEffect(() => {
+    if (!userId) return
+    let stop = () => {}
+    let cancelled = false
+    import('../lib/extensionSession.js').then(m => {
+      if (!cancelled) stop = m.watchExtensionSession(userId)
+    }).catch(() => {})
+    return () => { cancelled = true; stop() }
+  }, [userId])
+
   useEffect(() => {
     if (!session?.user?.id || !currentUser?.id) return
     let cancelled = false
@@ -403,6 +415,11 @@ export function AppProvider({ children }) {
             window.localStorage.removeItem(PENDING_INVITE_KEY)
           }
         }
+
+        // A shared event / check-in link opened while signed out.
+        const { takePendingLink } = await import('../lib/share.js')
+        const pendingLink = takePendingLink()
+        if (pendingLink && !cancelled) navigate(pendingLink, { replace: true })
 
         const pendingJoinCode = window.localStorage.getItem('ts.pendingJoinCode')
         if (pendingJoinCode) {
@@ -657,6 +674,7 @@ export function AppProvider({ children }) {
       clearChatCache()
       clearLocalCache()
       try { window.localStorage.removeItem('ts.calendar.token') } catch { /* private mode */ }
+      import('../lib/extensionSession.js').then(m => m.clearExtensionSession()).catch(() => {})
     }
   }
 

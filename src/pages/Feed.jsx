@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import ProfileCompletionCard from '../components/feed/ProfileCompletionCard.jsx'
 import { profileCompleteness } from '../lib/profileCompleteness.jsx'
-import { listUpcomingEvents, expandRecurrence, updateEvent, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events'
+import { listUpcomingEvents, expandRecurrence, updateEvent, getEvent, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events'
 import { uploadEventCover, uploadCircleCover } from '../lib/storage'
 import { listVisibleCircles, updateCircle, requiresApplication } from '../lib/circles'
 import { listProfiles, searchProfiles } from '../lib/profiles'
@@ -20,6 +20,7 @@ import SoloGameModal from '../components/games/SoloGameModal.jsx'
 import { Avatar, Chip, SectionHeader as DsSectionHeader } from '../components/ui/ds.jsx'
 import { publishMyStatus, consumeOpenStatus, OPEN_STATUS_EVENT } from '../lib/statusBus.js'
 import { HOME_RESET_EVENT } from '../lib/homeBus.js'
+import { checkinShareUrl, shareLink } from '../lib/share.js'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -1410,6 +1411,30 @@ export default function Feed() {
     }
   }, [feedSearchParams, setFeedSearchParams])
 
+  // Shared links land here signed in: /e/:id -> ?event=, /s/:id -> ?checkin=.
+  useEffect(() => {
+    const eventId = feedSearchParams.get('event')
+    const checkinId = feedSearchParams.get('checkin')
+    if (!eventId && !checkinId) return
+    feedSearchParams.delete('event')
+    feedSearchParams.delete('checkin')
+    setFeedSearchParams(feedSearchParams, { replace: true })
+    if (eventId) {
+      getEvent(eventId)
+        .then(ev => { if (ev) setSelectedEvent(ev); else showToast("That event is private or was removed.") })
+        .catch(() => showToast("Couldn't open that event."))
+    } else {
+      listActiveLfgPosts()
+        .then(list => {
+          const post = list.find(p => p.id === checkinId)
+          if (!post) { showToast('That one already wrapped up.'); return }
+          openLfgSheet({ ...post, mine: post.userId === currentUser?.id })
+        })
+        .catch(() => showToast("Couldn't open that."))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the link params arrive
+  }, [feedSearchParams])
+
   const {
     currentUser, joinedCircles, joinCircle, meetups, rsvpEvent, cancelRsvp, isRsvpd, circleMembershipVersion,
     startDM, recentInviter, clearRecentInviter, skipIntentCapture, updateMyIntents, connections, blockedUserIds
@@ -1923,6 +1948,25 @@ export default function Feed() {
             </div>
 
             {/* Action buttons */}
+            {lfgSheetPost.mine && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await shareLink({
+                    url: checkinShareUrl(lfgSheetPost.id),
+                    title: lfgSheetPost.activity,
+                    text: `I'm free: ${lfgSheetPost.activity}${lfgSheetPost.placeName ? ` at ${lfgSheetPost.placeName}` : ''}. Come through`,
+                  })
+                  if (res === 'copied') showToast('Link copied')
+                }}
+                style={{
+                  width: '100%', padding: '14px 0', marginBottom: 10, borderRadius: 999, border: `1.5px solid ${clr.border}`,
+                  backgroundColor: clr.white, color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Share link
+              </button>
+            )}
             {lfgSheetPost.mine ? (
               <button
                 type="button"

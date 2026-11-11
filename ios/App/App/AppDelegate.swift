@@ -7,11 +7,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Hand the iMessage app its sign-in whenever the web layer changes it.
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
+            ExtensionSessionBridge.scheduleSync()
+        }
+        ExtensionSessionBridge.sync()
         return true
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
+        ExtensionSessionBridge.sync()
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
     }
@@ -26,6 +31,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        ExtensionSessionBridge.sync()
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
     }
 
@@ -66,4 +72,62 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         completionHandler(.newData)
     }
 
+}
+
+/// Copies the iMessage extension's own session (written by
+/// src/lib/extensionSession.js through @capacitor/preferences) into the App
+/// Group both targets can read. Once there, the extension owns and refreshes
+/// it; the app only replaces it when a different user signs in, and removes it
+/// on sign-out. Kept in this file so the App target needs no new files.
+enum ExtensionSessionBridge {
+    static let appGroup = "group.com.thirdspace.social"
+    static let sourceKey = "CapacitorStorage.ts.ext.session"
+    static let groupKey = "session"
+    static let statusKey = "CapacitorStorage.ts.ext.status"
+    private static let copiedKey = "ts.ext.session.copied"
+
+    // Writing defaults posts UserDefaults.didChangeNotification, which calls
+    // sync() again. Never run inside ourselves, and coalesce bursts of
+    // notifications into one pass on the next main-queue turn.
+    private static var isSyncing = false
+    private static var isScheduled = false
+
+    /// Safe to call from the didChange observer: runs once, a moment later.
+    static func scheduleSync() {
+        if isScheduled || isSyncing { return }
+        isScheduled = true
+        DispatchQueue.main.async {
+            isScheduled = false
+            sync()
+        }
+    }
+
+    static func sync() {
+        if isSyncing { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        guard let group = UserDefaults(suiteName: appGroup) else { return }
+        let local = UserDefaults.standard
+        let groupDomain = group.persistentDomain(forName: appGroup) ?? [:]
+
+        // Why the last sign-in attempt failed, for the extension's banner.
+        let status = local.string(forKey: statusKey)
+        if (groupDomain["status"] as? String) != status {
+            if let status = status { group.set(status, forKey: "status") } else { group.removeObject(forKey: "status") }
+        }
+
+        let value = local.string(forKey: sourceKey)
+        let lastCopied = local.string(forKey: copiedKey)
+        // Copy when the app made a new session, or when the group lost it (for
+        // example a copy made before the App Group was set up never landed).
+        let groupHasSession = groupDomain[groupKey] is String
+        if value == lastCopied && (value == nil || groupHasSession) { return }
+        if let value = value {
+            group.set(value, forKey: groupKey)
+            if lastCopied != value { local.set(value, forKey: copiedKey) }
+        } else {
+            if groupHasSession { group.removeObject(forKey: groupKey) }
+            if lastCopied != nil { local.removeObject(forKey: copiedKey) }
+        }
+    }
 }
