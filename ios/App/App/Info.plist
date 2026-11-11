@@ -37,11 +37,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Third Space needs access to your camera so you can take a profile picture.</string>
+	<string>Third Space uses your camera so you can take photos for your profile, your Free now posts, and events.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Third Space uses your location to show you meetups and people near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Third Space needs access to your photos so you can set a profile picture and circle cover image.</string>
+	<string>Third Space uses your photos so you can add pictures to your profile, Free now posts, circles, and events.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

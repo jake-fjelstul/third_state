@@ -1,4 +1,11 @@
 import { supabase } from './supabase.js'
+import { resizeImage } from './storage.js'
+
+// Free now photos (migration 082): private bucket, <user id>/<file>.jpg.
+// Only people who can see the post can read it, and only while it's live,
+// so display goes through short-lived signed URLs.
+const PHOTO_BUCKET = 'free-now-photos'
+const PHOTO_URL_TTL = 60 * 60
 
 export const LFG_WINDOWS = [
   { id: 'now',     label: 'Right now',    startOffsetMin: 0,   durationMin: 120 },
@@ -87,6 +94,8 @@ function mapLfgRow(row) {
     startsAt: row.starts_at,
     expiresAt: row.expires_at,
     visibility: row.visibility,
+    photoPath: row.photo_path || null,
+    photoUrl: null,
     authorName: row.author?.name || '',
     authorAvatar: row.author?.avatar_url || '',
   }
@@ -100,7 +109,7 @@ export async function listActiveLfgPosts() {
     .order('created_at', { ascending: false })
     .limit(50)
   if (error) throw error
-  return (data || []).map(mapLfgRow)
+  return withLfgPhotoUrls((data || []).map(mapLfgRow))
 }
 
 export async function listMyLfgPosts(userId) {
@@ -112,7 +121,7 @@ export async function listMyLfgPosts(userId) {
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
   if (error) throw error
-  return (data || []).map(mapLfgRow)
+  return withLfgPhotoUrls((data || []).map(mapLfgRow))
 }
 
 export async function listJoinedLfgPosts(userId) {
@@ -131,7 +140,7 @@ export async function listJoinedLfgPosts(userId) {
     .gt('expires_at', new Date().toISOString())
     .order('starts_at', { ascending: true })
   if (error) throw error
-  return (data || []).map(mapLfgRow)
+  return withLfgPhotoUrls((data || []).map(mapLfgRow))
 }
 
 export async function getLfgJoiners(postId) {
@@ -202,4 +211,45 @@ export function startLabel(iso, now = new Date()) {
   if (diff === 1) return `Tomorrow ${time}`
   if (diff > 1 && diff < 7) return `${d.toLocaleDateString([], { weekday: 'short' })} ${time}`
   return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`
+}
+
+/** Upload a photo for one of your Free now posts and attach it. */
+export async function attachLfgPhoto({ postId, userId, file }) {
+  if (!postId || !userId || !file) throw new Error('Missing photo details')
+  const blob = await resizeImage(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 })
+  const path = `${userId}/${postId}.jpg`
+  const { error: upErr } = await supabase.storage.from(PHOTO_BUCKET)
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+  if (upErr) throw upErr
+  const { error } = await supabase.from('lfg_posts').update({ photo_path: path }).eq('id', postId)
+  if (error) {
+    await supabase.storage.from(PHOTO_BUCKET).remove([path]).catch(() => {})
+    throw error
+  }
+  return path
+}
+
+/** Remove a post's photo (used when the post is cancelled). */
+export async function removeLfgPhoto(path) {
+  if (!path) return
+  await supabase.storage.from(PHOTO_BUCKET).remove([path]).catch(() => {})
+}
+
+// Signed URLs last an hour; reuse them across refreshes instead of asking
+// again every time Home reloads its posts.
+const signedCache = new Map() // path -> { url, until }
+
+/** Fill in photoUrl for posts that have a photo the viewer may see. */
+export async function withLfgPhotoUrls(posts) {
+  const now = Date.now()
+  const need = [...new Set(posts.map(p => p.photoPath).filter(p => p && !(signedCache.get(p)?.until > now)))]
+  if (need.length) {
+    const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(need, PHOTO_URL_TTL)
+    if (!error) {
+      for (const d of data || []) {
+        if (d.signedUrl) signedCache.set(d.path, { url: d.signedUrl, until: now + (PHOTO_URL_TTL - 120) * 1000 })
+      }
+    }
+  }
+  return posts.map(p => (p.photoPath && signedCache.get(p.photoPath) ? { ...p, photoUrl: signedCache.get(p.photoPath).url } : p))
 }
