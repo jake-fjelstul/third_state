@@ -12,11 +12,14 @@ import { supabase } from './supabase'
 export const EXT_SESSION_KEY = 'ts.ext.session'
 export const EXT_STATUS_KEY = 'ts.ext.status'
 
+// Returns { Preferences } rather than the plugin itself: Capacitor plugin
+// proxies answer to any property, including `then`, so resolving a promise
+// with one directly never settles.
 async function nativePrefs() {
   const { Capacitor } = await import('@capacitor/core')
-  if (Capacitor.getPlatform() !== 'ios') return null
+  if (Capacitor.getPlatform() !== 'ios') return { Preferences: null }
   const { Preferences } = await import('@capacitor/preferences')
-  return Preferences
+  return { Preferences }
 }
 
 let inFlight = null
@@ -30,7 +33,7 @@ export function ensureExtensionSession(userId) {
 async function mint(userId) {
   let Preferences = null
   try {
-    Preferences = await nativePrefs()
+    ;({ Preferences } = await nativePrefs())
     if (!Preferences || !userId) return
     const { value } = await Preferences.get({ key: EXT_SESSION_KEY })
     if (value) {
@@ -73,7 +76,7 @@ export function watchExtensionSession(userId) {
 /** Sign the extension out with the app. */
 export async function clearExtensionSession() {
   try {
-    const Preferences = await nativePrefs()
+    const { Preferences } = await nativePrefs()
     if (Preferences) {
       await Preferences.remove({ key: EXT_SESSION_KEY })
       await Preferences.remove({ key: EXT_STATUS_KEY })
