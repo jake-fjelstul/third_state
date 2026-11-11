@@ -14,7 +14,7 @@ import CreateWheel from '../components/CreateWheel.jsx'
 import { CREATE_ACTION_DEFS } from '../lib/createActions.js'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { CIRCLE_ICONS, DEFAULT_CIRCLE_ICON, KEY_TO_EMOJI } from '../lib/circleIcons.js'
-import { Calendar, Camera, Dribbble, Zap, MapPin, Clock, Timer, Plus, Check, ChevronRight, Gamepad2, Users, Coffee, UserPlus, MessageCircle, Bell, UserRound, Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { Calendar, Camera, Dribbble, X as XIcon, Zap, MapPin, Clock, Timer, Plus, Check, ChevronRight, Gamepad2, Users, Coffee, UserPlus, MessageCircle, Bell, UserRound, Settings as SettingsIcon, Sparkles } from 'lucide-react'
 import { matchActions } from '../lib/searchActions.js'
 import SoloGameModal from '../components/games/SoloGameModal.jsx'
 import { Avatar, Chip, SectionHeader as DsSectionHeader } from '../components/ui/ds.jsx'
@@ -36,6 +36,7 @@ import {
   LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost,
   listMyLfgPosts, listJoinedLfgPosts, listActiveLfgPosts, getLfgJoiners,
   leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews, joinLfgPost, startLabel,
+  attachLfgPhoto, removeLfgPhoto, withLfgPhotoUrls,
 } from '../lib/lfg'
 import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
@@ -383,6 +384,12 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [lfgVenuesLoading, setLfgVenuesLoading] = useState(false)
   const [lfgSubmitting, setLfgSubmitting] = useState(false)
   const [lfgError, setLfgError] = useState('')
+  // Optional photo of what you're doing: { file, preview } or null.
+  const [lfgPhoto, setLfgPhotoState] = useState(null)
+  const setLfgPhoto = (file) => setLfgPhotoState(prev => {
+    if (prev?.preview) URL.revokeObjectURL(prev.preview)
+    return file ? { file, preview: URL.createObjectURL(file) } : null
+  })
 
   const pickSuggestion = async (s) => {
     setLfgActivity(s.label)
@@ -410,7 +417,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
     setLfgSubmitting(true)
     try {
       const { startsAt, expiresAt } = resolveWindow(lfgWindow, lfgCustomStart || null)
-      await createLfgPost({
+      const postId = await createLfgPost({
         activity: lfgActivity.trim(),
         startsAt, expiresAt,
         visibility: lfgVisibility,
@@ -418,12 +425,23 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         inviteeIds: targeting ? lfgInviteeIds : null,
         place: lfgLocation,
       })
+      // The post is live even if the photo fails; say so rather than undo it.
+      let photoFailed = false
+      if (lfgPhoto?.file && postId) {
+        try {
+          await attachLfgPhoto({ postId, userId: currentUser?.id, file: lfgPhoto.file })
+        } catch (err) {
+          console.error('[Feed] attachLfgPhoto failed', err)
+          photoFailed = true
+        }
+      }
+      setLfgPhoto(null)
       setLfgActivity(''); setLfgWindow('now'); setLfgCustomStart('')
       setLfgVisibility('everyone'); setLfgNotify(true)
       setLfgAudience('all'); setLfgInviteeIds([])
       setLfgVenues([]); setLfgLocation(null)
       onClose()
-      onShowToast('LFG posted!')
+      onShowToast(photoFailed ? "Posted, but the photo didn't upload." : 'LFG posted!')
       await refreshLfg?.()
     } catch (err) {
       setLfgError(err?.message || 'Could not post. Please try again.')
@@ -453,6 +471,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   // Closing the sheet drops unsent cover photos.
   useEffect(() => {
     if (show) return
+    setLfgPhotoState(prev => { if (prev?.preview) URL.revokeObjectURL(prev.preview); return null })
     setCovers(prev => {
       Object.values(prev).forEach(c => c?.preview && URL.revokeObjectURL(c.preview))
       return { circle: null, event: null }
@@ -989,6 +1008,32 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         </div>
 
         <div style={group}>
+          <span style={label}>Photo (optional)</span>
+          {lfgPhoto ? (
+            <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', height: 180, background: 'var(--surface-2)' }}>
+              <img src={lfgPhoto.preview} alt="Your photo" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <button type="button" aria-label="Remove photo" onClick={() => setLfgPhoto(null)} style={{
+                position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: '50%', border: 'none',
+                background: 'rgba(0,0,0,0.55)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}><XIcon size={16} /></button>
+            </div>
+          ) : (
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '0 14px', borderRadius: 14,
+              background: 'var(--surface-2)', color: clr.textDark, fontSize: 15, fontWeight: 600, cursor: 'pointer',
+            }}>
+              <Camera size={18} color="var(--accent)" />
+              Add a photo of what you're doing
+              <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) setLfgPhoto(f); e.target.value = '' }} />
+            </label>
+          )}
+          <p style={{ margin: '6px 2px 0', fontSize: 12, color: clr.textLight, lineHeight: 1.4 }}>
+            Only people who can see this post see it, and it's gone when the post ends.
+          </p>
+        </div>
+
+        <div style={group}>
           <span style={label}>Who can see this</span>
           <Segmented
             value={lfgVisibility}
@@ -1334,6 +1379,20 @@ function DateBlock({ d }) {
   )
 }
 
+// A post with a photo shows the photo in the ring, with the person's avatar
+// as a small badge so you can still tell who it is.
+function FreeNowBubble({ post, person, src, name }) {
+  if (!post?.photoUrl) return <Avatar person={person} src={src} name={name} size={56} ring />
+  return (
+    <div style={{ position: 'relative', width: 66, height: 66 }}>
+      <Avatar src={post.photoUrl} name={post.activity} size={56} ring />
+      <div style={{ position: 'absolute', right: -2, bottom: -2, borderRadius: '50%', padding: 2, background: 'var(--bg)' }}>
+        <Avatar person={person} src={src} name={name} size={22} />
+      </div>
+    </div>
+  )
+}
+
 function FreeNowRow({ me, mine, others, onOpen }) {
   const myPost = mine[0] || null
   const item = (key, avatar, label, sub, onClick) => (
@@ -1351,12 +1410,12 @@ function FreeNowRow({ me, mine, others, onOpen }) {
       <DsSectionHeader title="Free now" style={{ margin: '8px 0 10px' }} />
       <div className="noscrollbar" style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 16px 4px' }}>
         {myPost && item('me',
-          <Avatar person={me} size={56} ring />,
+          <FreeNowBubble post={myPost} person={me} />,
           'You',
           `${myPost.activity} · ${timeLeftLabel(myPost.expiresAt)}`,
           () => onOpen({ ...myPost, mine: true }))}
         {others.map(p => item(p.id,
-          <Avatar src={p.authorAvatar} name={p.authorName} size={56} ring />,
+          <FreeNowBubble post={p} src={p.authorAvatar} name={p.authorName} />,
           (p.authorName || '').split(' ')[0] || 'Someone',
           `${p.activity} · ${timeLeftLabel(p.expiresAt)}`,
           () => onOpen({ ...p, mine: false }),
@@ -1451,6 +1510,7 @@ export default function Feed() {
   const [joinedLfg, setJoinedLfg] = useState([])
   const [lfgPreviews, setLfgPreviews] = useState({})
   const [lfgSheetPost, setLfgSheetPost] = useState(null)
+  const [lfgPhotoBusy, setLfgPhotoBusy] = useState(false)
   const [lfgJoiners, setLfgJoiners] = useState([])
   const [lfgJoinersLoading, setLfgJoinersLoading] = useState(false)
   const [lfgJoining, setLfgJoining] = useState(false)
@@ -1885,6 +1945,13 @@ export default function Feed() {
               <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
             </div>
 
+            {lfgSheetPost.photoUrl && (
+              <img src={lfgSheetPost.photoUrl} alt={`${lfgSheetPost.activity} photo`} style={{
+                display: 'block', width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 16,
+                marginBottom: 16, background: 'var(--surface-2)',
+              }} />
+            )}
+
             {/* Header: Activity & Countdown */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
@@ -1961,6 +2028,34 @@ export default function Feed() {
             </div>
 
             {/* Action buttons */}
+            {lfgSheetPost.mine && !lfgSheetPost.photoUrl && (
+              <label style={{
+                width: '100%', minHeight: 48, borderRadius: 999, marginBottom: 10, boxSizing: 'border-box',
+                border: `1.5px solid ${clr.border}`, background: 'transparent', color: clr.textDark,
+                fontSize: 15, fontWeight: 700, cursor: lfgPhotoBusy ? 'default' : 'pointer', opacity: lfgPhotoBusy ? 0.6 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                <Camera size={17} /> {lfgPhotoBusy ? 'Adding photo…' : 'Add a photo'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={lfgPhotoBusy} style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    setLfgPhotoBusy(true)
+                    try {
+                      const path = await attachLfgPhoto({ postId: lfgSheetPost.id, userId: currentUser?.id, file })
+                      const [withUrl] = await withLfgPhotoUrls([{ ...lfgSheetPost, photoPath: path }])
+                      setLfgSheetPost(withUrl)
+                      refreshLfg()
+                    } catch (err) {
+                      console.error('[Feed] add photo failed', err)
+                      showToast("Couldn't add the photo.")
+                    } finally {
+                      setLfgPhotoBusy(false)
+                    }
+                  }} />
+              </label>
+            )}
             {lfgSheetPost.mine && (
               <button
                 type="button"
@@ -1986,6 +2081,7 @@ export default function Feed() {
                 onClick={async () => {
                   try {
                     await cancelLfgPost(lfgSheetPost.id)
+                    removeLfgPhoto(lfgSheetPost.photoPath)
                     await refreshLfg()
                     setLfgSheetPost(null)
                     showToast('LFG post cancelled')
