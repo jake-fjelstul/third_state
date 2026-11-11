@@ -1,7 +1,7 @@
 /* global process */
 // Smart-link previews (plan Part 4, Layer A).
 //
-// vercel.json rewrites /e/:id, /s/:id and /j/:code here. Link-preview bots
+// vercel.json rewrites /e/:id, /s/:id, /p/:id and /j/:code here. Link-preview bots
 // (Messages, Slack, WhatsApp...) don't run JavaScript, so we return the app's
 // own index.html with the right title / description / image filled in. People
 // get the same page and the app takes over from there.
@@ -18,8 +18,9 @@ const RPC = {
   event: ['public_event_card', 'p_id'],
   checkin: ['public_checkin_card', 'p_id'],
   invite: ['preview_invite', 'p_code'],
+  poll: ['public_time_poll_card', 'p_id'],
 }
-const PATH = { event: 'e', checkin: 's', invite: 'j' }
+const PATH = { event: 'e', checkin: 's', invite: 'j', poll: 'p' }
 
 async function loadCard(type, id) {
   const [fn, arg] = RPC[type]

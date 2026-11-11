@@ -2,17 +2,43 @@
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",
-      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
     },
     {
       "source": "/.well-known/assetlinks.json",
-      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
     }
   ],
   "rewrites": [
-    { "source": "/e/:id", "destination": "/api/card?type=event&id=:id" },
-    { "source": "/s/:id", "destination": "/api/card?type=checkin&id=:id" },
-    { "source": "/j/:code", "destination": "/api/card?type=invite&id=:code" },
-    { "source": "/((?!\\.well-known/|api/).*)", "destination": "/index.html" }
+    {
+      "source": "/e/:id",
+      "destination": "/api/card?type=event&id=:id"
+    },
+    {
+      "source": "/s/:id",
+      "destination": "/api/card?type=checkin&id=:id"
+    },
+    {
+      "source": "/p/:id",
+      "destination": "/api/card?type=poll&id=:id"
+    },
+    {
+      "source": "/j/:code",
+      "destination": "/api/card?type=invite&id=:code"
+    },
+    {
+      "source": "/((?!\\.well-known/|api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

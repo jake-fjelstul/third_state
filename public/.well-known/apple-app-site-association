@@ -19,6 +19,10 @@
             "comment": "Shared check-ins (out now)"
           },
           {
+            "/": "/p/*",
+            "comment": "When works? time polls"
+          },
+          {
             "/": "/invite/*",
             "comment": "One-time invite tokens"
           },

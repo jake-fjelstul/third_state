@@ -404,6 +404,9 @@ export function AppProvider({ children }) {
           }
         }
 
+        // Sign the iMessage app in too (iOS only; no-op elsewhere).
+        import('../lib/extensionSession.js').then(m => m.ensureExtensionSession(session.user.id)).catch(() => {})
+
         // A shared event / check-in link opened while signed out.
         const { takePendingLink } = await import('../lib/share.js')
         const pendingLink = takePendingLink()
@@ -662,6 +665,7 @@ export function AppProvider({ children }) {
       clearChatCache()
       clearLocalCache()
       try { window.localStorage.removeItem('ts.calendar.token') } catch { /* private mode */ }
+      import('../lib/extensionSession.js').then(m => m.clearExtensionSession()).catch(() => {})
     }
   }
 

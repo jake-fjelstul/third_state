@@ -50,3 +50,14 @@ describe('smart-link previews', () => {
     expect(injectMeta(PAGE, null, 'x')).toBe(PAGE)
   })
 })
+
+describe('time poll previews', () => {
+  it('lists the times while voting and says it is on once set', () => {
+    const open = describeCard('poll', { title: 'Climbing', options: [{ at: '2026-11-14T22:00:00Z', count: 2 }, { at: '2026-11-15T18:00:00Z', count: 0 }] })
+    expect(open.title).toBe('When works for Climbing?')
+    expect(open.description).toMatch(/\(2\).*Tap the times/)
+    const set = describeCard('poll', { title: 'Climbing', set: true, hostFirstName: 'Jake', place: 'Stone Summit' })
+    expect(set.title).toBe('Climbing is on')
+    expect(set.description).toMatch(/Jake picked a time at Stone Summit/)
+  })
+})

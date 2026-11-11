@@ -18,6 +18,7 @@ import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
 import JoinLandingPage from './pages/JoinLanding.jsx'
 import ShareLanding from './pages/ShareLanding.jsx'
+import PollLanding from './pages/PollLanding.jsx'
 import OnboardingModal from './components/feed/OnboardingModal.jsx'
 import AppTour from './components/tour/AppTour.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
@@ -460,6 +461,7 @@ function App() {
       {/* Shared links (plan Part 4, Layer A) */}
       <Route path="/e/:id" element={<ShareLanding type="event" />} />
       <Route path="/s/:id" element={<ShareLanding type="checkin" />} />
+      <Route path="/p/:id" element={<PollLanding />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />

@@ -57,6 +57,17 @@ export function describe(type, card) {
       large: false,
     }
   }
+  if (type === 'poll') {
+    const opts = (card.options || []).map(o => `${whenLabel(o.at)}${o.count ? ` (${o.count})` : ''}`)
+    return {
+      title: card.set ? `${card.title} is on` : `When works for ${card.title}?`,
+      description: card.set
+        ? `${card.hostFirstName || 'Someone'} picked a time${card.place ? ` at ${card.place}` : ''}. See it on Third Space.`
+        : `${opts.join(' · ')}. Tap the times that work for you.`,
+      image: DEFAULT_IMAGE,
+      large: false,
+    }
+  }
   if (type === 'invite') {
     if (card.circle_name) {
       return {

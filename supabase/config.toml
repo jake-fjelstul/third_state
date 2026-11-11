@@ -420,3 +420,7 @@ verify_jwt = false
 # Auth is checked inside the function (user JWT, or the seeding secret).
 [functions.spots-import]
 verify_jwt = false
+
+# Issues the iMessage extension its own session; checks the user JWT itself.
+[functions.extension-session]
+verify_jwt = false

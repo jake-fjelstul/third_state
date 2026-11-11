@@ -23,7 +23,7 @@ export function takePendingLink() {
   try {
     const v = window.localStorage.getItem(PENDING_LINK_KEY)
     if (v) window.localStorage.removeItem(PENDING_LINK_KEY)
-    return v && /^\/(e|s)\/[0-9a-f-]{36}$/i.test(v) ? v : null
+    return v && /^\/(e|s|p)\/[0-9a-f-]{36}$/i.test(v) ? v : null
   } catch { return null }
 }
 
