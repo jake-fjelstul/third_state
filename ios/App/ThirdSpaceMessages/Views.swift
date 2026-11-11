@@ -69,6 +69,9 @@ struct SignInBanner: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sign in on Third Space").font(.system(size: 14, weight: .bold)).foregroundColor(.primary)
                     Text("Open the app once and this unlocks.").font(.system(size: 12)).foregroundColor(.secondary)
+                    if let problem = model.signInProblem {
+                        Text(problem).font(.system(size: 11)).foregroundColor(.red).lineLimit(2)
+                    }
                 }
                 Spacer()
                 Image(systemName: "arrow.up.forward.app").foregroundColor(.secondary)

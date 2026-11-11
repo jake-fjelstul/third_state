@@ -378,6 +378,18 @@ export function AppProvider({ children }) {
     return () => { cancelled = true }
   }, [mapProfileToCurrentUser, resetLocalAuthState, userId])
 
+  // Sign the iMessage app in too, and retry whenever the app comes back to
+  // the foreground (iOS only; no-op elsewhere).
+  useEffect(() => {
+    if (!userId) return
+    let stop = () => {}
+    let cancelled = false
+    import('../lib/extensionSession.js').then(m => {
+      if (!cancelled) stop = m.watchExtensionSession(userId)
+    }).catch(() => {})
+    return () => { cancelled = true; stop() }
+  }, [userId])
+
   useEffect(() => {
     if (!session?.user?.id || !currentUser?.id) return
     let cancelled = false
@@ -403,9 +415,6 @@ export function AppProvider({ children }) {
             window.localStorage.removeItem(PENDING_INVITE_KEY)
           }
         }
-
-        // Sign the iMessage app in too (iOS only; no-op elsewhere).
-        import('../lib/extensionSession.js').then(m => m.ensureExtensionSession(session.user.id)).catch(() => {})
 
         // A shared event / check-in link opened while signed out.
         const { takePendingLink } = await import('../lib/share.js')

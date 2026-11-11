@@ -83,14 +83,25 @@ enum ExtensionSessionBridge {
     static let appGroup = "group.com.thirdspace.social"
     static let sourceKey = "CapacitorStorage.ts.ext.session"
     static let groupKey = "session"
+    static let statusKey = "CapacitorStorage.ts.ext.status"
     private static let copiedKey = "ts.ext.session.copied"
 
     static func sync() {
         guard let group = UserDefaults(suiteName: appGroup) else { return }
         let local = UserDefaults.standard
+        // Why the last sign-in attempt failed, for the extension's banner.
+        if let status = local.string(forKey: statusKey) {
+            if group.string(forKey: "status") != status { group.set(status, forKey: "status") }
+        } else if group.object(forKey: "status") != nil {
+            group.removeObject(forKey: "status")
+        }
+
         let value = local.string(forKey: sourceKey)
         let lastCopied = local.string(forKey: copiedKey)
-        if value == lastCopied { return }
+        // Copy when the app made a new session, or when the group lost it (for
+        // example a copy made before the App Group was set up never landed).
+        let groupMissing = value != nil && group.string(forKey: groupKey) == nil
+        if value == lastCopied && !groupMissing { return }
         if let value = value {
             group.set(value, forKey: groupKey)
             local.set(value, forKey: copiedKey)

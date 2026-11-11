@@ -27,6 +27,14 @@ final class MessagesViewController: MSMessagesAppViewController {
         }
         model.open = { [weak self] url in self?.extensionContext?.open(url, completionHandler: nil) }
 
+        // Coming back from the app (where sign-in happens) doesn't always
+        // re-run willBecomeActive, so re-check whenever Messages is in front.
+        for name in [Notification.Name.NSExtensionHostDidBecomeActive, .NSExtensionHostWillEnterForeground] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.model.refreshSignIn()
+            }
+        }
+
         let host = UIHostingController(rootView: RootView(model: model))
         addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false
@@ -120,7 +128,23 @@ final class ExtensionModel: ObservableObject {
     var sendUpdate: (MSMessage) -> Void = { _ in }
     var open: (URL) -> Void = { _ in }
 
-    func refreshSignIn() { signedIn = ThirdSpaceAPI.shared.isSignedIn }
+    @Published var signInProblem: String?
+    private var poll: Timer?
+
+    /// Re-read the shared sign-in. While locked, keep checking every second so
+    /// the tiles unlock as soon as the app hands the session over.
+    func refreshSignIn() {
+        let group = UserDefaults(suiteName: Config.appGroup)
+        signedIn = ThirdSpaceAPI.shared.isSignedIn
+        signInProblem = signedIn ? nil : group?.string(forKey: "status")
+        if signedIn {
+            poll?.invalidate(); poll = nil
+        } else if poll == nil {
+            poll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.refreshSignIn() }
+            }
+        }
+    }
 
     func start(_ tile: Tile) {
         screen = .compose(tile)
