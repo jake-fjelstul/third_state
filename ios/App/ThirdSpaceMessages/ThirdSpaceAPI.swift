@@ -127,7 +127,8 @@ struct CircleItem: Identifiable { let id: String; let name: String }
 struct PollOption: Identifiable { let index: Int; let at: Date; let count: Int; let mine: Bool; let names: [String]; var id: Int { index } }
 struct Poll { let id: String; let title: String; let place: String; let mine: Bool; let set: Bool; let hostFirstName: String; let options: [PollOption] }
 
-let isoParser: ISO8601DateFormatter = {
+// Formatters are thread-safe for reading once configured.
+nonisolated(unsafe) let isoParser: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return f

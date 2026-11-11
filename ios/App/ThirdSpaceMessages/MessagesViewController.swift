@@ -29,9 +29,10 @@ final class MessagesViewController: MSMessagesAppViewController {
 
         // Coming back from the app (where sign-in happens) doesn't always
         // re-run willBecomeActive, so re-check whenever Messages is in front.
+        let model = self.model
         for name in [Notification.Name.NSExtensionHostDidBecomeActive, .NSExtensionHostWillEnterForeground] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                self?.model.refreshSignIn()
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                Task { @MainActor in model.refreshSignIn() }
             }
         }
 
@@ -129,7 +130,7 @@ final class ExtensionModel: ObservableObject {
     var open: (URL) -> Void = { _ in }
 
     @Published var signInProblem: String?
-    private var poll: Timer?
+    private var poll: Task<Void, Never>?
 
     /// Re-read the shared sign-in. While locked, keep checking every second so
     /// the tiles unlock as soon as the app hands the session over.
@@ -138,10 +139,14 @@ final class ExtensionModel: ObservableObject {
         signedIn = ThirdSpaceAPI.shared.isSignedIn
         signInProblem = signedIn ? nil : group?.string(forKey: "status")
         if signedIn {
-            poll?.invalidate(); poll = nil
+            poll?.cancel(); poll = nil
         } else if poll == nil {
-            poll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.refreshSignIn() }
+            poll = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard let model = self, !Task.isCancelled else { return }
+                    model.refreshSignIn()
+                }
             }
         }
     }
