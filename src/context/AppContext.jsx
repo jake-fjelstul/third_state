@@ -404,6 +404,11 @@ export function AppProvider({ children }) {
           }
         }
 
+        // A shared event / check-in link opened while signed out.
+        const { takePendingLink } = await import('../lib/share.js')
+        const pendingLink = takePendingLink()
+        if (pendingLink && !cancelled) navigate(pendingLink, { replace: true })
+
         const pendingJoinCode = window.localStorage.getItem('ts.pendingJoinCode')
         if (pendingJoinCode) {
           try {

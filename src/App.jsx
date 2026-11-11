@@ -17,6 +17,7 @@ import FeedPage from './pages/Feed.jsx'
 import AuthCallbackPage from './pages/AuthCallback.jsx'
 import InviteLandingPage from './pages/InviteLanding.jsx'
 import JoinLandingPage from './pages/JoinLanding.jsx'
+import ShareLanding from './pages/ShareLanding.jsx'
 import OnboardingModal from './components/feed/OnboardingModal.jsx'
 import AppTour from './components/tour/AppTour.jsx'
 import { PrivacyPolicy, Terms, Support } from './pages/Legal.jsx'
@@ -456,6 +457,9 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/invite/:token" element={<InviteLandingPage />} />
       <Route path="/j/:code" element={<JoinLandingPage />} />
+      {/* Shared links (plan Part 4, Layer A) */}
+      <Route path="/e/:id" element={<ShareLanding type="event" />} />
+      <Route path="/s/:id" element={<ShareLanding type="checkin" />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />

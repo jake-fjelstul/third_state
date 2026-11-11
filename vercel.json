@@ -10,6 +10,9 @@
     }
   ],
   "rewrites": [
-    { "source": "/((?!\\.well-known/).*)", "destination": "/index.html" }
+    { "source": "/e/:id", "destination": "/api/card?type=event&id=:id" },
+    { "source": "/s/:id", "destination": "/api/card?type=checkin&id=:id" },
+    { "source": "/j/:code", "destination": "/api/card?type=invite&id=:code" },
+    { "source": "/((?!\\.well-known/|api/).*)", "destination": "/index.html" }
   ]
 }

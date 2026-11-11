@@ -2,17 +2,41 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["RRRT73TTF6.com.thirdspace.social"],
+        "appIDs": [
+          "RRRT73TTF6.com.thirdspace.social"
+        ],
         "components": [
-          { "/": "/j/*", "comment": "Circle and personal invite codes" },
-          { "/": "/invite/*", "comment": "One-time invite tokens" },
-          { "/": "/reset-password", "comment": "Password reset emails" },
-          { "/": "/auth/callback", "comment": "Email confirmation" }
+          {
+            "/": "/j/*",
+            "comment": "Circle and personal invite codes"
+          },
+          {
+            "/": "/e/*",
+            "comment": "Shared events"
+          },
+          {
+            "/": "/s/*",
+            "comment": "Shared check-ins (out now)"
+          },
+          {
+            "/": "/invite/*",
+            "comment": "One-time invite tokens"
+          },
+          {
+            "/": "/reset-password",
+            "comment": "Password reset emails"
+          },
+          {
+            "/": "/auth/callback",
+            "comment": "Email confirmation"
+          }
         ]
       }
     ]
   },
   "webcredentials": {
-    "apps": ["RRRT73TTF6.com.thirdspace.social"]
+    "apps": [
+      "RRRT73TTF6.com.thirdspace.social"
+    ]
   }
 }

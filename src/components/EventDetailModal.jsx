@@ -7,6 +7,8 @@ import { buildMapsUrl } from '../lib/geocoding'
 import { useAppContext } from '../context/AppContext.jsx'
 import EventEditModal from './EventEditModal.jsx'
 import { listProfilesByIds } from '../lib/profiles'
+import { eventShareUrl, shareLink } from '../lib/share.js'
+import { Share as ShareIcon } from 'lucide-react'
 
 const clr = {
   bg:       'var(--bg)',
@@ -37,6 +39,7 @@ function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onR
   // Everything renders from the latest copy, so an edit shows immediately.
   const event = currentEvent || eventProp
   const [showEditModal, setShowEditModal] = useState(false)
+  const [shareNote, setShareNote] = useState('')
   const [organizer, setOrganizer] = useState(null)
   const [hydratedAttendees, setHydratedAttendees] = useState(null)
   const [hydratedAttendeesCount, setHydratedAttendeesCount] = useState(null)
@@ -181,6 +184,27 @@ function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onR
             </h2>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12, flexShrink: 0 }}>
+            {/* Share a link with a rich preview (Messages shows a card). */}
+            {event.source !== 'google' && event.id && (
+              <button
+                type="button"
+                aria-label="Share event"
+                onClick={async () => {
+                  const res = await shareLink({
+                    url: eventShareUrl(event.id),
+                    title: event.title,
+                    text: `${event.title} · ${displayDate}`,
+                  })
+                  if (res === 'copied') { setShareNote('Link copied'); setTimeout(() => setShareNote(''), 2000) }
+                }}
+                style={{
+                  width: 36, height: 34, borderRadius: 10, border: 'none', backgroundColor: 'var(--surface-2)',
+                  color: clr.textDark, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <ShareIcon size={17} strokeWidth={2.2} />
+              </button>
+            )}
             {currentEvent.createdBy === currentUser?.id && (
               <button
                 type="button"
@@ -204,6 +228,8 @@ function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onR
             </button>
           </div>
         </div>
+
+        {shareNote && <p role="status" style={{ margin: '-6px 0 12px', fontSize: 13, fontWeight: 600, color: 'var(--good)' }}>{shareNote}</p>}
 
         {/* Info rows */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 22 }}>
