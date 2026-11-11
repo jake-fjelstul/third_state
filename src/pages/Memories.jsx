@@ -104,7 +104,9 @@ export default function Memories({ embedded = false }) {
                 {e.circleName && (
                   <span style={{
                     position: 'absolute', top: 12, left: 12,
-                    fontSize: 11, fontWeight: 800, color: clr.indigo,
+                    // Always a light chip over the photo, so the text is
+                    // always dark (--indigo turns near-white in dark mode).
+                    fontSize: 11, fontWeight: 800, color: '#0B0B0C',
                     backgroundColor: 'rgba(255,255,255,0.9)', padding: '4px 10px',
                     borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em',
                   }}>

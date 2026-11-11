@@ -9,6 +9,7 @@ import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { Camera, Calendar, CalendarCheck } from 'lucide-react'
 import { readCache, writeCache } from '../lib/localCache.js'
 import { parseLocalDate } from '../lib/events.js'
+import { isCopyOf } from '../lib/calendar.js'
 import { Button, LargeTitle } from '../components/ui/ds.jsx'
 import { useRefreshOnTabReturn } from '../lib/tabActive.js'
 
@@ -62,15 +63,24 @@ function formatTime(date) {
 
 
 
-function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails }) {
+function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails, alreadyInGoogle }) {
   const [added, setAdded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const isAdded = added || alreadyInGoogle
 
+  // Stays "Added": adding again would only make a duplicate.
   const handleAdd = async (e) => {
     e.stopPropagation()
-    if (added || !isConnected) return
-    await onAddToGoogle()
-    setAdded(true)
-    setTimeout(() => setAdded(false), 2000)
+    if (isAdded || busy || !isConnected) return
+    setBusy(true)
+    try {
+      await onAddToGoogle()
+      setAdded(true)
+    } catch (err) {
+      console.error('[Schedule] add to calendar failed', err)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -122,14 +132,14 @@ function MeetupCard({ meetup, onAddToGoogle, isConnected, onViewDetails }) {
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
         {isConnected && (
-          <button type="button" onClick={handleAdd} disabled={added} style={{
+          <button type="button" onClick={handleAdd} disabled={isAdded || busy} style={{
             flex: 1, padding: '10px 0', borderRadius: 12, border: 'none',
-            background: added ? '#DCFCE7' : clr.bg,
-            color: added ? '#059669' : clr.textDark,
-            fontSize: 13, fontWeight: 600, cursor: added ? 'default' : 'pointer',
-            transition: 'all 0.2s ease',
+            background: isAdded ? '#DCFCE7' : clr.bg,
+            color: isAdded ? '#059669' : clr.textDark,
+            fontSize: 13, fontWeight: 600, cursor: isAdded ? 'default' : 'pointer',
+            transition: 'all 0.2s ease', opacity: busy ? 0.6 : 1,
           }}>
-            {added ? '✓ Added' : 'Add to Calendar'}
+            {isAdded ? '✓ Added' : busy ? 'Adding…' : 'Add to Calendar'}
           </button>
         )}
         <button type="button" onClick={(e) => { e.stopPropagation(); onViewDetails(meetup); }} style={{
@@ -261,7 +271,9 @@ export default function Schedule() {
       dateObj: m.dateObj || parseEventDate(m),
     }))
 
-    const gcEvents = googleEvents.map(e => ({
+    // A Google event we copied from a Third Space event is the same plan:
+    // show it once, as the Third Space event.
+    const gcEvents = googleEvents.filter(g => !meetups.some(m => isCopyOf(g, m))).map(e => ({
       id: e.id,
       title: e.summary ?? 'Busy',
       source: 'google',
@@ -743,6 +755,7 @@ export default function Schedule() {
                 key={meetup.id} 
                 meetup={meetup}
                 onAddToGoogle={() => addEventToGoogle(meetup)}
+                alreadyInGoogle={googleEvents.some(g => isCopyOf(g, meetup))}
                 isConnected={isConnected}
                 onViewDetails={openEventDetail}
               />

@@ -1644,11 +1644,24 @@ export default function Feed() {
     const measure = () => {
       const el = firstScreenRef.current
       if (!el || el.offsetParent === null) return // hidden tab
-      setFirstScreenTop(Math.round(el.getBoundingClientRect().top + window.scrollY))
+      const top = Math.round(el.getBoundingClientRect().top + window.scrollY)
+      setFirstScreenTop(prev => (prev === top ? prev : top))
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    // Things above the wheel (the profile card, Free now) can appear or go
+    // away without Home re-rendering, e.g. the card hides itself. Watch the
+    // page column so the wheel re-sizes whenever its starting point moves.
+    const parent = firstScreenRef.current?.parentElement
+    const ro = typeof ResizeObserver !== 'undefined' && parent ? new ResizeObserver(measure) : null
+    if (ro) {
+      ro.observe(parent)
+      Array.from(parent.children).forEach(child => { if (child !== firstScreenRef.current) ro.observe(child) })
+    }
+    return () => {
+      window.removeEventListener('resize', measure)
+      ro?.disconnect()
+    }
   })
 
   // Home (not searching, nothing below the wheel) is one fixed screen: no

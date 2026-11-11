@@ -7,6 +7,7 @@ import {
   getStoredCalendarToken,
   isCalendarConnected,
   isCalendarConfigured,
+  isEventInCalendar,
   listExternalEvents,
 } from '../lib/calendar'
 
@@ -80,8 +81,9 @@ export function useCalendar() {
   const addEvent = useCallback(async (event) => {
     setError(null)
     try {
-      await addEventToCalendar(event)
+      const result = await addEventToCalendar(event)
       await refresh()
+      return result
     } catch (e) {
       if (String(e?.message || '').toLowerCase().includes('expired')) {
         setIsConnected(false)
@@ -116,6 +118,7 @@ export function useCalendar() {
     connect,
     disconnect,
     addEventToGoogle: addEvent,
+    isInGoogle: isEventInCalendar,
     refresh,
   }
 }
