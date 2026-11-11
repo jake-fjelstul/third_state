@@ -28,12 +28,14 @@ export default function EventDetailModal(props) {
   return createPortal(<EventDetailModalBody {...props} />, document.body)
 }
 
-function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCancelRsvp }) {
+function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onRsvp, onCancelRsvp }) {
 
-  const rsvpd = isRsvpd?.(event.id) ?? false
+  const rsvpd = isRsvpd?.(eventProp.id) ?? false
 
-  const { currentUser } = useAppContext()
-  const [currentEvent, setCurrentEvent] = useState(event)
+  const { currentUser, refreshMeetups } = useAppContext()
+  const [currentEvent, setCurrentEvent] = useState(eventProp)
+  // Everything renders from the latest copy, so an edit shows immediately.
+  const event = currentEvent || eventProp
   const [showEditModal, setShowEditModal] = useState(false)
   const [organizer, setOrganizer] = useState(null)
   const [hydratedAttendees, setHydratedAttendees] = useState(null)
@@ -42,14 +44,30 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
   const [attendanceList, setAttendanceList] = useState(null)
   const [attendanceError, setAttendanceError] = useState('')
   const { isConnected, addEventToGoogle, connect } = useCalendar()
+  // Close only once the RSVP went through; on failure stay and say so.
+  const [rsvpBusy, setRsvpBusy] = useState(false)
+  const [rsvpError, setRsvpError] = useState('')
+  const runRsvp = async (fn, failMsg) => {
+    setRsvpBusy(true)
+    setRsvpError('')
+    try {
+      await fn()
+      onClose()
+    } catch (err) {
+      console.error('[EventDetailModal] RSVP failed', err)
+      setRsvpError(failMsg)
+    } finally {
+      setRsvpBusy(false)
+    }
+  }
 
   const eventDate = currentEvent?.dateObj || (currentEvent?.startsAt ? new Date(currentEvent.startsAt) : (currentEvent?.starts_at ? new Date(currentEvent.starts_at) : null))
   const isPastEvent = eventDate ? eventDate.getTime() <= Date.now() : false
   const isHost = (currentEvent?.createdBy || currentEvent?.created_by) === currentUser?.id
 
   useEffect(() => {
-    setCurrentEvent(event)
-  }, [event])
+    setCurrentEvent(eventProp)
+  }, [eventProp])
 
   useEffect(() => {
     setAddedToCalendar(false)
@@ -365,11 +383,14 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
           </div>
         )}
 
-        {/* RSVP / Cancel buttons */}
-        {event.source !== 'google' && (
+        {/* RSVP / Cancel buttons (not for events that already happened) */}
+        {rsvpError && (
+          <p role="alert" style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: 'var(--bad)' }}>{rsvpError}</p>
+        )}
+        {event.source !== 'google' && !isPastEvent && (
           <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             {rsvpd ? (
-              <button type="button" onClick={() => { onCancelRsvp?.(event.id); onClose(); }} style={{
+              <button type="button" disabled={rsvpBusy} onClick={() => runRsvp(() => onCancelRsvp?.(event.id), "Couldn't cancel your RSVP. Try again.")} style={{
                 flex: 1, padding: '14px 0', borderRadius: 14, border: 'none',
                 background: '#FEE2E2', color: '#DC2626',
                 fontSize: 15, fontWeight: 700, cursor: 'pointer',
@@ -378,7 +399,7 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
                 ✕ Cancel RSVP
               </button>
             ) : (
-              <button type="button" onClick={() => { onRsvp?.(event); onClose(); }} style={{
+              <button type="button" disabled={rsvpBusy} onClick={() => runRsvp(() => onRsvp?.(event), "Couldn't RSVP. Try again.")} style={{
                 flex: 1, padding: '14px 0', borderRadius: 14, border: 'none',
                 background: `var(--indigo)`,
                 color: 'var(--on-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
@@ -458,10 +479,16 @@ function EventDetailModalBody({ event, onClose, closing, isRsvpd, onRsvp, onCanc
           onSaved={async () => {
             try {
               const updated = await getEvent(currentEvent.id)
-              if (updated) setCurrentEvent(updated)
+              if (updated) setCurrentEvent({ ...updated, source: currentEvent.source })
             } catch (err) {
               console.error('[EventDetailModal] refresh failed', err)
             }
+            refreshMeetups?.()
+          }}
+          onDeleted={() => {
+            refreshMeetups?.()
+            setShowEditModal(false)
+            onClose()
           }}
         />
       )}

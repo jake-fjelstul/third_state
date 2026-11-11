@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { AnimatePresence, animate, motion, useMotionValue, usePresence, useReducedMotion, useTransform } from 'framer-motion'
-import { TabActiveContext } from '../../lib/tabActive.js'
+import { TabActiveContext, canGoBack } from '../../lib/tabActive.js'
 import ScreenErrorBoundary from './ScreenErrorBoundary.jsx'
 
 /*
@@ -25,6 +25,9 @@ const PARENT_TAB = {
 const isTabRoot = (p) => TAB_ROOTS.includes(p)
 const parentTabFor = (p) => PARENT_TAB[p.split('/')[1]] || '/feed'
 const keyOf = (loc) => loc.key || `${loc.pathname}${loc.search}`
+// A pushed layer keeps its React key across REPLACE navigations (switching a
+// chat channel), so the screen updates in place instead of sliding out and in.
+const layerKeyOf = (loc) => loc.layerKey || keyOf(loc)
 const rootLoc = (pathname) => ({ pathname, search: '', hash: '', state: null, key: `root:${pathname}` })
 
 const EDGE = 30           // px from the left edge where a swipe-back can start
@@ -46,7 +49,8 @@ function StackLayer({ loc, routes, zIndex, isTop, underKey, getEl, onSwipeBack, 
   const getUnder = useCallback(() => getEl(underKey), [getEl, underKey])
 
   useEffect(() => { isTopRef.current = isTop }, [isTop])
-  useEffect(() => { registerEl(keyOf(loc), elRef.current); return () => registerEl(keyOf(loc), null) }, [loc, registerEl])
+  const layerKey = layerKeyOf(loc)
+  useEffect(() => { registerEl(layerKey, elRef.current); return () => registerEl(layerKey, null) }, [layerKey, registerEl])
 
   // Parallax + dim for the page underneath while this one moves.
   useEffect(() => {
@@ -185,7 +189,8 @@ export default function AppShell({ tabElements, pushedRoutes, selfHeadedPrefixes
       const i = state.stack.findIndex(l => keyOf(l) === keyOf(location))
       next.stack = i >= 0 ? state.stack.slice(0, i + 1) : [...state.stack, location]
     } else if (navType === 'REPLACE' && state.stack.length) {
-      next.stack = [...state.stack.slice(0, -1), location]
+      const replaced = state.stack[state.stack.length - 1]
+      next.stack = [...state.stack.slice(0, -1), { ...location, layerKey: layerKeyOf(replaced) }]
     } else {
       next.stack = [...state.stack, location]
     }
@@ -211,7 +216,15 @@ export default function AppShell({ tabElements, pushedRoutes, selfHeadedPrefixes
     else layerEls.current.delete(key)
   }, [])
   const getEl = useCallback((key) => (key ? layerEls.current.get(key) : tabLayerRef.current), [])
-  const onSwipeBack = useCallback(() => navigate(-1), [navigate])
+  // Cold-opened from a link or push there is no history underneath: go to
+  // the screen's parent tab instead of doing nothing.
+  const stackRef = useRef(stack)
+  useLayoutEffect(() => { stackRef.current = stack }, [stack])
+  const onSwipeBack = useCallback(() => {
+    if (canGoBack()) { navigate(-1); return }
+    const top = stackRef.current[stackRef.current.length - 1]
+    navigate(top ? parentTabFor(top.pathname) : '/feed', { replace: true })
+  }, [navigate])
 
   const visitedTabs = TAB_ROOTS.filter(r => tabLocs[r])
 
@@ -251,12 +264,12 @@ export default function AppShell({ tabElements, pushedRoutes, selfHeadedPrefixes
         {stack.map((loc, i) => {
           return (
             <StackLayer
-              key={keyOf(loc)}
+              key={layerKeyOf(loc)}
               loc={loc}
               routes={pushedRoutes}
               zIndex={200 + i * 2}
               isTop={i === stack.length - 1}
-              underKey={i > 0 ? keyOf(stack[i - 1]) : null}
+              underKey={i > 0 ? layerKeyOf(stack[i - 1]) : null}
               getEl={getEl}
               onSwipeBack={onSwipeBack}
               selfHeaded={selfHeadedPrefixes.some(p => loc.pathname.startsWith(p))}

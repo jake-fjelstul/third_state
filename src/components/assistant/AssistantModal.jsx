@@ -219,7 +219,7 @@ export default function AssistantModal({ initialPrompt, onClose, clr }) {
               background: (busy || !input.trim())
                 ? 'var(--surface-3)'
                 : `var(--indigo)`,
-              color: '#FFF', fontSize: 14, fontWeight: 800,
+              color: (busy || !input.trim()) ? 'var(--textLight)' : 'var(--on-ink)', fontSize: 14, fontWeight: 800,
               cursor: busy ? 'wait' : 'pointer',
               boxShadow: 'none',
               opacity: busy ? 0.7 : 1,

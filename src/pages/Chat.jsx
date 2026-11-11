@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listCircleMates } from '../lib/profiles'
@@ -332,11 +333,12 @@ export default function Chat() {
         />
       )}
 
-      {actionSheetChat && (
+      {/* Portaled above the tab bar (it sat underneath before). */}
+      {actionSheetChat && createPortal(
         <div
           onClick={() => setActionSheetChat(null)}
           style={{
-            position: 'fixed', inset: 0, zIndex: 60,
+            position: 'fixed', inset: 0, zIndex: 400,
             backgroundColor: 'rgba(0,0,0,0.35)',
             display: 'flex', alignItems: 'flex-end',
           }}
@@ -380,14 +382,15 @@ export default function Chat() {
               Cancel
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {confirmDeleteChat && (
+      {confirmDeleteChat && createPortal(
         <div
           onClick={() => setConfirmDeleteChat(null)}
           style={{
-            position: 'fixed', inset: 0, zIndex: 61,
+            position: 'fixed', inset: 0, zIndex: 401,
             backgroundColor: 'rgba(0,0,0,0.35)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
           }}
@@ -410,7 +413,8 @@ export default function Chat() {
               }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

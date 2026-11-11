@@ -10,11 +10,12 @@ import { resolveCircleCover } from '../lib/circleCover'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
 import { getBusyForUser, checkConflictAt, computeFreeSlots } from '../lib/availability'
 import { getConnectionStats } from '../lib/connectionStats'
+import { hasPendingRequestTo } from '../lib/connections'
 import TimePicker from '../components/TimePicker.jsx'
 import ReportModal from '../components/moderation/ReportModal.jsx'
 import { Flame, Calendar, AlertTriangle, CheckCircle, Users, Flag, Unlock, Ban, MoreHorizontal, Check } from 'lucide-react'
 import { Avatar, Button, IconButton, NavBar } from '../components/ui/ds.jsx'
-import { canGoBack } from '../lib/tabActive.js'
+import { goBackOr } from '../lib/tabActive.js'
 
 const clr = {
   bg:       'var(--bg)',
@@ -106,6 +107,15 @@ export default function UserProfile() {
   }, [id, blockedUserIds])
 
   const isConnected = connections.some(c => c.id === person?.id)
+
+  // Remember a pending request across visits (it was local state only).
+  useEffect(() => {
+    if (!person?.id || !currentUser?.id || person.id === currentUser.id) return
+    let cancelled = false
+    hasPendingRequestTo(currentUser.id, person.id)
+      .then(pending => { if (!cancelled && pending) setRequestSent(true) })
+    return () => { cancelled = true }
+  }, [person?.id, currentUser?.id])
   const isSelf = person?.id === currentUser?.id
   const p = person?.privacy || {
     isPrivateProfile: false, showBio: true, showInterests: true,
@@ -246,7 +256,13 @@ export default function UserProfile() {
     return <PageSkeleton />
   }
   if (!person) {
-    return <div style={{ padding:40, textAlign:'center', color:clr.textMid, fontFamily: 'inherit' }}>User not found.</div>
+    // Keep a way out: this is a pushed screen with no tab bar.
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: clr.bg, fontFamily: 'inherit' }}>
+        <NavBar onBack={() => goBackOr(navigate, '/feed')} />
+        <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>This profile isn't available.</div>
+      </div>
+    )
   }
 
   const isBlocked = !!(person?.id && blockedUserIds?.includes(person.id))
@@ -254,7 +270,7 @@ export default function UserProfile() {
   return (
     <div style={{ minHeight:'100vh', backgroundColor:clr.bg, paddingBottom:100, fontFamily: 'inherit' }}>
       <NavBar
-        onBack={() => (canGoBack() ? navigate(-1) : navigate('/feed'))}
+        onBack={() => goBackOr(navigate, '/feed')}
         right={!isSelf ? (
           <IconButton label="More options" onClick={() => setShowActionMenu(!showActionMenu)}>
             <MoreHorizontal size={24} />
@@ -889,7 +905,7 @@ export default function UserProfile() {
                   try {
                     await blockUserById(person.id)
                     setShowBlockConfirm(false)
-                    navigate(-1)
+                    goBackOr(navigate, '/feed')
                   } catch (err) {
                     console.error('[UserProfile] block user failed', err)
                     setBlocking(false)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchGame } from '../lib/games'
 import { uniqueTopic } from '../lib/realtimeTopic.js'
@@ -30,5 +30,22 @@ export function useGameState(gameId) {
     return () => { cancelled = true; supabase.removeChannel(sub) }
   }, [gameId])
 
-  return { game, loading, error }
+  // Apply a game row we already have (the move response) without waiting for
+  // realtime. Rows from the edge function lack the joined profiles, so keep
+  // the names and avatars we already know.
+  const applyGame = useCallback((fresh) => {
+    if (!fresh) return
+    setGame(prev => prev ? {
+      ...fresh,
+      playerX: { ...prev.playerX, ...(fresh.playerX?.name ? fresh.playerX : {}) },
+      playerO: { ...prev.playerO, ...(fresh.playerO?.name ? fresh.playerO : {}) },
+    } : fresh)
+  }, [])
+
+  const reload = useCallback(async () => {
+    if (!gameId) return
+    try { setGame(await fetchGame(gameId)) } catch (err) { console.error('[useGameState] reload failed', err) }
+  }, [gameId])
+
+  return { game, loading, error, applyGame, reload }
 }

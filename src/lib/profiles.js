@@ -20,6 +20,7 @@ export function defaultNotificationPrefs() {
     chat_activity: true,
     messages: true,
     daily_question: true,
+    free_now: true,
   }
 }
 

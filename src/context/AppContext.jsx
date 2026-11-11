@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react'
 import {
   listMyMeetups,
   rsvp as rsvpDb,
@@ -11,6 +11,7 @@ import { clearChatCache } from '../lib/chatCache.js'
 import { setCacheScope, clearLocalCache } from '../lib/localCache.js'
 import { haptic } from '../lib/motion.js'
 import { uniqueTopic } from '../lib/realtimeTopic.js'
+import { useStableNavigate } from '../lib/useStableNavigate.js'
 import { updatePrivacy, defaultPrivacy, defaultNotificationPrefs } from '../lib/profiles'
 import {
   fetchProfileForUser,
@@ -66,6 +67,7 @@ const UI_STORAGE_KEY = 'ts-ui-state'
 const PENDING_INVITE_KEY = 'ts.pendingInviteToken'
 
 export function AppProvider({ children }) {
+  const navigate = useStableNavigate()
   const [currentUser, setCurrentUser] = useState(null)
   const [joinedCircles, setJoinedCircles] = useState([])
   const [session, setSession] = useState(null)
@@ -85,6 +87,10 @@ export function AppProvider({ children }) {
   const [chatState, setChatState] = useState({}) // { [chatId]: { id, type, circleId, name, lastMessage, time, unread, memberCount } }
   const [chatStateLoading, setChatStateLoading] = useState(false)
   const [currentlyOpenChatId, setCurrentlyOpenChatId] = useState(null)
+  // Read inside the global message listener so opening/closing a chat no
+  // longer tears that channel down (messages in the gap were missed).
+  const currentlyOpenChatIdRef = useRef(null)
+  useLayoutEffect(() => { currentlyOpenChatIdRef.current = currentlyOpenChatId }, [currentlyOpenChatId])
   const [profileError, setProfileError] = useState(null)
   const [blockedUserIds, setBlockedUserIds] = useState([])
 
@@ -121,6 +127,12 @@ export function AppProvider({ children }) {
     }
   }, [])
 
+  // Token refreshes hand us a new session object every hour and on resume.
+  // Everything below keys on the user id so a refresh doesn't reload the app.
+  const userId = session?.user?.id || null
+  const sessionUserRef = useRef(null)
+  useLayoutEffect(() => { sessionUserRef.current = session?.user || null }, [session])
+
   const mapProfileToCurrentUser = useCallback((profile) => ({
     id: profile.id,
     name: profile.name,
@@ -154,9 +166,10 @@ export function AppProvider({ children }) {
   }, [])
 
   const refreshProfile = useCallback(async () => {
-    if (!session?.user?.id) return null
+    const user = sessionUserRef.current
+    if (!user?.id) return null
     try {
-      const profile = await fetchProfileForUser(session.user)
+      const profile = await fetchProfileForUser(user)
       setCurrentUser(mapProfileToCurrentUser(profile))
       if (typeof profile.theme === 'string') setTheme(profile.theme)
       if (typeof profile.reconnect_threshold_days === 'number') setReconnectThresholdDays(profile.reconnect_threshold_days)
@@ -172,7 +185,49 @@ export function AppProvider({ children }) {
       }
       throw err
     }
-  }, [mapProfileToCurrentUser, resetLocalAuthState, session?.user])
+  }, [mapProfileToCurrentUser, resetLocalAuthState])
+
+  // Re-read the events I'm going to. listMyMeetups only ran at sign-in, so
+  // coffee accepts, edits, deletes and other devices never showed up.
+  const refreshMeetups = useCallback(async () => {
+    if (!userId) return
+    try {
+      const list = await listMyMeetups(userId)
+      setMeetups(list)
+      setRsvpdEventIds(new Set(list.map(e => e.id)))
+    } catch (err) {
+      console.error('[AppContext] refreshMeetups failed', err)
+    }
+  }, [userId])
+
+  // RSVPs added or removed anywhere (the other side of a coffee accept, a
+  // second device, the assistant) refresh the list; so does coming back to
+  // the app.
+  const meetupsTimer = useRef(null)
+  useEffect(() => {
+    if (!userId) return
+    const later = () => {
+      clearTimeout(meetupsTimer.current)
+      meetupsTimer.current = setTimeout(() => { refreshMeetups() }, 400)
+    }
+    const sub = supabase
+      .channel(uniqueTopic(`my-rsvps:${userId}`))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_attendees', filter: `user_id=eq.${userId}` }, later)
+      .subscribe()
+    let lastResume = Date.now()
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastResume < 60_000) return
+      lastResume = Date.now()
+      later()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearTimeout(meetupsTimer.current)
+      document.removeEventListener('visibilitychange', onVisible)
+      supabase.removeChannel(sub)
+    }
+  }, [userId, refreshMeetups])
 
   const refreshConnections = useCallback(async () => {
     if (!session?.user?.id) return
@@ -195,7 +250,8 @@ export function AppProvider({ children }) {
 
   // Load profile and user data whenever session changes
   useEffect(() => {
-    if (!session?.user) {
+    const sessionUser = sessionUserRef.current
+    if (!userId || !sessionUser) {
       setCurrentUser(null)
       setJoinedCircles([])
       setPendingApplications([])
@@ -207,13 +263,12 @@ export function AppProvider({ children }) {
       return
     }
     let cancelled = false
-    const userId = session.user.id
     setCacheScope(userId)
 
     setProfileLoading(true)
     setProfileError(null)
 
-    const profilePromise = fetchProfileForUser(session.user)
+    const profilePromise = fetchProfileForUser(sessionUser)
       .then(profile => {
         if (cancelled) return
         setCurrentUser(mapProfileToCurrentUser(profile))
@@ -321,7 +376,7 @@ export function AppProvider({ children }) {
     })
 
     return () => { cancelled = true }
-  }, [mapProfileToCurrentUser, resetLocalAuthState, session])
+  }, [mapProfileToCurrentUser, resetLocalAuthState, userId])
 
   useEffect(() => {
     if (!session?.user?.id || !currentUser?.id) return
@@ -358,7 +413,8 @@ export function AppProvider({ children }) {
             const list = await listMyConnections(session.user.id)
             if (!cancelled) setConnections(list)
             if (res?.circle_id && !cancelled) {
-              window.location.href = `/circles/${res.circle_id}`
+              // Navigate in-app; a full page load restarted the native WebView.
+              navigate(`/circles/${res.circle_id}`, { replace: true })
             }
           } catch (err) {
             console.warn('[AppContext] pending join code redeem failed', err)
@@ -371,7 +427,7 @@ export function AppProvider({ children }) {
     })()
 
     return () => { cancelled = true }
-  }, [session?.user?.id, currentUser?.id])
+  }, [session?.user?.id, currentUser?.id, navigate])
 
   // Global realtime subscription for incoming chat messages
   useEffect(() => {
@@ -390,7 +446,7 @@ export function AppProvider({ children }) {
             if (!existing) return prev
             // if it's our own message, don't bump unread but do update preview
             const fromMe = row.sender_id === session.user.id
-            if (!fromMe && row.chat_id === currentlyOpenChatId) {
+            if (!fromMe && row.chat_id === currentlyOpenChatIdRef.current) {
               markReadDb({ userId: session.user.id, chatId: row.chat_id }).catch(err => {
                 console.error('[AppContext] markChatRead failed', err)
               })
@@ -420,7 +476,7 @@ export function AppProvider({ children }) {
       )
       .subscribe()
     return () => { supabase.removeChannel(sub) }
-  }, [currentlyOpenChatId, session?.user?.id])
+  }, [session?.user?.id])
 
   useEffect(() => {
     if (!session?.user?.id) return
@@ -593,10 +649,15 @@ export function AppProvider({ children }) {
     } catch (err) {
       console.error('[AppContext] unregisterPush failed', err)
     }
-    await authSignOut()
-    resetLocalAuthState()
-    clearChatCache()
-    clearLocalCache()
+    try {
+      await authSignOut()
+    } finally {
+      // Clear this device even if the network call failed.
+      resetLocalAuthState()
+      clearChatCache()
+      clearLocalCache()
+      try { window.localStorage.removeItem('ts.calendar.token') } catch { /* private mode */ }
+    }
   }
 
   const updateMyPrivacy = useCallback(async (patch) => {
@@ -704,6 +765,32 @@ export function AppProvider({ children }) {
     }
   }, [session?.user?.id])
 
+  // Re-read chat summaries; returns the fresh list (e.g. a circle chat that
+  // was created a moment ago by a join).
+  const refreshChats = useCallback(async () => {
+    const list = await listChatsDb()
+    setChatState(prev => {
+      const next = { ...prev }
+      list.forEach(c => { next[c.id] = c })
+      return next
+    })
+    return list
+  }, [])
+
+  // Unread counts and previews drift while the app is backgrounded (the
+  // socket is asleep); re-read them when it comes back.
+  useEffect(() => {
+    if (!userId) return
+    let last = Date.now()
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 15_000) return
+      last = Date.now()
+      refreshChats().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [userId, refreshChats])
+
   const createCircle = useCallback(async ({ hoops, ...payload }) => {
     if (!session?.user?.id) throw new Error('Not authenticated')
     const created = await createCircleDb({ userId: session.user.id, ...payload })
@@ -712,6 +799,7 @@ export function AppProvider({ children }) {
     }
     const myCircleIds = await listMyCircleIds(session.user.id)
     setJoinedCircles(myCircleIds)
+    setCircleMembershipVersion(v => v + 1)
     try {
       const chats = await listChatsDb()
       const map = {}
@@ -742,7 +830,7 @@ export function AppProvider({ children }) {
       durationMinutes,
     })
     // creator is auto-RSVP'd server-side; reflect locally
-    setMeetups(prev => [...prev, event])
+    setMeetups(prev => [...prev, event].sort((a, b) => (a.dateObj?.getTime() || 0) - (b.dateObj?.getTime() || 0)))
     setRsvpdEventIds(prev => {
       const next = new Set(prev)
       next.add(event.id)
@@ -877,10 +965,13 @@ export function AppProvider({ children }) {
     }
   }, [session])
 
+  // Read the row before removing it; a value captured inside the state
+  // updater may not exist yet when the rollback needs it.
+  const chatStateRef = useRef(chatState)
+  useLayoutEffect(() => { chatStateRef.current = chatState }, [chatState])
   const deleteChat = useCallback(async (chatId) => {
-    let previous = null
+    const previous = chatStateRef.current[chatId] || null
     setChatState(prev => {
-      previous = prev[chatId]
       const next = { ...prev }
       delete next[chatId]
       return next
@@ -1128,6 +1219,8 @@ export function AppProvider({ children }) {
       setTheme,
       chatState,
       sendMessage,
+      refreshChats,
+      refreshMeetups,
       startDM,
       markChatRead,
       deleteChat,
@@ -1182,7 +1275,7 @@ export function AppProvider({ children }) {
       answerSpontaneousQuestion,
       cancelSpontaneousQuestion,
     }),
-    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, refreshJoinedCircles, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById, getDailyQuestion, answerDailyQuestion, dismissDailyQuestion, syncQuestionReveals, getPendingQuestion, askSpontaneousQuestion, answerSpontaneousQuestion, cancelSpontaneousQuestion],
+    [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, refreshJoinedCircles, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, refreshChats, refreshMeetups, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById, getDailyQuestion, answerDailyQuestion, dismissDailyQuestion, syncQuestionReveals, getPendingQuestion, askSpontaneousQuestion, answerSpontaneousQuestion, cancelSpontaneousQuestion],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

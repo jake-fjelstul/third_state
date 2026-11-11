@@ -279,7 +279,7 @@ export default function ReportModal({
                   background: selectedReason && !submitting
                     ? `var(--indigo)`
                     : clr.border,
-                  color: '#FFFFFF',
+                  color: selectedReason && !submitting ? 'var(--on-ink)' : 'var(--textLight)',
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: selectedReason && !submitting ? 'pointer' : 'not-allowed',

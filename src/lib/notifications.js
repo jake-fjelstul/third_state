@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-function relativeTime(iso) {
+export function relativeTime(iso) {
   if (!iso) return ''
   const then = new Date(iso).getTime()
   const now = Date.now()

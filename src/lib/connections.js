@@ -74,3 +74,17 @@ export async function disconnectFrom(targetId) {
   const { error } = await supabase.rpc('disconnect_from', { p_target_id: targetId })
   if (error) throw error
 }
+
+/** True if I have a pending request out to this person. */
+export async function hasPendingRequestTo(myId, otherId) {
+  if (!myId || !otherId) return false
+  const { data, error } = await supabase
+    .from('connection_requests')
+    .select('id')
+    .eq('requester_id', myId)
+    .eq('recipient_id', otherId)
+    .eq('status', 'pending')
+    .limit(1)
+  if (error) return false
+  return (data || []).length > 0
+}

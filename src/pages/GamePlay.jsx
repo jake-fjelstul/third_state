@@ -7,6 +7,7 @@ import { useGameState } from '../hooks/useGameState.js'
 import { GAME_TYPES } from '../lib/games/index.js'
 import GameBoard from '../components/games/GameBoard.jsx'
 import { avatarFor } from '../lib/avatar.js'
+import { goBackOr } from '../lib/tabActive.js'
 
 const clr = {
   bg: 'var(--bg)',
@@ -21,7 +22,7 @@ export default function GamePlay() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const { currentUser, makeGameMove, forfeitGame, startChatGame } = useAppContext()
-  const { game, loading, error } = useGameState(gameId)
+  const { game, loading, error, applyGame, reload } = useGameState(gameId)
   const [toast, setToast] = useState(null)
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function GamePlay() {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: clr.textMid }}>
         <p>Could not load game</p>
-        <button onClick={() => navigate(-1)} style={{ padding: '8px 16px', borderRadius: 12, border: `1.5px solid ${clr.border}`, background: 'transparent' }}>Go back</button>
+        <button onClick={() => goBackOr(navigate, '/chat')} style={{ padding: '8px 16px', borderRadius: 12, border: `1.5px solid ${clr.border}`, background: 'transparent' }}>Go back</button>
       </div>
     )
   }
@@ -55,27 +56,32 @@ export default function GamePlay() {
     if (!typeMeta.module.applyMove(game.state, arg, myToken)) return
 
     try {
-      await makeGameMove({ gameId, move: arg })
+      applyGame(await makeGameMove({ gameId, move: arg }))
     } catch (err) {
       console.error(err)
       setToast('Something changed — refreshing…')
+      reload()
     }
   }
 
   const handleResign = async () => {
     if (!window.confirm("Are you sure you want to resign?")) return
     try {
-      await forfeitGame(gameId)
+      applyGame(await forfeitGame(gameId))
     } catch (err) {
       console.error(err)
       setToast('Could not resign.')
     }
   }
 
+  // The game sits on top of its chat: going "back to chat" pops, it never
+  // pushes a second copy of the thread.
+  const backToChat = () => goBackOr(navigate, `/chat/${game.chatId}`)
+
   const handleRematch = async () => {
     try {
       await startChatGame({ chatId: game.chatId, gameType: game.type })
-      navigate(`/chat/${game.chatId}`)
+      backToChat()
     } catch (err) {
       console.error(err)
       setToast('Failed to start rematch.')
@@ -110,7 +116,7 @@ export default function GamePlay() {
     }}>
       {/* Top Bar */}
       <div style={{ display: 'flex', alignItems: 'center', padding: 'max(12px, calc(env(safe-area-inset-top) + 8px)) 16px 10px', borderBottom: `1px solid ${clr.border}`, flexShrink: 0 }}>
-        <button onClick={() => navigate(-1)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={backToChat} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={28} strokeWidth={2.2} color="var(--textDark)" />
         </button>
         <div style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 700, color: clr.textDark }}>
@@ -159,7 +165,7 @@ export default function GamePlay() {
       {/* Actions */}
       <div style={{ padding: '10px 16px calc(12px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, flexShrink: 0 }}>
         <button
-          onClick={() => navigate(`/chat/${game.chatId}`)}
+          onClick={backToChat}
           style={{
             flex: 1, minHeight: 48, padding: '12px', borderRadius: 16, border: `1.5px solid ${clr.border}`,
             background: 'transparent', color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer'
@@ -204,7 +210,7 @@ export default function GamePlay() {
               Rematch
             </button>
             <button 
-              onClick={() => navigate(`/chat/${game.chatId}`)}
+              onClick={backToChat}
               style={{
                 padding: '14px 24px', borderRadius: 16, border: `1.5px solid ${clr.border}`,
                 background: 'transparent', color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: 'pointer'

@@ -225,3 +225,23 @@ html.dark [style*="tsSheetUp"] {
    transform (a transform here would fight the inline one). */
 button { transition: transform 0.1s ease; -webkit-tap-highlight-color: transparent; }
 button:active:not(:disabled):not([style*="transform"]) { transform: scale(0.97); }
+
+/* Native date/time fields (J6). iOS gives them an intrinsic minimum width
+   that pushes them past the edge of a sheet; keep them inside their box. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}

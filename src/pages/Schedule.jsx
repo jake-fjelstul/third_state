@@ -8,6 +8,7 @@ import TimePicker from '../components/TimePicker.jsx'
 import LocationAutocomplete from '../components/ui/LocationAutocomplete.jsx'
 import { Camera, Calendar, CalendarCheck } from 'lucide-react'
 import { readCache, writeCache } from '../lib/localCache.js'
+import { parseLocalDate } from '../lib/events.js'
 import { Button, LargeTitle } from '../components/ui/ds.jsx'
 import { useRefreshOnTabReturn } from '../lib/tabActive.js'
 
@@ -47,11 +48,8 @@ function isSameDay(a, b) {
 
 function parseEventDate(event) {
   if (event.start?.dateTime) return new Date(event.start.dateTime)
-  if (event.start?.date)     return new Date(event.start.date)
-  if (event.date) {
-    const safeStr = event.date.includes('-') && !event.date.includes('T') ? event.date.replace(/-/g, '/') : event.date
-    return new Date(safeStr)
-  }
+  if (event.start?.date)     return parseLocalDate(event.start.date)
+  if (event.date) return parseLocalDate(event.date) || new Date(event.date)
   return null
 }
 
@@ -259,7 +257,7 @@ export default function Schedule() {
     const tsEvents = meetups.map(m => ({
       ...m,
       source: 'thirdspace',
-      color: clr.indigo,
+      color: 'var(--accent)',
       dateObj: m.dateObj || parseEventDate(m),
     }))
 
@@ -279,10 +277,28 @@ export default function Schedule() {
   const selectedDayEvents = useMemo(() => {
     return allCalendarEvents.filter(e => e.dateObj && isSameDay(e.dateObj, selectedDay))
   }, [allCalendarEvents, selectedDay])
+  // The 1st of the target month. setMonth() on today overflowed on the
+  // 29th-31st (Jan 31 + 1 month = Mar 3), skipping a month.
+  const dayScrollRef = useRef(null)
+  useEffect(() => {
+    if (calView !== 'day') return
+    const el = dayScrollRef.current
+    if (!el) return
+    // All-day events sit at midnight; they don't count as "early".
+    const first = selectedDayEvents.reduce((min, e) => (e.dateObj && e.time !== 'All day' ? Math.min(min, e.dateObj.getHours()) : min), 7)
+    // Wait a frame: the hour rows aren't laid out yet when this runs.
+    const raf = requestAnimationFrame(() => {
+      const row = el.querySelector(`[data-hour="${Math.min(first, 7)}"]`)
+      if (row) el.scrollTop += row.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+    })
+    return () => cancelAnimationFrame(raf)
+    // Only when the view or day changes, not every time events refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calView, selectedDay])
+
   const monthRefDate = useMemo(() => {
-    const ref = new Date()
-    ref.setMonth(ref.getMonth() + monthOffset)
-    return ref
+    const today = new Date()
+    return new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
   }, [monthOffset])
 
   const advance = (delta) => {
@@ -318,10 +334,12 @@ export default function Schedule() {
     }, 300)
   }
 
+  const [creating, setCreating] = useState(false)
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.title || !form.circleId || !form.date || !form.time) return
+    if (creating || !form.title || !form.circleId || !form.date || !form.time) return
 
+    setCreating(true)
     try {
       const event = await createEventAndRsvp({
         circleId: form.circleId,
@@ -345,6 +363,8 @@ export default function Schedule() {
     } catch (err) {
       console.error('[Schedule] create event failed', err)
       alert('Sorry — something went wrong creating your event. Please try again.')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -504,7 +524,7 @@ export default function Schedule() {
           marginBottom: 24,
         }}>
           <div style={{ 
-            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             borderBottom: `1px solid ${clr.border}`,
           }}>
             {weekDays.map(day => {
@@ -536,21 +556,28 @@ export default function Schedule() {
             })}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 80, padding: '8px 0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', minHeight: 80, padding: '8px 0' }}>
             {weekDays.map(day => {
-              const dayEvents = allCalendarEvents.filter(e => e.dateObj && isSameDay(e.dateObj, day))
+              const dayEvents = allCalendarEvents
+                .filter(e => e.dateObj && isSameDay(e.dateObj, day))
+                .sort((a, b) => a.dateObj - b.dateObj)
+              const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
               return (
-                <div key={day.toISOString()} style={{ padding: '0 3px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div key={day.toISOString()} style={{ padding: '0 3px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
                   {dayEvents.slice(0, 3).map(event => (
                     <div key={event.id} onClick={(e) => { e.stopPropagation(); setSelectedDay(day); openEventDetail(event); }} style={{
-                      backgroundColor: event.color,
-                      borderRadius: 4, padding: '2px 5px',
-                      fontSize: 9, fontWeight: 600, color: '#FFFFFF', lineHeight: 1.4,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      cursor: 'pointer',
+                      // Tinted chip + colored edge reads in light and dark (J8).
+                      backgroundColor: event.source === 'google' ? 'rgba(52,168,83,0.16)' : 'var(--accent-soft)',
+                      borderLeft: `2px solid ${event.source === 'google' ? '#34A853' : 'var(--accent)'}`,
+                      borderRadius: 4, padding: '2px 4px',
+                      color: 'var(--textDark)', lineHeight: 1.3,
+                      cursor: 'pointer', minWidth: 0,
                     }}>
-                      {event.time ?? event.start?.dateTime ? formatTime(event.dateObj) + ' ' : ''}
-                      {event.title}
+                      {/* Title first: the time alone said nothing in a narrow column. */}
+                      <div style={{ ...ellipsis, fontSize: 9, fontWeight: 700 }}>{event.title}</div>
+                      <div style={{ ...ellipsis, fontSize: 8, fontWeight: 500, color: 'var(--textMid)' }}>
+                        {event.time === 'All day' ? 'All day' : formatTime(event.dateObj)}
+                      </div>
                     </div>
                   ))}
                   {dayEvents.length > 3 && (
@@ -574,13 +601,15 @@ export default function Schedule() {
                 {selectedDay.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
               </p>
             </div>
-            <div style={{ padding: 8 }}>
-              {Array.from({ length: 17 }, (_, i) => i + 7).map((hour) => {
+            {/* All 24 hours (it started at 7 AM, hiding early events); opens
+                scrolled to 7 AM or the first earlier event. */}
+            <div ref={dayScrollRef} style={{ padding: 8, maxHeight: '62vh', overflowY: 'auto', overscrollBehavior: 'contain' }}>
+              {Array.from({ length: 24 }, (_, i) => i).map((hour) => {
                 const eventsThisHour = selectedDayEvents.filter((e) => e.dateObj && e.dateObj.getHours() === hour)
                 return (
-                  <div key={hour} style={{ display: 'flex', borderBottom: `1px solid ${clr.border}`, minHeight: 56 }}>
+                  <div key={hour} data-hour={hour} style={{ display: 'flex', borderBottom: `1px solid ${clr.border}`, minHeight: 56 }}>
                     <div style={{ width: 56, padding: '8px 0', fontSize: 11, color: clr.textMid, textAlign: 'right', paddingRight: 12 }}>
-                      {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                      {hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                     </div>
                     <div style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {eventsThisHour.map((event) => (
@@ -613,7 +642,7 @@ export default function Schedule() {
                   {monthRefDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </p>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: `1px solid ${clr.border}` }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', borderTop: `1px solid ${clr.border}` }}>
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                   <div key={`${d}-${i}`} style={{ padding: 8, fontSize: 11, fontWeight: 700, color: clr.textMid, textAlign: 'center', borderBottom: `1px solid ${clr.border}` }}>{d}</div>
                 ))}
@@ -860,17 +889,19 @@ export default function Schedule() {
               )}
 
               <button type="submit"
-                disabled={!form.title || !form.circleId || !form.date || !form.time}
+                disabled={creating || !form.title || !form.circleId || !form.date || !form.time}
                 style={{
                   width:'100%', padding:'15px 0', borderRadius:14, border:'none', marginTop: 10,
                   background: (!form.title || !form.circleId || !form.date || !form.time)
-                    ? clr.textLight : `var(--indigo)`,
-                  color:'#FFFFFF', fontSize:16, fontWeight:700,
+                    ? 'var(--surface-3)' : `var(--indigo)`,
+                  color: (!form.title || !form.circleId || !form.date || !form.time)
+                    ? 'var(--textLight)' : 'var(--on-ink)',
+                  fontSize:16, fontWeight:700,
                   cursor: (!form.title || !form.circleId || !form.date || !form.time) ? 'not-allowed' : 'pointer',
                   boxShadow: (!form.title || !form.circleId || !form.date || !form.time) ? 'none' : 'none',
                   transition:'all 0.2s ease',
                 }}>
-                Create Meetup
+                {creating ? 'Creating…' : 'Create Meetup'}
               </button>
             </form>
           </div>

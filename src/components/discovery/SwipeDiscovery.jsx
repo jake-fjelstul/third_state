@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { listVisibleCircles, listHoopsByCircle, listMyApplications, isDiscoverable, requiresApplication as requiresApp } from '../../lib/circles'
 import { listProfiles } from '../../lib/profiles'
 import { listUpcomingEvents } from '../../lib/events'
@@ -10,6 +10,7 @@ import CircleIcon from '../ui/CircleIcon.jsx'
 import { Sparkles, MapPin, Calendar, Ticket, Users, Zap, Clock, Lock, UserRound, UserPlus, Telescope } from 'lucide-react'
 import { haversineMiles } from '../../lib/geo'
 import HoopApplication from '../hoops/HoopApplication.jsx'
+import SwipeDeck from './SwipeDeck.jsx'
 
 /* ── Colors (from app theme) ── */
 const clr = {
@@ -63,7 +64,7 @@ function DiscoveryCard({ card }) {
     const p = card.data
     return (
       <div style={{
-        height: 520, display:'flex', flexDirection:'column',
+        height: 'var(--deck-card-h, 520px)', display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
         WebkitMaskImage: '-webkit-radial-gradient(white, black)',
         isolation: 'isolate', transform: 'translateZ(0)',
@@ -84,7 +85,7 @@ function DiscoveryCard({ card }) {
           )}
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
             <h2 style={{ margin:0, fontSize:26, fontWeight:800, color: clr.textDark, fontFamily: 'inherit' }}>
-              {p.name.split(' ')[0]}, {p.age}
+              {p.name.split(' ')[0]}{p.age ? `, ${p.age}` : ''}
             </h2>
             {p.online && <div style={{ width:12, height:12, borderRadius:'50%', backgroundColor: 'var(--green, #22C55E)' }} />}
           </div>
@@ -109,7 +110,7 @@ function DiscoveryCard({ card }) {
     const cover = resolveCircleCover(c)
     return (
       <div style={{
-        height: 520, display:'flex', flexDirection:'column',
+        height: 'var(--deck-card-h, 520px)', display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
         WebkitMaskImage: '-webkit-radial-gradient(white, black)',
         isolation: 'isolate', transform: 'translateZ(0)',
@@ -147,7 +148,7 @@ function DiscoveryCard({ card }) {
     const e = card.data
     return (
       <div style={{
-        height: 520, display:'flex', flexDirection:'column',
+        height: 'var(--deck-card-h, 520px)', display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
         WebkitMaskImage: '-webkit-radial-gradient(white, black)',
         isolation: 'isolate', transform: 'translateZ(0)',
@@ -195,7 +196,7 @@ function DiscoveryCard({ card }) {
       : ''
     return (
       <div style={{
-        height: 520, display:'flex', flexDirection:'column',
+        height: 'var(--deck-card-h, 520px)', display:'flex', flexDirection:'column',
         backgroundColor: clr.white, borderRadius: 24, overflow: 'hidden',
         WebkitMaskImage: '-webkit-radial-gradient(white, black)',
         isolation: 'isolate', transform: 'translateZ(0)',
@@ -270,8 +271,6 @@ export default function SwipeDiscovery({ onClose }) {
   const [activeFilters, setActiveFilters] = useState(['people', 'circles', 'events', 'lfg'])
   const [consumedIds, setConsumedIds] = useState([])
   
-  const [dragX, setDragX] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
   const [actionPending, setActionPending] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [passedCards, setPassedCards] = useState({ person: [], circle: [], event: [], lfg: [] })
@@ -280,12 +279,6 @@ export default function SwipeDiscovery({ onClose }) {
   const [draftMessage, setDraftMessage] = useState('')
   const [currentMatchCard, setCurrentMatchCard] = useState(null)
   
-  const cardRef = useRef(null)
-  const currentCardRef = useRef(null)
-  const dragStartX = useRef(0)
-  const wheelAccumulator = useRef(0)
-  const isSwiping = useRef(false)
-  const wheelTimer = useRef(null)
 
   const [circles, setCircles] = useState([])
   const [people, setPeople] = useState([])
@@ -356,6 +349,16 @@ export default function SwipeDiscovery({ onClose }) {
     })
   }
 
+  // Ties shuffle once per visit, not on every swipe: sorting with
+  // Math.random() reshuffled the whole deck whenever a card was consumed.
+  const [deckSeed] = useState(() => Math.floor(Math.random() * 1e9))
+  const tie = useCallback((card) => {
+    const key = `${card.type}:${card.data.id}:${deckSeed}`
+    let h = 2166136261
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) }
+    return (h >>> 0) / 4294967296
+  }, [deckSeed])
+
   const allCards = useMemo(() => {
     const scoredCards = []
     const today = new Date().toDateString()
@@ -380,7 +383,7 @@ export default function SwipeDiscovery({ onClose }) {
             return dist == null || dist <= searchRadius
           })
           .map(p => scoreCard({ type: 'person', data: p, distance: personDistanceTo(p) == null ? null : Math.round(personDistanceTo(p)) }, currentUser))
-          .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
+          .sort((a, b) => b.score !== a.score ? b.score - a.score : tie(a) - tie(b))
         scoredCards.push(...candidates)
       }
     }
@@ -402,7 +405,7 @@ export default function SwipeDiscovery({ onClose }) {
             distance: null,
             requiresApplication: requiresApp(c),
           }, currentUser))
-          .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
+          .sort((a, b) => b.score !== a.score ? b.score - a.score : tie(a) - tie(b))
         scoredCards.push(...candidates)
       }
     }
@@ -419,7 +422,7 @@ export default function SwipeDiscovery({ onClose }) {
             return dist == null || dist <= searchRadius
           })
           .map(e => scoreCard({ type: 'event', data: e, distance: eventDistanceTo(e) == null ? null : Math.round(eventDistanceTo(e)) }, currentUser))
-          .sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
+          .sort((a, b) => b.score !== a.score ? b.score - a.score : tie(a) - tie(b))
         scoredCards.push(...candidates)
       }
     }
@@ -434,154 +437,92 @@ export default function SwipeDiscovery({ onClose }) {
       scoredCards.push(...candidates)
     }
 
-    return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : Math.random() - 0.5)
-  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards, hoopsByCircle, appliedCircleIds, discoverySwipes, consumedIds, connections, joinedCircles, isRsvpd])
+    return scoredCards.sort((a, b) => b.score !== a.score ? b.score - a.score : tie(a) - tie(b))
+  }, [activeFilters, searchRadius, circles, people, events, lfgPosts, currentUser, blockedUserIds, passedCards, hoopsByCircle, appliedCircleIds, discoverySwipes, consumedIds, connections, joinedCircles, isRsvpd, tie])
 
   const currentCard = allCards[0]
-  const nextCard = allCards[1]
-  currentCardRef.current = currentCard
+  const deckRef = useRef(null)
 
-  const advanceCard = () => {
-    const c = currentCardRef.current
-    if (!c) return
-    setConsumedIds(prev => prev.includes(c.data.id) ? prev : [...prev, c.data.id])
+  const advanceCard = (card) => {
+    if (!card) return
+    setConsumedIds(prev => prev.includes(card.data.id) ? prev : [...prev, card.data.id])
   }
 
-  const handleSwipeRight = async () => {
-    if (!currentCard || actionPending) return
-    setActionPending(true)
-
-    try {
-      if (currentCard.type === 'circle') {
-        if (currentCard.requiresApplication) {
-          setHoopCircle(currentCard.data)
-          // Do NOT advance or record — that happens on successful submission.
-        } else {
-          await joinCircle(currentCard.data.id)
-          recordSwipe(currentCard.type)
-          triggerToast(`Joined ${currentCard.data.name}`)
-          advanceCard()
-        }
-      } else if (currentCard.type === 'event') {
-        await rsvpEvent(currentCard.data)
-        recordSwipe(currentCard.type)
-        triggerToast(`You're going to ${currentCard.data.title}`)
-        advanceCard()
-      } else if (currentCard.type === 'lfg') {
-        await joinLfgPost(currentCard.data.id)
-        triggerToast(`You're in — say hi to ${currentCard.data.authorName.split(' ')[0]}`)
-        advanceCard()
-      } else if (currentCard.type === 'person') {
-        setCurrentMatchCard(currentCard)
-        setDraftMessage(`Hey ${currentCard.data.name.split(' ')[0]}! I'd love to connect 👋`)
-        setShowMessageDraft(true)
-      }
-    } catch (err) {
-      console.error('[SwipeDiscovery] handleSwipeRight failed', err)
-      triggerToast(err?.message || 'Action failed')
-    } finally {
-      setActionPending(false)
-    }
-  }
-
-
-  const handleSwipeLeft = async () => {
-    if (!currentCard || actionPending) return
-    recordSwipe(currentCard.type)
-
-    const cardType = currentCard.type
-    const cardId = currentCard.data.id
-
+  const passCard = (card) => {
+    recordSwipe(card.type)
     setPassedCards(prev => {
-      const existing = prev[cardType] || []
-      if (existing.includes(cardId)) return prev
-      const updated = [...existing, cardId].slice(-500)
-      const nextState = { ...prev, [cardType]: updated }
-
+      const existing = prev[card.type] || []
+      if (existing.includes(card.data.id)) return prev
+      const nextState = { ...prev, [card.type]: [...existing, card.data.id].slice(-500) }
       import('@capacitor/preferences').then(({ Preferences }) => {
-        Preferences.set({
-          key: PASSED_STORAGE_KEY,
-          value: JSON.stringify(nextState),
-        }).catch(() => {})
+        Preferences.set({ key: PASSED_STORAGE_KEY, value: JSON.stringify(nextState) }).catch(() => {})
       }).catch(() => {})
-
       return nextState
     })
-
-    advanceCard()
   }
 
-  const handleDragStart = (e) => {
-    if (actionPending) return
-    setIsDragging(true)
-    dragStartX.current = e.clientX
-    cardRef.current?.setPointerCapture(e.pointerId)
-  }
-
-  const handleDragMove = (e) => {
-    if (!isDragging || actionPending) return
-    setDragX(e.clientX - dragStartX.current)
-  }
-
-  const handleDragEnd = () => {
-    if (!isDragging) return
-    setIsDragging(false)
-    if (actionPending) {
-      setDragX(0)
-      return
+  // Called by the deck once a card has been thrown. Joining and RSVPs are
+  // optimistic: the next card is already in place, the request runs behind it.
+  const onCommit = async (dir, card) => {
+    if (dir < 0) {
+      passCard(card)
+      advanceCard(card)
+      return 'advance'
     }
-    const threshold = 100
-    if (dragX > threshold) {
-      setDragX(500)
-      setTimeout(() => {
-        handleSwipeRight()
-        setDragX(0)
-      }, 250)
-    } else if (dragX < -threshold) {
-      setDragX(-500)
-      setTimeout(() => {
-        handleSwipeLeft()
-        setDragX(0)
-      }, 250)
-    } else {
-      setDragX(0)
+    if (card.type === 'circle' && card.requiresApplication) {
+      setHoopCircle(card.data)
+      return 'hold'
     }
-  }
-
-  const handleWheel = (e) => {
-    if (isSwiping.current || isDragging || actionPending) return
-    
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      wheelAccumulator.current -= e.deltaX
-      setDragX(wheelAccumulator.current)
-      
-      const threshold = 150
-      if (wheelAccumulator.current > threshold) {
-        isSwiping.current = true
-        setDragX(500)
-        setTimeout(() => {
-          handleSwipeRight()
-          setDragX(0)
-          wheelAccumulator.current = 0
-        }, 250)
-        setTimeout(() => { isSwiping.current = false }, 800)
-      } else if (wheelAccumulator.current < -threshold) {
-        isSwiping.current = true
-        setDragX(-500)
-        setTimeout(() => {
-          handleSwipeLeft()
-          setDragX(0)
-          wheelAccumulator.current = 0
-        }, 250)
-        setTimeout(() => { isSwiping.current = false }, 800)
-      } else {
-        clearTimeout(wheelTimer.current)
-        wheelTimer.current = setTimeout(() => {
-          setDragX(0)
-          wheelAccumulator.current = 0
-        }, 150)
+    if (card.type === 'person') {
+      setCurrentMatchCard(card)
+      setDraftMessage(`Hey ${card.data.name.split(' ')[0]}! I'd love to connect 👋`)
+      setShowMessageDraft(true)
+      return 'hold'
+    }
+    advanceCard(card)
+    try {
+      if (card.type === 'circle') {
+        await joinCircle(card.data.id)
+        recordSwipe(card.type)
+        triggerToast(`Joined ${card.data.name}`)
+      } else if (card.type === 'event') {
+        await rsvpEvent(card.data)
+        recordSwipe(card.type)
+        triggerToast(`You're going to ${card.data.title}`)
+      } else if (card.type === 'lfg') {
+        await joinLfgPost(card.data.id)
+        triggerToast(`You're in — say hi to ${(card.data.authorName || '').split(' ')[0] || 'them'}`)
       }
+    } catch (err) {
+      console.error('[SwipeDiscovery] action failed', err)
+      triggerToast(err?.message || 'That didn’t go through. Try again.')
+      setConsumedIds(prev => prev.filter(id => id !== card.data.id))
     }
+    return 'advance'
+  }
+
+  const stamp = (card, dir) => {
+    if (dir < 0) {
+      return (
+        <div style={{
+          backgroundColor: clr.white, color: clr.textMid, padding: '8px 18px', borderRadius: 999,
+          fontSize: 17, fontWeight: 800, border: `3px solid ${clr.border}`, transform: 'rotate(12deg)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+        }}>PASS</div>
+      )
+    }
+    const label = card.type === 'person'
+      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><UserPlus size={18} color="currentColor" /> CONNECT</span>
+      : card.type === 'circle' ? (card.requiresApplication ? 'APPLY' : 'JOIN')
+        : card.type === 'lfg' ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Zap size={18} color="currentColor" /> I'M IN</span>
+          : 'GOING'
+    return (
+      <div style={{
+        backgroundColor: 'var(--accent)', color: 'var(--on-accent)', padding: '8px 18px', borderRadius: 999,
+        fontSize: 17, fontWeight: 800, border: '3px solid rgba(255,255,255,0.9)', transform: 'rotate(-12deg)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+      }}>{label}</div>
+    )
   }
 
   const FILTERS = [
@@ -660,77 +601,16 @@ export default function SwipeDiscovery({ onClose }) {
         </div>
       </div>
 
-      {/* Card stack area */}
-      <div style={{
-        flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden', padding: '0 20px',
-      }}>
-        {/* Next Card */}
-        {nextCard && (
-          <div style={{
-            position: 'absolute', width: '88%', maxWidth: 400,
-            transform: 'scale(0.94) translateY(16px)',
-            opacity: 0.7, zIndex: 1, pointerEvents: 'none'
-          }}>
-            <DiscoveryCard card={nextCard} />
-          </div>
-        )}
-
-        {/* Current Card */}
-        {currentCard ? (
-          <div
-            key={`${currentCard.type}-${currentCard.data.id}`}
-            ref={cardRef}
-            onPointerDown={handleDragStart}
-            onPointerMove={handleDragMove}
-            onPointerUp={handleDragEnd}
-            onPointerCancel={handleDragEnd}
-            onWheel={handleWheel}
-            style={{
-              position: 'absolute', width: '88%', maxWidth: 400,
-              transform: `translateX(${dragX}px) rotate(${dragX * 0.04}deg)`,
-              transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              zIndex: 2, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none',
-            }}
-          >
-            {dragX > 40 && (
-              <div style={{
-                position: 'absolute', top: 30, left: 30, zIndex: 10,
-                backgroundColor: clr.indigo, color: 'var(--on-ink)',
-                padding: '8px 20px', borderRadius: 999, fontSize: 18, fontWeight: 800,
-                opacity: Math.min(dragX / 80, 1), border: '4px solid #FFF',
-                transform: 'rotate(-12deg)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-              }}>
-                {currentCard.type === 'person' ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <UserPlus size={18} color="currentColor" /> CONNECT
-                  </span>
-                ) : currentCard.type === 'circle' ? (
-                  currentCard.requiresApplication ? '✓ APPLY' : '✓ JOIN'
-                ) : currentCard.type === 'lfg' ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Zap size={18} color="currentColor" /> JOIN
-                  </span>
-                ) : (
-                  '✓ RSVP'
-                )}
-              </div>
-            )}
-            {dragX < -40 && (
-              <div style={{
-                position: 'absolute', top: 30, right: 30, zIndex: 10,
-                backgroundColor: clr.white, color: clr.textLight,
-                padding: '8px 20px', borderRadius: 999, fontSize: 18, fontWeight: 800,
-                opacity: Math.min(Math.abs(dragX) / 80, 1), border: `4px solid ${clr.border}`,
-                transform: 'rotate(12deg)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-              }}>
-                PASS
-              </div>
-            )}
-            <DiscoveryCard card={currentCard} />
-          </div>
-        ) : (
-          /* Empty State */
+      {/* Card stack (SwipeDeck drives every movement without re-rendering) */}
+      <SwipeDeck
+        ref={deckRef}
+        cards={allCards.slice(0, 3)}
+        cardKey={(c) => `${c.type}-${c.data.id}`}
+        renderCard={(c) => <DiscoveryCard card={c} />}
+        renderStamp={stamp}
+        onCommit={onCommit}
+        disabled={actionPending || showMessageDraft || !!hoopCircle}
+        empty={(
           <div style={{ textAlign: 'center', padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <div style={{ width: 100, height: 100, borderRadius: '50%', backgroundColor: clr.indigoLt, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
               <Telescope size={48} color={clr.indigo} />
@@ -765,7 +645,7 @@ export default function SwipeDiscovery({ onClose }) {
             </div>
           </div>
         )}
-      </div>
+      />
 
       {/* Action buttons */}
       {currentCard && (
@@ -775,14 +655,8 @@ export default function SwipeDiscovery({ onClose }) {
         }}>
           <button
             disabled={actionPending}
-            onClick={() => {
-              if (actionPending) return
-              setDragX(-500)
-              setTimeout(() => {
-                handleSwipeLeft()
-                setDragX(0)
-              }, 250)
-            }}
+            aria-label="Pass"
+            onClick={() => deckRef.current?.swipe(-1)}
             style={{
               width: 64, height: 64, borderRadius: '50%', backgroundColor: clr.white,
               border: `1.5px solid ${clr.border}`, cursor: actionPending ? 'not-allowed' : 'pointer',
@@ -804,14 +678,8 @@ export default function SwipeDiscovery({ onClose }) {
 
           <button
             disabled={actionPending}
-            onClick={() => {
-              if (actionPending) return
-              setDragX(500)
-              setTimeout(() => {
-                handleSwipeRight()
-                setDragX(0)
-              }, 250)
-            }}
+            aria-label="Like"
+            onClick={() => deckRef.current?.swipe(1)}
             style={{
               width: 72, height: 72, borderRadius: '50%', border: 'none',
               cursor: actionPending ? 'not-allowed' : 'pointer',
@@ -914,8 +782,8 @@ export default function SwipeDiscovery({ onClose }) {
                   recordSwipe(currentMatchCard.type)
                   triggerToast(`Connected with ${currentMatchCard.data.name.split(' ')[0]}!`)
                   setShowMessageDraft(false)
+                  advanceCard(currentMatchCard)
                   setCurrentMatchCard(null)
-                  advanceCard()
                 } catch (err) {
                   console.error('[SwipeDiscovery] connect/message failed', err)
                   triggerToast(err?.message || 'Failed to connect')
@@ -939,8 +807,8 @@ export default function SwipeDiscovery({ onClose }) {
               onClick={() => {
                 if (actionPending) return
                 setShowMessageDraft(false)
+                advanceCard(currentMatchCard)
                 setCurrentMatchCard(null)
-                advanceCard()
               }}
               style={{
                 width: '100%', background: 'none', border: 'none',
@@ -964,7 +832,10 @@ export default function SwipeDiscovery({ onClose }) {
             setHoopCircle(null)
             if (wasSubmitted) {
               triggerToast(`Application sent to ${hoopCircle.name}`)
-              advanceCard()
+              advanceCard({ data: hoopCircle })
+            } else {
+              // Closed without applying: bring the card back.
+              deckRef.current?.restore()
             }
           }}
         />
