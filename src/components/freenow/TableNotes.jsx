@@ -94,6 +94,8 @@ export default function TableNotes({ postId, meId }) {
           aria-label="Table note"
           maxLength={MAX}
           enterKeyHint="send"
+          // The sheet shrinks above the keyboard; keep the field in view.
+          onFocus={e => { const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 320) }}
           style={{
             flex: 1, minWidth: 0, height: 42, padding: '0 14px', borderRadius: 999, border: '1px solid var(--border)',
             background: 'var(--surface-2)', color: 'var(--textDark)', fontSize: 16, fontFamily: 'inherit', outline: 'none',

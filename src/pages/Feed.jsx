@@ -1802,6 +1802,7 @@ export default function Feed() {
     return groupFreeNow(rowPosts, clubmates, currentUser?.id)
   }, [myLivePost, freeNowOthers, clubmates, currentUser?.id])
   const [lfgGroup, setLfgGroup] = useState(null)
+  const sheetKb = useKeyboardHeight() // the post sheet has a notes field
 
   // A post that ends while its sheet is open (expired, cancelled, or the host
   // posted something new) closes the sheet, taking its table notes with it.
@@ -1902,6 +1903,30 @@ export default function Feed() {
     if (h < 17) return 'Good afternoon'
     return 'Good evening'
   }
+
+  // Home's Free now sheets look and behave like the create sheets: full
+  // width, flush to the bottom, and lifted above the keyboard.
+  const freeNowOverlay = {
+    position: 'fixed', inset: 0, zIndex: 300,
+    backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end',
+    justifyContent: 'center', overflow: 'hidden',
+    paddingBottom: sheetKb, transition: 'padding-bottom 0.25s ease',
+  }
+  const freeNowSheet = {
+    width: '100%', maxWidth: 560, boxSizing: 'border-box',
+    backgroundColor: clr.white,
+    borderRadius: '20px 20px 0 0',
+    padding: sheetKb > 0 ? '8px 20px 16px' : '8px 20px calc(24px + env(safe-area-inset-bottom))',
+    maxHeight: `calc(100dvh - env(safe-area-inset-top) - 28px - ${sheetKb}px)`,
+    overflowY: 'auto', overflowX: 'hidden',
+    WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
+    animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
+  }
+  const freeNowHandle = (
+    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+      <div style={{ width: 36, height: 5, backgroundColor: 'var(--surface-3)', borderRadius: 3 }} />
+    </div>
+  )
 
   // The open post sheet reads who's in from the live row data when it has it.
   const sheetJoiners = lfgSheetPost ? (lfgPreviews[lfgSheetPost.id] ?? lfgJoiners) : []
@@ -2080,27 +2105,9 @@ export default function Feed() {
       {/* ── LFG Joiner / Details Sheet ── */}
       {/* Clubmates at the same spot: pick whose post to open. */}
       {lfgGroup && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 300, backgroundColor: 'rgba(15,15,30,0.5)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden',
-          }}
-          onClick={() => setLfgGroup(null)}
-        >
-          <div
-            role="dialog"
-            aria-label="People at this spot"
-            style={{
-              width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box', backgroundColor: clr.white,
-              borderRadius: '24px 24px 0 0', padding: '24px 20px calc(40px + env(safe-area-inset-bottom))',
-              maxHeight: 'var(--sheet-max)', overflowY: 'auto',
-              animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-              <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
-            </div>
+        <div style={freeNowOverlay} onClick={() => setLfgGroup(null)}>
+          <div role="dialog" aria-label="People at this spot" style={freeNowSheet} onClick={e => e.stopPropagation()}>
+            {freeNowHandle}
             <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: clr.textDark }}>
               {lfgGroup.posts.find(p => p.placeName)?.placeName || 'Same spot'}
             </h3>
@@ -2132,29 +2139,9 @@ export default function Feed() {
       )}
 
       {lfgSheetPost && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 300,
-            backgroundColor: 'rgba(15,15,30,0.5)', display: 'flex', alignItems: 'flex-end',
-            justifyContent: 'center', overflow: 'hidden',
-          }}
-          onClick={() => setLfgSheetPost(null)}
-        >
-          <div
-            style={{
-              width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box',
-              backgroundColor: clr.white,
-              borderRadius: '24px 24px 0 0',
-              padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
-              maxHeight: 'var(--sheet-max)',
-              overflowY: 'auto',
-              animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-              <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
-            </div>
+        <div style={freeNowOverlay} onClick={() => setLfgSheetPost(null)}>
+          <div role="dialog" aria-label={lfgSheetPost.activity} style={freeNowSheet} onClick={e => e.stopPropagation()}>
+            {freeNowHandle}
 
             {lfgSheetPost.photoUrl && (
               <img src={lfgSheetPost.photoUrl} alt={`${lfgSheetPost.activity} photo`} style={{
