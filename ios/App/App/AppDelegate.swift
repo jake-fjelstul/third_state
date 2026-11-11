@@ -9,7 +9,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Hand the iMessage app its sign-in whenever the web layer changes it.
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
-            ExtensionSessionBridge.sync()
+            ExtensionSessionBridge.scheduleSync()
         }
         ExtensionSessionBridge.sync()
         return true
@@ -86,28 +86,48 @@ enum ExtensionSessionBridge {
     static let statusKey = "CapacitorStorage.ts.ext.status"
     private static let copiedKey = "ts.ext.session.copied"
 
+    // Writing defaults posts UserDefaults.didChangeNotification, which calls
+    // sync() again. Never run inside ourselves, and coalesce bursts of
+    // notifications into one pass on the next main-queue turn.
+    private static var isSyncing = false
+    private static var isScheduled = false
+
+    /// Safe to call from the didChange observer: runs once, a moment later.
+    static func scheduleSync() {
+        if isScheduled || isSyncing { return }
+        isScheduled = true
+        DispatchQueue.main.async {
+            isScheduled = false
+            sync()
+        }
+    }
+
     static func sync() {
+        if isSyncing { return }
+        isSyncing = true
+        defer { isSyncing = false }
         guard let group = UserDefaults(suiteName: appGroup) else { return }
         let local = UserDefaults.standard
+        let groupDomain = group.persistentDomain(forName: appGroup) ?? [:]
+
         // Why the last sign-in attempt failed, for the extension's banner.
-        if let status = local.string(forKey: statusKey) {
-            if group.string(forKey: "status") != status { group.set(status, forKey: "status") }
-        } else if group.object(forKey: "status") != nil {
-            group.removeObject(forKey: "status")
+        let status = local.string(forKey: statusKey)
+        if (groupDomain["status"] as? String) != status {
+            if let status = status { group.set(status, forKey: "status") } else { group.removeObject(forKey: "status") }
         }
 
         let value = local.string(forKey: sourceKey)
         let lastCopied = local.string(forKey: copiedKey)
         // Copy when the app made a new session, or when the group lost it (for
         // example a copy made before the App Group was set up never landed).
-        let groupMissing = value != nil && group.string(forKey: groupKey) == nil
-        if value == lastCopied && !groupMissing { return }
+        let groupHasSession = groupDomain[groupKey] is String
+        if value == lastCopied && (value == nil || groupHasSession) { return }
         if let value = value {
             group.set(value, forKey: groupKey)
-            local.set(value, forKey: copiedKey)
+            if lastCopied != value { local.set(value, forKey: copiedKey) }
         } else {
-            group.removeObject(forKey: groupKey)
-            local.removeObject(forKey: copiedKey)
+            if groupHasSession { group.removeObject(forKey: groupKey) }
+            if lastCopied != nil { local.removeObject(forKey: copiedKey) }
         }
     }
 }
