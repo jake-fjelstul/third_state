@@ -51,3 +51,35 @@ export function useKeyboardHeight() {
 
   return height
 }
+
+const FIELD = /^(INPUT|TEXTAREA|SELECT)$/
+
+/**
+ * For pages that scroll the whole document (sign-up, reset password): returns
+ * the keyboard height so the page can pad its bottom by it, and scrolls the
+ * focused field to the middle of what's still visible, both when the keyboard
+ * opens and when focus moves to another field while it's open.
+ */
+export function useKeyboardAvoidance() {
+  const kb = useKeyboardHeight()
+
+  useEffect(() => {
+    if (!kb) return
+    const reveal = () => {
+      const el = document.activeElement
+      if (el && FIELD.test(el.tagName)) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+    // Two frames: let the page re-render with its new bottom padding first.
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(reveal) })
+    const onFocus = (e) => { if (FIELD.test(e.target?.tagName || '')) setTimeout(reveal, 50) }
+    document.addEventListener('focusin', onFocus)
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+      document.removeEventListener('focusin', onFocus)
+    }
+  }, [kb])
+
+  return kb
+}

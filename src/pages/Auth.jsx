@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { signUp, signIn, resetPassword, signInWithGoogle, signInWithApple } from '../lib/auth'
 import CityAutocomplete from '../components/ui/CityAutocomplete.jsx'
+import { useKeyboardAvoidance } from '../hooks/useKeyboardHeight.js'
 
 const clr = {
   bg:        'var(--bg)',
@@ -47,6 +48,7 @@ function AuthPage() {
   const [search] = useSearchParams()
   const fromInvite = search.get('invited') === '1'
   const [mode, setMode] = useState('signin') // 'signin', 'signup', 'reset'
+  const kbHeight = useKeyboardAvoidance()
   
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
@@ -185,7 +187,7 @@ function AuthPage() {
   }
 
   const pageStyle = {
-    minHeight: '100vh', width: '100%', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 20, paddingRight: 20, fontFamily: 'inherit',
+    minHeight: '100vh', width: '100%', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 'var(--safe-top)', paddingBottom: `calc(var(--safe-bottom) + ${kbHeight}px)`, paddingLeft: 20, paddingRight: 20, fontFamily: 'inherit',
   }
   const wrapStyle = { width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }
   

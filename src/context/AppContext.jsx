@@ -659,7 +659,9 @@ export function AppProvider({ children }) {
     try { window.localStorage.setItem('ts_theme', theme) } catch (e) {}
   }, [theme])
 
-  const signOut = async () => {
+  // Stable identity: a new function every render made the whole context
+  // value change on every render, re-rendering every screen (even hidden tabs).
+  const signOut = useCallback(async () => {
     try {
       const { unregisterPush } = await import('../lib/push')
       await unregisterPush()
@@ -676,7 +678,7 @@ export function AppProvider({ children }) {
       try { window.localStorage.removeItem('ts.calendar.token') } catch { /* private mode */ }
       import('../lib/extensionSession.js').then(m => m.clearExtensionSession()).catch(() => {})
     }
-  }
+  }, [resetLocalAuthState])
 
   const updateMyPrivacy = useCallback(async (patch) => {
     if (!currentUser?.id) return
@@ -1003,7 +1005,7 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  const recordSwipe = (type) => {
+  const recordSwipe = useCallback((type) => {
     setDiscoverySwipes(prev => {
       const today = new Date().toDateString()
       if (prev.date !== today) {
@@ -1011,7 +1013,7 @@ export function AppProvider({ children }) {
       }
       return { ...prev, [type]: prev[type] + 1 }
     })
-  }
+  }, [])
 
   const resetDiscoverySwipes = useCallback(() => {
     const today = new Date().toDateString()
@@ -1295,6 +1297,7 @@ export function AppProvider({ children }) {
     }),
     [currentUser, recentInviter, updateMyIntents, skipIntentCapture, updateMyNotificationPrefs, clearRecentInviter, joinedCircles, createCircle, meetups, createEventAndRsvp, rsvpEvent, cancelRsvp, isRsvpd, theme, chatState, connections, batteryPoints, chargeBattery, refreshJoinedCircles, notifications, dismissNotification, markNotificationRead, markAllNotificationsRead, acceptConnection, declineConnection, reconnectThresholdDays, searchRadius, updateMyPrivacy, pendingApplications, submitApplication, approveApplication, declineApplication, loadApplicationsForCircle, refreshProfile, refreshConnections, currentlyOpenChatId, profileError, session, authLoading, profileLoading, signOut, connectWithPerson, disconnectFromPerson, sendMessage, refreshChats, refreshMeetups, startDM, markChatRead, deleteChat, discoverySwipes, recordSwipe, resetDiscoverySwipes, circleMembershipVersion, startChatGame, startChatPoll, makeGameMove, forfeitGame, blockedUserIds, blockUserById, unblockUserById, getDailyQuestion, answerDailyQuestion, dismissDailyQuestion, syncQuestionReveals, getPendingQuestion, askSpontaneousQuestion, answerSpontaneousQuestion, cancelSpontaneousQuestion],
   )
+
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

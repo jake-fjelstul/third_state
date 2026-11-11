@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { updatePassword } from '../lib/auth'
+import { useKeyboardAvoidance } from '../hooks/useKeyboardHeight.js'
 
 const clr = {
   bg: 'var(--bg)',
@@ -18,6 +19,7 @@ const clr = {
  * handler navigates here with the same hash/query, which we apply manually.
  */
 export default function ResetPassword() {
+  const kbHeight = useKeyboardAvoidance()
   const navigate = useNavigate()
   const [ready, setReady] = useState(false)
   const [linkError, setLinkError] = useState('')
@@ -84,7 +86,7 @@ export default function ResetPassword() {
     <div style={{
       minHeight: '100vh', backgroundColor: clr.bg, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      padding: 'var(--safe-top) 20px var(--safe-bottom)', fontFamily: 'inherit',
+      padding: `var(--safe-top) 20px calc(var(--safe-bottom) + ${kbHeight}px)`, fontFamily: 'inherit',
     }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: clr.textDark, textAlign: 'center', margin: '0 0 8px' }}>

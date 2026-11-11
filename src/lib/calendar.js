@@ -190,17 +190,100 @@ function authHeader(token) {
   return { Authorization: `Bearer ${token}` }
 }
 
-export async function addEventToCalendar(unusedToken, event) {
-  const eventData = event || unusedToken
+const DEFAULT_DESCRIPTION_PREFIX = 'Third Space event'
+
+/**
+ * The Google Calendar event id we use for a Third Space event. Google lets the
+ * client choose ids (base32hex: 0-9 and a-v, 5-1024 chars), and a UUID's hex
+ * digits fit, so the same event always maps to the same Google id and Google
+ * rejects a second copy with 409.
+ */
+export function googleIdFor(event) {
+  const id = String(event?.id || '').toLowerCase().replace(/-/g, '')
+  return /^[0-9a-f]{32}$/.test(id) ? `ts${id}` : null
+}
+
+/** The Third Space event a Google event was copied from, if any. */
+export function thirdSpaceIdOf(googleEvent) {
+  return googleEvent?.extendedProperties?.private?.thirdSpaceEventId || null
+}
+
+/**
+ * True when a Google event is our own copy of `event`. Covers copies added
+ * before ids were fixed (matched by title, start and our description).
+ */
+export function isCopyOf(googleEvent, event) {
+  if (!googleEvent || !event) return false
+  if (thirdSpaceIdOf(googleEvent) && thirdSpaceIdOf(googleEvent) === event.id) return true
+  const gid = googleIdFor(event)
+  if (gid && googleEvent.id === gid) return true
+  if (!String(googleEvent.description || '').startsWith(DEFAULT_DESCRIPTION_PREFIX)) return false
+  if ((googleEvent.summary || '') !== (event.title || '')) return false
+  const gStart = googleEvent.start?.dateTime ? new Date(googleEvent.start.dateTime).getTime() : NaN
+  let tStart = NaN
+  try { tStart = parseEventStart(event).getTime() } catch { /* no start */ }
+  return Number.isFinite(gStart) && Number.isFinite(tStart) && Math.abs(gStart - tStart) < 60000
+}
+
+async function calendarFetch(path, init = {}) {
   const token = await getAccessToken()
   if (!token) throw new Error('Calendar is not connected')
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/${path}`, {
+    ...init,
+    headers: { ...authHeader(token), 'Content-Type': 'application/json', ...(init.headers || {}) },
+  })
+  if (res.status === 401) {
+    cachedAccessToken = null
+    cachedTokenExpiry = 0
+    setStoredCalendarToken(null)
+    throw new Error('Calendar session expired. Please reconnect Google Calendar.')
+  }
+  return res
+}
 
+/** Old copies (from before fixed ids) of this event within a minute of its start. */
+async function findLegacyCopy(event) {
+  let start
+  try { start = parseEventStart(event) } catch { return null }
+  const params = new URLSearchParams({
+    timeMin: new Date(start.getTime() - 60000).toISOString(),
+    timeMax: new Date(start.getTime() + 60000).toISOString(),
+    singleEvents: 'true',
+    q: event.title || '',
+    maxResults: '20',
+  })
+  const res = await calendarFetch(`events?${params}`)
+  if (!res.ok) return null
+  const data = await res.json()
+  return (data.items || []).find(g => g.status !== 'cancelled' && isCopyOf(g, event)) || null
+}
+
+/** Is this Third Space event already on the user's Google Calendar? */
+export async function isEventInCalendar(event) {
+  const gid = googleIdFor(event)
+  if (gid) {
+    const res = await calendarFetch(`events/${gid}`)
+    if (res.ok) {
+      const g = await res.json()
+      if (g.status !== 'cancelled') return true
+    }
+  }
+  return !!(await findLegacyCopy(event))
+}
+
+/**
+ * Add a Third Space event to Google Calendar, at most once. Returns
+ * 'added' or 'already' (it was there, or a deleted copy was restored).
+ */
+export async function addEventToCalendar(unusedToken, event) {
+  const eventData = event || unusedToken
   const startDateTime = parseEventStart(eventData)
   const endDateTime = parseEventEnd(eventData)
+  const gid = googleIdFor(eventData)
   const body = {
     summary: eventData.title,
     location: eventData.location ?? '',
-    description: `Third Space event${eventData.circleName ? ` · ${eventData.circleName}` : ''}`,
+    description: `${DEFAULT_DESCRIPTION_PREFIX}${eventData.circleName ? ` · ${eventData.circleName}` : ''}`,
     start: {
       dateTime: startDateTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -210,22 +293,31 @@ export async function addEventToCalendar(unusedToken, event) {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
     colorId: '9',
+    extendedProperties: { private: { thirdSpaceEventId: String(eventData.id || '') } },
   }
 
-  const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+  // A copy made before fixed ids existed counts as already added.
+  if (await findLegacyCopy(eventData)) return 'already'
+
+  const res = await calendarFetch('events', {
     method: 'POST',
-    headers: { ...authHeader(token), 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(gid ? { ...body, id: gid } : body),
   })
+  if (res.ok) return 'added'
 
-  if (res.status === 401) {
-    cachedAccessToken = null
-    cachedTokenExpiry = 0
-    setStoredCalendarToken(null)
-    throw new Error('Calendar session expired. Please reconnect Google Calendar.')
+  if (res.status === 409 && gid) {
+    // Same id already exists. If it was deleted, Google keeps the id, so
+    // bring it back with the current details instead of failing.
+    const existing = await calendarFetch(`events/${gid}`)
+    if (existing.ok && (await existing.json()).status !== 'cancelled') return 'already'
+    const restored = await calendarFetch(`events/${gid}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...body, status: 'confirmed' }),
+    })
+    if (restored.ok) return 'added'
   }
 
-  if (!res.ok) throw new Error('Could not add event to calendar')
+  throw new Error('Could not add event to calendar')
 }
 
 export async function listExternalEvents(unusedToken, { from, to } = {}) {

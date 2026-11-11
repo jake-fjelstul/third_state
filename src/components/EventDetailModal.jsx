@@ -46,7 +46,8 @@ function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onR
   const [addedToCalendar, setAddedToCalendar] = useState(false)
   const [attendanceList, setAttendanceList] = useState(null)
   const [attendanceError, setAttendanceError] = useState('')
-  const { isConnected, addEventToGoogle, connect } = useCalendar()
+  const [calendarBusy, setCalendarBusy] = useState(false)
+  const { isConnected, addEventToGoogle, isInGoogle, connect } = useCalendar()
   // Close only once the RSVP went through; on failure stay and say so.
   const [rsvpBusy, setRsvpBusy] = useState(false)
   const [rsvpError, setRsvpError] = useState('')
@@ -72,9 +73,16 @@ function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onR
     setCurrentEvent(eventProp)
   }, [eventProp])
 
+  // Show "Added" if this event is already on Google Calendar, so reopening the
+  // sheet doesn't invite a second copy.
   useEffect(() => {
     setAddedToCalendar(false)
-  }, [event?.id])
+    if (!isConnected || !event?.id || event.source === 'google') return
+    let cancelled = false
+    isInGoogle(event).then(found => { if (!cancelled && found) setAddedToCalendar(true) }).catch(() => {})
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id, isConnected])
 
   useEffect(() => {
     // Only fetch if this is a real DB event (not a Google Calendar item).
@@ -451,19 +459,23 @@ function EventDetailModalBody({ event: eventProp, onClose, closing, isRsvpd, onR
               ✓ Added to your calendar
             </div>
           ) : (
-            <button type="button" onClick={async () => {
+            <button type="button" disabled={calendarBusy} onClick={async () => {
+              if (calendarBusy) return
+              setCalendarBusy(true)
               try {
                 await addEventToGoogle(event)
                 setAddedToCalendar(true)
               } catch (err) {
                 console.error('[EventDetailModal] addEventToGoogle failed', err)
+              } finally {
+                setCalendarBusy(false)
               }
             }} style={{
               width: '100%', padding: '14px 0', borderRadius: 14, border: 'none',
               background: `var(--indigo)`, color: 'var(--on-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-              boxShadow: 'none', marginBottom: 12,
+              boxShadow: 'none', marginBottom: 12, opacity: calendarBusy ? 0.6 : 1,
             }}>
-              Add to Calendar
+              {calendarBusy ? 'Adding…' : 'Add to Calendar'}
             </button>
           )
         )}
