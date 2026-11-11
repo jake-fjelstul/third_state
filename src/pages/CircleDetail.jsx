@@ -175,6 +175,11 @@ export default function CircleDetail() {
   const isPrivate = circle ? circle.type === 'private' : false
   const acceptsApplications = circle ? !!circle.applicationsEnabled : false
   const isOrganizer = circle ? circle.organizerId === currentUser?.id : false
+  const isHost = !!circle?.members?.some(m => m.id === currentUser?.id && (m.role === 'host' || m.role === 'organizer'))
+  // Any member can share the QR / link (plan 3b R1), except in circles that
+  // review applications, where only the organizer and hosts can (so a link
+  // can't skip the review). The server enforces the same rule.
+  const canShareInvite = isOrganizer || isHost || (isJoined && !acceptsApplications)
   const contentHidden = isPrivate && !isJoined && !isOrganizer
   const hasHoops = circle ? !!circle.hoops?.length : false
   const pendingApp = circle ? pendingApplications?.find(a => a.circleId === circle.id && a.applicantId === currentUser?.id && a.status === 'pending') : null
@@ -362,7 +367,8 @@ export default function CircleDetail() {
           {isJoined ? (
             <>
               <Button block icon={<MessageCircle size={18} strokeWidth={2.2} />} onClick={() => setActiveTab('chat')}>{openingChat ? 'Opening…' : 'Chat'}</Button>
-              <Button block variant="secondary" onClick={() => setShowInviteModal(true)}>Invite</Button>
+              {/* QR / link when you may share one; otherwise your connections. */}
+              <Button block variant="secondary" onClick={() => (canShareInvite ? handleOpenAddMembers() : setShowInviteModal(true))}>Invite</Button>
             </>
           ) : pendingApp ? (
             <Button block variant="secondary" disabled icon={<Hourglass size={16} />}>Request sent</Button>
@@ -515,8 +521,8 @@ export default function CircleDetail() {
               </div>
             </div>
 
-            {/* Add members button for Organizer */}
-            {isOrganizer && (
+            {/* Add members (QR + link) for members who may share it */}
+            {canShareInvite && (
               <button
                 type="button"
                 onClick={handleOpenAddMembers}
@@ -1032,6 +1038,15 @@ export default function CircleDetail() {
                 subtitle="Scan to join this circle"
                 message={buildCircleInviteMessage({ senderName: currentUser?.name, circleName: circle.name, url: addMembersData.url })}
               />
+            )}
+
+            {isJoined && (
+              <button type="button" onClick={() => { setShowAddMembersModal(false); setShowInviteModal(true) }} style={{
+                width: '100%', marginTop: 14, padding: '13px 0', borderRadius: 999, border: '1.5px solid var(--border)',
+                background: 'transparent', color: 'var(--textDark)', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+                Invite your connections
+              </button>
             )}
           </div>
         </div>

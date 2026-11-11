@@ -35,11 +35,14 @@ import { checkContent } from '../lib/contentFilter.js'
 import {
   LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost,
   listMyLfgPosts, listJoinedLfgPosts, listActiveLfgPosts, getLfgJoiners,
-  leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews, joinLfgPost, startLabel,
+  cancelLfgPost, timeLeftLabel, getLfgJoinPreviews, startLabel,
   attachLfgPhoto, removeLfgPhoto, withLfgPhotoUrls,
+  pullUp, cancelPullUp, markArrived, etaLabel, getClubmateMap, groupFreeNow,
 } from '../lib/lfg'
 import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
+import TableNotes from '../components/freenow/TableNotes.jsx'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
+import { useFreeNowLive } from '../hooks/useFreeNowLive.js'
 import CircleRow from '../components/ui/CircleRow.jsx'
 
 const clr = {
@@ -1393,14 +1396,83 @@ function FreeNowBubble({ post, person, src, name }) {
   )
 }
 
-function FreeNowRow({ me, mine, others, onOpen }) {
-  const myPost = mine[0] || null
-  const item = (key, avatar, label, sub, onClick) => (
-    <button key={key} type="button" onClick={onClick} style={{
-      width: 72, flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+// People who are in, as small bubbles on the edge of the ring (plan 3b R2):
+// up to 3 around the right side, then "+N". Someone still on the way gets a
+// dashed outline until they arrive.
+const EDGE_SPOTS = [[52, 2], [58, 26], [52, 50]] // [left, top] in px inside a 66px box
+function JoinerDots({ joiners, now }) {
+  if (!joiners?.length) return null
+  const shown = joiners.slice(0, joiners.length > 3 ? 2 : 3)
+  const extra = joiners.length - shown.length
+  return (
+    <>
+      {shown.map((j, i) => (
+        <div key={j.id} title={j.name} style={{
+          position: 'absolute', left: EDGE_SPOTS[i][0], top: EDGE_SPOTS[i][1], width: 22, height: 22,
+          borderRadius: '50%', padding: 1.5, background: 'var(--bg)',
+          outline: etaLabel(j, now) ? '1.5px dashed var(--accent)' : 'none', outlineOffset: -1,
+        }}>
+          <Avatar src={j.avatar} name={j.name} size={19} />
+        </div>
+      ))}
+      {extra > 0 && (
+        <div style={{
+          position: 'absolute', left: EDGE_SPOTS[2][0], top: EDGE_SPOTS[2][1], width: 22, height: 22, borderRadius: '50%',
+          background: 'var(--surface-3)', border: '1.5px solid var(--bg)', boxSizing: 'border-box',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'var(--textDark)',
+        }}>+{extra}</div>
+      )}
+    </>
+  )
+}
+
+// Clubmates at the same spot: one bubble of overlapping faces (max 3) + "+N".
+function GroupBubble({ people }) {
+  const shown = people.slice(0, 3)
+  const extra = people.length - shown.length
+  const pos = shown.length === 1 ? [[5, 5]] : shown.length === 2 ? [[2, 12], [24, 12]] : [[0, 18], [21, 2], [26, 28]]
+  return (
+    <div style={{ position: 'relative', width: 66, height: 66, borderRadius: '50%', background: 'var(--accent)', padding: 2.5, boxSizing: 'border-box' }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', borderRadius: '50%', background: 'var(--bg)', overflow: 'hidden' }}>
+        {shown.map((p, i) => (
+          <div key={p.id} style={{ position: 'absolute', left: pos[i][0], top: pos[i][1], borderRadius: '50%', padding: 1.5, background: 'var(--bg)' }}>
+            <Avatar person={p.person} src={p.avatar} name={p.name} size={shown.length === 1 ? 48 : 30} />
+          </div>
+        ))}
+      </div>
+      {extra > 0 && (
+        <div style={{
+          position: 'absolute', right: -2, bottom: -2, minWidth: 22, height: 22, padding: '0 5px', boxSizing: 'border-box',
+          borderRadius: 999, background: 'var(--surface-3)', border: '2px solid var(--bg)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: 'var(--textDark)',
+        }}>+{extra}</div>
+      )}
+    </div>
+  )
+}
+
+const firstName = (n) => (n || '').split(' ')[0] || 'Someone'
+
+/** Everyone in a group: each post's author, then the people who joined them. */
+function groupPeople(group, previews, me) {
+  const seen = new Set()
+  const out = []
+  const add = (id, data) => { if (id && !seen.has(id)) { seen.add(id); out.push({ id, ...data }) } }
+  for (const p of group.posts) {
+    if (p.mine) add(p.userId, { person: me, name: me?.name || 'You', isMe: true })
+    else add(p.userId, { avatar: p.authorAvatar, name: p.authorName })
+  }
+  for (const p of group.posts) for (const j of previews[p.id] || []) add(j.id, { avatar: j.avatar, name: j.name })
+  return out
+}
+
+function FreeNowRow({ me, groups, previews, now, onOpen, onOpenGroup }) {
+  const item = (key, avatar, label, sub, onClick, ariaLabel) => (
+    <button key={key} type="button" onClick={onClick} aria-label={ariaLabel} style={{
+      width: 76, flexShrink: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
       fontFamily: 'inherit', color: 'var(--textDark)', textAlign: 'center',
     }}>
-      <div style={{ width: 66, height: 66, margin: '0 auto' }}>{avatar}</div>
+      <div style={{ position: 'relative', width: 66, height: 66, margin: '0 auto' }}>{avatar}</div>
       <div style={{ fontSize: 12, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
       <div style={{ fontSize: 11, color: 'var(--textLight)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
     </button>
@@ -1409,17 +1481,37 @@ function FreeNowRow({ me, mine, others, onOpen }) {
     <section data-tour="freenow" style={{ margin: '0 -16px', flexShrink: 0 }}>
       <DsSectionHeader title="Free now" style={{ margin: '8px 0 10px' }} />
       <div className="noscrollbar" style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 16px 4px' }}>
-        {myPost && item('me',
-          <FreeNowBubble post={myPost} person={me} />,
-          'You',
-          `${myPost.activity} · ${timeLeftLabel(myPost.expiresAt)}`,
-          () => onOpen({ ...myPost, mine: true }))}
-        {others.map(p => item(p.id,
-          <FreeNowBubble post={p} src={p.authorAvatar} name={p.authorName} />,
-          (p.authorName || '').split(' ')[0] || 'Someone',
-          `${p.activity} · ${timeLeftLabel(p.expiresAt)}`,
-          () => onOpen({ ...p, mine: false }),
-        ))}
+        {groups.map(g => {
+          if (g.posts.length === 1) {
+            const p = g.posts[0]
+            const joiners = previews[p.id] || []
+            const who = p.mine ? 'You' : firstName(p.authorName)
+            return item(g.key,
+              <>
+                {p.mine
+                  ? <FreeNowBubble post={p} person={me} />
+                  : <FreeNowBubble post={p} src={p.authorAvatar} name={p.authorName} />}
+                <JoinerDots joiners={joiners} now={now} />
+              </>,
+              who,
+              `${p.activity} · ${timeLeftLabel(p.expiresAt)}`,
+              () => onOpen(p),
+              `${who}: ${p.activity}${joiners.length ? `, ${joiners.length} in` : ''}`,
+            )
+          }
+          const people = groupPeople(g, previews, me)
+          const names = people.slice(0, 2).map(x => (x.isMe ? 'You' : firstName(x.name)))
+          const label = `${names.join(', ')}${people.length > 2 ? ` +${people.length - 2}` : ''}`
+          const place = g.posts.find(p => p.placeName)?.placeName || 'Same spot'
+          const soonest = g.posts.reduce((a, b) => (new Date(a.expiresAt) < new Date(b.expiresAt) ? a : b))
+          return item(g.key,
+            <GroupBubble people={people} />,
+            label,
+            `${place} · ${timeLeftLabel(soonest.expiresAt)}`,
+            () => onOpenGroup(g),
+            `${people.length} people at ${place}`,
+          )
+        })}
       </div>
     </section>
   )
@@ -1511,6 +1603,8 @@ export default function Feed() {
   const [lfgPreviews, setLfgPreviews] = useState({})
   const [lfgSheetPost, setLfgSheetPost] = useState(null)
   const [lfgPhotoBusy, setLfgPhotoBusy] = useState(false)
+  const [lfgEtaMenu, setLfgEtaMenu] = useState(false) // long-press Pull up: 5/10/20/30
+  const pullUpHold = useRef(null)
   const [lfgJoiners, setLfgJoiners] = useState([])
   const [lfgJoinersLoading, setLfgJoinersLoading] = useState(false)
   const [lfgJoining, setLfgJoining] = useState(false)
@@ -1526,7 +1620,8 @@ export default function Feed() {
       setMyLfg(mine)
       setJoinedLfg(joined)
       setActiveLfg(active)
-      const ids = [...mine, ...joined].map(p => p.id)
+      // Who's in, for every post on the row (not just mine and joined).
+      const ids = [...new Set([...mine, ...joined, ...active].map(p => p.id))]
       setLfgPreviews(await getLfgJoinPreviews(ids))
     } catch (err) {
       console.error('[Feed] lfg load failed', err)
@@ -1534,6 +1629,8 @@ export default function Feed() {
   }, [currentUser?.id])
 
   useEffect(() => { refreshLfg() }, [refreshLfg])
+  // Live: posts, pull-ups and ends show up without a manual refresh.
+  const liveNow = useFreeNowLive(refreshLfg, { enabled: !!currentUser?.id })
 
   // Top-bar "+" button: publish my live status, and open the right sheet on request.
   useEffect(() => { publishMyStatus(myLfg[0] || null) }, [myLfg])
@@ -1565,8 +1662,10 @@ export default function Feed() {
 
   const openLfgSheet = async (post) => {
     setLfgSheetPost(post)
-    setLfgJoiners([])
-    setLfgJoinersLoading(true)
+    setLfgEtaMenu(false)
+    const known = lfgPreviews[post.id]
+    setLfgJoiners(known || [])
+    setLfgJoinersLoading(!known)
     try {
       setLfgJoiners(await getLfgJoiners(post.id))
     } catch (err) {
@@ -1681,11 +1780,43 @@ export default function Feed() {
     const seen = new Set()
     return [...joinedLfg, ...activeLfg].filter(p => {
       if (!p.userId || p.userId === currentUser?.id || blockedUserIds?.includes(p.userId)) return false
+      if (p.expiresAt && new Date(p.expiresAt).getTime() <= liveNow) return false
       if (seen.has(p.userId)) return false
       seen.add(p.userId)
       return true
     })
-  }, [joinedLfg, activeLfg, currentUser?.id, blockedUserIds])
+  }, [joinedLfg, activeLfg, currentUser?.id, blockedUserIds, liveNow])
+
+  // Clubmates (people in one of my circles) at the same spot share a bubble.
+  const [clubmates, setClubmates] = useState(() => new Map())
+  useEffect(() => {
+    let cancelled = false
+    getClubmateMap(joinedCircles).then(m => { if (!cancelled) setClubmates(m) })
+    return () => { cancelled = true }
+  }, [joinedCircles, circleMembershipVersion])
+  const myLivePost = useMemo(
+    () => myLfg.find(p => !p.expiresAt || new Date(p.expiresAt).getTime() > liveNow) || null,
+    [myLfg, liveNow])
+  const freeNowGroups = useMemo(() => {
+    const rowPosts = [...(myLivePost ? [{ ...myLivePost, mine: true }] : []), ...freeNowOthers.map(p => ({ ...p, mine: false }))]
+    return groupFreeNow(rowPosts, clubmates, currentUser?.id)
+  }, [myLivePost, freeNowOthers, clubmates, currentUser?.id])
+  const [lfgGroup, setLfgGroup] = useState(null)
+
+  // A post that ends while its sheet is open (expired, cancelled, or the host
+  // posted something new) closes the sheet, taking its table notes with it.
+  const lfgLoadedOnce = useRef(false)
+  useEffect(() => { if (myLfg.length || activeLfg.length || joinedLfg.length) lfgLoadedOnce.current = true }, [myLfg, activeLfg, joinedLfg])
+  useEffect(() => {
+    if (!lfgSheetPost || !lfgLoadedOnce.current) return
+    const expired = lfgSheetPost.expiresAt && new Date(lfgSheetPost.expiresAt).getTime() <= liveNow
+    const stillLive = [...myLfg, ...activeLfg, ...joinedLfg].some(p => p.id === lfgSheetPost.id)
+    if (expired || !stillLive) {
+      setLfgSheetPost(null)
+      showToast('That one wrapped up.')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-check when the lists or the clock move
+  }, [myLfg, activeLfg, joinedLfg, liveNow])
 
   // The "+" in the top bar: my live status if I have one, else the create sheet.
   useEffect(() => {
@@ -1772,6 +1903,31 @@ export default function Feed() {
     return 'Good evening'
   }
 
+  // The open post sheet reads who's in from the live row data when it has it.
+  const sheetJoiners = lfgSheetPost ? (lfgPreviews[lfgSheetPost.id] ?? lfgJoiners) : []
+  const myJoin = sheetJoiners.find(j => j.id === currentUser?.id) || null
+  const amInSheet = !!lfgSheetPost && !lfgSheetPost.mine
+    && (!!myJoin || joinedLfg.some(p => p.id === lfgSheetPost.id))
+
+  const doPullUp = async (minutes = 10) => {
+    if (!lfgSheetPost || lfgJoining) return
+    setLfgEtaMenu(false)
+    // You can only be in one place: pulling up ends your own Free now post.
+    if (myLivePost && !window.confirm('Pulling up ends your own Free now post. Pull up anyway?')) return
+    setLfgJoining(true)
+    try {
+      await pullUp(lfgSheetPost.id, minutes)
+      await refreshLfg()
+      showToast(`Pulling up · ~${minutes} min. ${firstName(lfgSheetPost.authorName)} knows you're coming.`)
+    } catch (err) {
+      console.error('[Feed] pullUp failed', err)
+      showToast(/expired|wrapped/i.test(err?.message) ? 'This one already wrapped up.'
+        : /full/i.test(err?.message) ? 'That table is full.' : "Couldn't pull up. Please try again.")
+    } finally {
+      setLfgJoining(false)
+    }
+  }
+
   return (
     <div style={{ minHeight: homeLocked ? 0 : '100vh', backgroundColor: clr.bg, fontFamily: 'inherit', paddingBottom: homeLocked ? 0 : 110 }}>
 
@@ -1838,12 +1994,14 @@ export default function Feed() {
                 : `calc(100dvh - ${firstScreenTop}px - 80px - env(safe-area-inset-bottom))`,
               minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column',
             }}>
-              {(myLfg.length > 0 || freeNowOthers.length > 0) && (
+              {freeNowGroups.length > 0 && (
                 <FreeNowRow
                   me={currentUser}
-                  mine={myLfg}
-                  others={freeNowOthers}
+                  groups={freeNowGroups}
+                  previews={lfgPreviews}
+                  now={liveNow}
                   onOpen={openLfgSheet}
+                  onOpenGroup={setLfgGroup}
                 />
               )}
               <div style={{
@@ -1920,6 +2078,59 @@ export default function Feed() {
       )}
 
       {/* ── LFG Joiner / Details Sheet ── */}
+      {/* Clubmates at the same spot: pick whose post to open. */}
+      {lfgGroup && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 300, backgroundColor: 'rgba(15,15,30,0.5)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden',
+          }}
+          onClick={() => setLfgGroup(null)}
+        >
+          <div
+            role="dialog"
+            aria-label="People at this spot"
+            style={{
+              width: 'calc(100% - 24px)', maxWidth: 500, boxSizing: 'border-box', backgroundColor: clr.white,
+              borderRadius: '24px 24px 0 0', padding: '24px 20px calc(40px + env(safe-area-inset-bottom))',
+              maxHeight: 'var(--sheet-max)', overflowY: 'auto',
+              animation: 'tsSheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+              <div style={{ width: 32, height: 4, backgroundColor: clr.border, borderRadius: 2 }} />
+            </div>
+            <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: clr.textDark }}>
+              {lfgGroup.posts.find(p => p.placeName)?.placeName || 'Same spot'}
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 14, color: clr.textMid }}>
+              {groupPeople(lfgGroup, lfgPreviews, currentUser).length} people from your circles are here
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {lfgGroup.posts.map(p => {
+                const joiners = lfgPreviews[p.id] || []
+                return (
+                  <button key={p.id} type="button" onClick={() => { setLfgGroup(null); openLfgSheet(p) }} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '12px 14px', borderRadius: 16,
+                    border: 'none', background: clr.bg, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  }}>
+                    {p.mine ? <Avatar person={currentUser} size={44} /> : <Avatar src={p.authorAvatar} name={p.authorName} size={44} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>{p.mine ? 'You' : p.authorName}</div>
+                      <div style={{ fontSize: 13, color: clr.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.activity} · {timeLeftLabel(p.expiresAt)}{joiners.length ? ` · ${joiners.length} in` : ''}
+                      </div>
+                    </div>
+                    <ChevronRight size={18} color="var(--textLight)" />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {lfgSheetPost && (
         <div
           style={{
@@ -1984,22 +2195,27 @@ export default function Feed() {
             {/* Joiners section */}
             <div style={{ marginBottom: 24, paddingTop: 16, borderTop: `1px solid ${clr.border}` }}>
               <p style={{ fontSize: 13, fontWeight: 800, color: clr.textDark, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-                {lfgSheetPost.mine || !joinedLfg.some(p => p.id === lfgSheetPost.id) ? "Who's in" : "You're in"}
+                {amInSheet ? "You're in" : "Who's in"}
               </p>
 
-              {lfgJoinersLoading ? (
+              {lfgJoinersLoading && sheetJoiners.length === 0 ? (
                 <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>Loading…</p>
-              ) : lfgJoiners.length === 0 ? (
+              ) : sheetJoiners.length === 0 ? (
                 <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>
-                  {lfgSheetPost.mine ? 'No one yet — hang tight.' : 'No one has joined yet. Be the first.'}
+                  {lfgSheetPost.mine ? 'No one yet — hang tight.' : 'No one has pulled up yet. Be the first.'}
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {lfgJoiners.map(j => (
+                  {sheetJoiners.map(j => (
                     <div key={j.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 16, backgroundColor: clr.bg }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <img src={avatarFor({ avatar_url: j.avatar, name: j.name })} alt={j.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
-                        <span style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>{j.name}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: clr.textDark }}>{j.id === currentUser?.id ? 'You' : j.name}</div>
+                          {etaLabel(j, liveNow) && (
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>Pulling up · {etaLabel(j, liveNow)}</div>
+                          )}
+                        </div>
                       </div>
                       {j.id !== currentUser?.id && (
                         <button
@@ -2026,6 +2242,10 @@ export default function Feed() {
                 </div>
               )}
             </div>
+
+            {(lfgSheetPost.mine || amInSheet) && (
+              <TableNotes postId={lfgSheetPost.id} meId={currentUser?.id} />
+            )}
 
             {/* Action buttons */}
             {lfgSheetPost.mine && !lfgSheetPost.photoUrl && (
@@ -2096,53 +2316,83 @@ export default function Feed() {
               >
                 Cancel post
               </button>
-            ) : !joinedLfg.some(p => p.id === lfgSheetPost.id) ? (
-              // Someone else's post I haven't joined: join it (used to say "You're in").
-              <button
-                type="button"
-                disabled={lfgJoining}
-                onClick={async () => {
-                  setLfgJoining(true)
-                  try {
-                    await joinLfgPost(lfgSheetPost.id)
-                    await refreshLfg()
-                    setLfgSheetPost(null)
-                    showToast(`You're in — say hi to ${(lfgSheetPost.authorName || '').split(' ')[0] || 'them'}`)
-                  } catch (err) {
-                    console.error('[Feed] joinLfgPost failed', err)
-                    showToast(/expired/i.test(err?.message) ? 'This one already wrapped up.' : 'Could not join. Please try again.')
-                  } finally {
-                    setLfgJoining(false)
-                  }
-                }}
-                style={{
-                  width: '100%', padding: '14px 0', borderRadius: 999, border: 'none',
-                  backgroundColor: 'var(--accent)', color: 'var(--on-accent)', fontSize: 15, fontWeight: 800,
-                  cursor: lfgJoining ? 'default' : 'pointer', opacity: lfgJoining ? 0.7 : 1,
-                }}
-              >
-                {lfgJoining ? 'Joining…' : "I'm in"}
-              </button>
+            ) : !amInSheet ? (
+              // Tap: ~10 min. Hold: pick 5 / 10 / 20 / 30.
+              <div>
+                {lfgEtaMenu && (
+                  <div role="group" aria-label="How far away are you?" style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                    {[5, 10, 20, 30].map(m => (
+                      <button key={m} type="button" onClick={() => doPullUp(m)} style={{
+                        flex: 1, height: 44, borderRadius: 999, border: '1.5px solid var(--accent)', background: 'var(--accent-soft)',
+                        color: 'var(--textDark)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{m} min</button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  disabled={lfgJoining}
+                  onPointerDown={() => {
+                    clearTimeout(pullUpHold.current)
+                    pullUpHold.current = setTimeout(() => { pullUpHold.current = 'held'; setLfgEtaMenu(true) }, 450)
+                  }}
+                  onPointerUp={() => { if (pullUpHold.current !== 'held') clearTimeout(pullUpHold.current) }}
+                  onPointerLeave={() => { if (pullUpHold.current !== 'held') clearTimeout(pullUpHold.current) }}
+                  onContextMenu={e => e.preventDefault()}
+                  onClick={() => {
+                    if (pullUpHold.current === 'held') { pullUpHold.current = null; return }
+                    doPullUp(10)
+                  }}
+                  style={{
+                    width: '100%', padding: '14px 0', borderRadius: 999, border: 'none',
+                    backgroundColor: 'var(--accent)', color: 'var(--on-accent)', fontSize: 15, fontWeight: 800,
+                    cursor: lfgJoining ? 'default' : 'pointer', opacity: lfgJoining ? 0.7 : 1,
+                    WebkitTouchCallout: 'none', userSelect: 'none',
+                  }}
+                >
+                  {lfgJoining ? 'Pulling up…' : 'Pull up · ~10 min'}
+                </button>
+                <p style={{ fontSize: 12, color: clr.textLight, textAlign: 'center', margin: '8px 0 0' }}>
+                  Hold to pick how far away you are.
+                </p>
+              </div>
             ) : (
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await leaveLfgPost(lfgSheetPost.id)
-                    await refreshLfg()
-                    setLfgSheetPost(null)
-                    showToast('Left LFG post')
-                  } catch (err) {
-                    console.error('[Feed] leaveLfgPost failed', err)
-                  }
-                }}
-                style={{
-                  width: '100%', padding: '14px 0', borderRadius: 999, border: `1.5px solid ${clr.border}`,
-                  backgroundColor: clr.white, color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                }}
-              >
-                Leave
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {etaLabel(myJoin, liveNow) && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try { await markArrived(lfgSheetPost.id); await refreshLfg() }
+                      catch (err) { console.error('[Feed] markArrived failed', err) }
+                    }}
+                    style={{
+                      flex: 1, padding: '14px 0', borderRadius: 999, border: 'none',
+                      backgroundColor: 'var(--accent)', color: 'var(--on-accent)', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+                    }}
+                  >
+                    I'm here
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await cancelPullUp(lfgSheetPost.id)
+                      await refreshLfg()
+                      setLfgSheetPost(null)
+                      showToast("Got it, you're not coming")
+                    } catch (err) {
+                      console.error('[Feed] cancelPullUp failed', err)
+                    }
+                  }}
+                  style={{
+                    flex: 1, padding: '14px 0', borderRadius: 999, border: `1.5px solid ${clr.border}`,
+                    backgroundColor: clr.white, color: clr.textDark, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  Not coming
+                </button>
+              </div>
             )}
           </div>
         </div>

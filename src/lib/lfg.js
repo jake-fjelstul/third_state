@@ -94,6 +94,8 @@ function mapLfgRow(row) {
     startsAt: row.starts_at,
     expiresAt: row.expires_at,
     visibility: row.visibility,
+    spotId: row.spot_id || null,
+    category: row.category || null,
     photoPath: row.photo_path || null,
     photoUrl: null,
     authorName: row.author?.name || '',
@@ -106,6 +108,7 @@ export async function listActiveLfgPosts() {
     .from('lfg_posts')
     .select('*, author:profiles!lfg_posts_user_id_fkey(id, name, avatar_url)')
     .gt('expires_at', new Date().toISOString())
+    .is('ended_at', null)
     .order('created_at', { ascending: false })
     .limit(50)
   if (error) throw error
@@ -119,6 +122,7 @@ export async function listMyLfgPosts(userId) {
     .select('*')
     .eq('user_id', userId)
     .gt('expires_at', new Date().toISOString())
+    .is('ended_at', null)
     .order('created_at', { ascending: false })
   if (error) throw error
   return withLfgPhotoUrls((data || []).map(mapLfgRow))
@@ -138,6 +142,7 @@ export async function listJoinedLfgPosts(userId) {
     .select('*, author:profiles!lfg_posts_user_id_fkey(id, name, avatar_url)')
     .in('id', ids)
     .gt('expires_at', new Date().toISOString())
+    .is('ended_at', null)
     .order('starts_at', { ascending: true })
   if (error) throw error
   return withLfgPhotoUrls((data || []).map(mapLfgRow))
@@ -185,8 +190,9 @@ export async function getLfgJoinPreviews(postIds) {
   if (!postIds || postIds.length === 0) return {}
   const { data, error } = await supabase
     .from('lfg_joins')
-    .select('post_id, user_id, profiles:user_id(id, name, avatar_url)')
+    .select('post_id, user_id, eta_at, arrived_at, created_at, profiles:user_id(id, name, avatar_url)')
     .in('post_id', postIds)
+    .order('created_at', { ascending: true })
   if (error) return {}
   const byPost = {}
   for (const row of data || []) {
@@ -195,6 +201,8 @@ export async function getLfgJoinPreviews(postIds) {
       id: row.user_id,
       name: row.profiles?.name || '',
       avatar: row.profiles?.avatar_url || '',
+      etaAt: row.eta_at || null,
+      arrivedAt: row.arrived_at || null,
     })
   }
   return byPost
@@ -252,4 +260,101 @@ export async function withLfgPhotoUrls(posts) {
     }
   }
   return posts.map(p => (p.photoPath && signedCache.get(p.photoPath) ? { ...p, photoUrl: signedCache.get(p.photoPath).url } : p))
+}
+
+// ── Pull up + table notes (migration 079, plan 3b R4) ──────────────────────
+
+/** Pull up to someone's post: tells the table you're ~N minutes out. */
+export async function pullUp(postId, etaMinutes = 10) {
+  const { data, error } = await supabase.rpc('pull_up', { p_post_id: postId, p_eta_minutes: etaMinutes })
+  if (error) throw error
+  return data
+}
+
+export async function cancelPullUp(postId) {
+  const { error } = await supabase.rpc('cancel_pull_up', { p_post_id: postId })
+  if (error) throw error
+}
+
+export async function markArrived(postId) {
+  const { error } = await supabase.rpc('mark_arrived', { p_post_id: postId })
+  if (error) throw error
+}
+
+export async function listCheckinNotes(postId) {
+  const { data, error } = await supabase.rpc('list_checkin_notes', { p_post_id: postId })
+  if (error) throw error
+  return (data || []).map(n => ({
+    id: n.id, userId: n.user_id, name: n.name || '', avatar: n.avatar_url || '', text: n.text, createdAt: n.created_at,
+  }))
+}
+
+export async function postCheckinNote(postId, text) {
+  const { data, error } = await supabase.rpc('post_checkin_note', { p_post_id: postId, p_text: text })
+  if (error) throw error
+  return data
+}
+
+/** "Pulling up · ~8 min" while someone is on the way, else null. */
+export function etaLabel(joiner, now = Date.now()) {
+  if (!joiner?.etaAt || joiner.arrivedAt) return null
+  const mins = Math.ceil((new Date(joiner.etaAt).getTime() - now) / 60000)
+  return mins > 0 ? `~${mins} min away` : null
+}
+
+// ── Clubmates: who shares one of MY circles (plan 3b R2) ───────────────────
+
+/**
+ * userId -> Set of my circle ids they're in. Only circles I'm in, so this
+ * never reveals membership of circles I can't see.
+ */
+export async function getClubmateMap(myCircleIds) {
+  const ids = (myCircleIds || []).filter(Boolean)
+  if (ids.length === 0) return new Map()
+  const { data, error } = await supabase
+    .from('circle_members')
+    .select('user_id, circle_id')
+    .in('circle_id', ids)
+  if (error) return new Map()
+  const map = new Map()
+  for (const r of data || []) {
+    if (!map.has(r.user_id)) map.set(r.user_id, new Set())
+    map.get(r.user_id).add(r.circle_id)
+  }
+  return map
+}
+
+/** Where a post is, for grouping: its spot, else its place name + address. */
+export function placeKey(post) {
+  if (post?.spotId) return `spot:${post.spotId}`
+  const name = (post?.placeName || '').trim().toLowerCase()
+  if (!name) return null
+  return `place:${name}|${(post.placeAddress || '').trim().toLowerCase()}`
+}
+
+/**
+ * Group Free now posts for the row (plan 3b R2). Posts at the same place
+ * whose authors share one of my circles merge into one group; everything
+ * else stays on its own. Returns [{ key, posts: [...] }] in input order.
+ */
+export function groupFreeNow(posts, clubmates, meId = null) {
+  const shares = (a, b) => {
+    if (a === b) return true
+    const ca = clubmates.get(a)
+    const cb = clubmates.get(b)
+    // I'm in all of my circles, so anyone in one of them is my clubmate.
+    if (a === meId) return !!cb?.size
+    if (b === meId) return !!ca?.size
+    if (!ca || !cb) return false
+    for (const c of ca) if (cb.has(c)) return true
+    return false
+  }
+  const groups = []
+  for (const post of posts) {
+    const key = placeKey(post)
+    const target = key && groups.find(g => g.place === key && g.posts.every(p => shares(p.userId, post.userId)))
+    if (target) target.posts.push(post)
+    else groups.push({ key: `g:${post.id}`, place: key, posts: [post] })
+  }
+  return groups
 }
