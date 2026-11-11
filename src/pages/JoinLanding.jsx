@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useStableNavigate } from '../lib/useStableNavigate.js'
 import { useAppContext } from '../context/AppContext.jsx'
 import { previewInvite, redeemInviteCode } from '../lib/invites.js'
 
@@ -7,7 +8,7 @@ const PENDING_JOIN_KEY = 'ts.pendingJoinCode'
 
 export default function JoinLanding() {
   const { code } = useParams()
-  const navigate = useNavigate()
+  const navigate = useStableNavigate()
   const { session, authLoading, refreshConnections } = useAppContext()
   const userId = session?.user?.id || null
   const redeemedRef = useRef(false)
@@ -54,6 +55,15 @@ export default function JoinLanding() {
     if (redeemedRef.current) return () => { cancelled = true }
     redeemedRef.current = true
 
+    // Already redeemed this code in this app session (e.g. the link was
+    // delivered twice): go straight to where it led last time (J7).
+    let remembered = null
+    try { remembered = window.sessionStorage.getItem(`ts.redeemed.${code}`) } catch { /* private mode */ }
+    if (remembered) {
+      navigate(remembered, { replace: true })
+      return () => { cancelled = true }
+    }
+
     setStatus('redeeming')
     redeemInviteCode(code)
       .then(async (res) => {
@@ -65,6 +75,7 @@ export default function JoinLanding() {
         const targetUrl = res?.circle_id
           ? `/circles/${res.circle_id}`
           : '/feed?invited=1'
+        try { window.sessionStorage.setItem(`ts.redeemed.${code}`, targetUrl) } catch { /* private mode */ }
 
         if (res?.self) {
           navigate(targetUrl, { replace: true })

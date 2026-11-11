@@ -107,7 +107,8 @@ export default function Settings() {
         await dismissDailyQuestion(true)
       } else {
         const { supabase } = await import('../lib/supabase')
-        await supabase.from('question_prefs').upsert({ user_id: currentUser.id, daily_enabled: true })
+        const { error } = await supabase.from('question_prefs').upsert({ user_id: currentUser.id, daily_enabled: true })
+        if (error) throw error
       }
     } catch (err) {
       console.error('[Settings] toggle daily questions failed', err)
@@ -475,6 +476,46 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Free now toggle (J1) */}
+              <div role="switch" aria-checked={currentUser?.notificationPrefs?.free_now ?? true} style={{
+                padding: '20px',
+                borderBottom: `1px solid ${clr.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }} onClick={() => updateMyNotificationPrefs({ free_now: !(currentUser?.notificationPrefs?.free_now ?? true) }).catch(() => {})}>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px', color: clr.textDark }}>Free Now</p>
+                  <p style={{ fontSize: 13, color: clr.textMid, margin: 0 }}>
+                    When friends are out, join you, or pull up to your spot
+                  </p>
+                </div>
+
+                {/* Toggle Switch */}
+                <div style={{
+                  width: 50,
+                  height: 28,
+                  borderRadius: 999,
+                  flexShrink: 0,
+                  backgroundColor: (currentUser?.notificationPrefs?.free_now ?? true) ? 'var(--good)' : 'var(--surface-3)',
+                  position: 'relative',
+                  transition: 'background-color 0.3s ease',
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: (currentUser?.notificationPrefs?.free_now ?? true) ? 24 : 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'left 0.3s ease',
+                  }} />
+                </div>
+              </div>
+
               {/* Reconnect Nudges Toggle */}
               <div style={{
                 padding: '20px',
@@ -682,7 +723,7 @@ export default function Settings() {
                 { label: 'Show Interests', key: 'showInterests', desc: 'Let others see your interests' },
                 { label: 'Show Circles', key: 'showCircles', desc: 'Display circles you joined' },
                 { label: 'Show Location', key: 'showLocation', desc: 'Share your city location' },
-                { label: 'Show Availability', key: 'showAvailability', desc: 'Allow online status indicators', isLast: true }
+                { label: 'Show Availability', key: 'showAvailability', desc: "Let connections see when you're free or busy (never what you're doing)", isLast: true }
               ].map(({ label, key, desc, isLast }) => {
                 const val = currentUser?.privacy?.[key] ?? true;
                 return (

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { useStableNavigate } from '../lib/useStableNavigate.js'
 import { useAppContext } from '../context/AppContext.jsx'
 import { redeemInvite } from '../lib/invites.js'
 
@@ -7,8 +8,10 @@ const PENDING_KEY = 'ts.pendingInviteToken'
 
 export default function InviteLanding() {
   const { token } = useParams()
-  const navigate = useNavigate()
-  const { session, refreshConnections } = useAppContext()
+  const navigate = useStableNavigate()
+  const { session, authLoading, refreshConnections } = useAppContext()
+  const userId = session?.user?.id || null
+  const redeemedRef = useRef(false)
   const [status, setStatus] = useState('checking')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -18,13 +21,18 @@ export default function InviteLanding() {
       return
     }
 
-    if (!session?.user) {
+    // Wait for the saved session before deciding we're signed out.
+    if (authLoading) return
+    if (!userId) {
       try { window.localStorage.setItem(PENDING_KEY, token) } catch {}
       setStatus('redirecting')
       navigate('/auth?invited=1', { replace: true })
       return
     }
 
+    // Token refreshes re-run this effect; redeem only once (same as /j/).
+    if (redeemedRef.current) return
+    redeemedRef.current = true
     setStatus('redeeming')
     redeemInvite(token)
       .then(async () => {
@@ -39,7 +47,7 @@ export default function InviteLanding() {
         setStatus('error')
         window.setTimeout(() => navigate('/feed', { replace: true }), 2500)
       })
-  }, [token, session, navigate, refreshConnections])
+  }, [token, userId, authLoading, navigate, refreshConnections])
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 'var(--safe-top) 24px var(--safe-bottom)' }}>

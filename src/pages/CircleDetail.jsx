@@ -72,9 +72,10 @@ export default function CircleDetail() {
   const [circleLoading, setCircleLoading] = useState(true)
   const [circleError, setCircleError] = useState(null)
 
+  // Background reloads keep the current circle on screen; the skeleton only
+  // shows before the first load (it flashed after joins and app resumes).
   const reloadCircle = useCallback(async () => {
     if (!id) return
-    setCircleLoading(true)
     try {
       const [c, evts] = await Promise.all([getCircle(id), listEventsForCircle(id)])
       if (!c) return
@@ -88,11 +89,13 @@ export default function CircleDetail() {
     }
   }, [id])
 
+  // A different circle in the same screen starts from a skeleton again.
   useEffect(() => {
-    reloadCircle()
-  }, [reloadCircle])
+    setCircle(null)
+    setCircleLoading(true)
+  }, [id])
 
-  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds, startChatPoll, submitApplication } = useAppContext()
+  const { currentUser, pendingApplications, joinedCircles, joinCircle, leaveCircle, rsvpEvent, cancelRsvp, isRsvpd, chatState, sendMessage, markChatRead, startDM, connections, circleMembershipVersion, blockedUserIds, startChatPoll, submitApplication, refreshChats } = useAppContext()
 
   useEffect(() => {
     reloadCircle()
@@ -108,9 +111,27 @@ export default function CircleDetail() {
   const [activeTab, setActiveTabRaw] = useState('about')
   // The circle chat is the same thread view as every other chat (item 7):
   // "Chat" opens it, and Back returns here.
-  const openCircleChat = () => {
-    const groupChat = Object.values(chatState || {}).find(c => c.circleId === circle?.id)
-    if (!groupChat?.id) return
+  const [openingChat, setOpeningChat] = useState(false)
+  const openCircleChat = async () => {
+    if (!circle?.id || openingChat) return
+    let groupChat = Object.values(chatState || {}).find(c => c.circleId === circle.id)
+    if (!groupChat) {
+      // Just joined: the chat exists server-side but isn't in our list yet.
+      setOpeningChat(true)
+      try {
+        const list = await refreshChats()
+        groupChat = list.find(c => c.circleId === circle.id)
+      } catch (err) {
+        console.error('[CircleDetail] refreshChats failed', err)
+      } finally {
+        setOpeningChat(false)
+      }
+    }
+    if (!groupChat?.id) {
+      setToastMsg("Couldn't open the chat. Try again in a moment.")
+      setTimeout(() => setToastMsg(null), 3000)
+      return
+    }
     navigate(`/chat/${groupChat.id}`, { state: { fromCircle: circle.id } })
   }
   const setActiveTab = (tab) => {
@@ -218,7 +239,7 @@ export default function CircleDetail() {
     }
   }
 
-  if (circleLoading) {
+  if (circleLoading && !circle) {
     return <PageSkeleton cover />
   }
   if (!circle) {
@@ -255,9 +276,10 @@ export default function CircleDetail() {
             <ChevronLeft size={24} strokeWidth={2.2} />
           </button>
           <div style={{ position: 'relative' }}>
-            <button type="button" aria-label="More" onClick={() => setShowDropdown(!showDropdown)} style={heroBtn}>
+            {/* Nothing to offer non-members, so no empty menu. */}
+            {(isOrganizer || isJoined) && <button type="button" aria-label="More" onClick={() => setShowDropdown(!showDropdown)} style={heroBtn}>
               <MoreHorizontal size={22} />
-            </button>
+            </button>}
             {showDropdown && (
               <div style={{
                 position: 'absolute',
@@ -290,7 +312,7 @@ export default function CircleDetail() {
                     Remove cover photo
                   </button>
                 )}
-                {!isOrganizer && (
+                {!isOrganizer && isJoined && (
                   <button
                     type="button"
                     onClick={async (e) => {
@@ -339,7 +361,7 @@ export default function CircleDetail() {
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           {isJoined ? (
             <>
-              <Button block icon={<MessageCircle size={18} strokeWidth={2.2} />} onClick={() => setActiveTab('chat')}>Chat</Button>
+              <Button block icon={<MessageCircle size={18} strokeWidth={2.2} />} onClick={() => setActiveTab('chat')}>{openingChat ? 'Opening…' : 'Chat'}</Button>
               <Button block variant="secondary" onClick={() => setShowInviteModal(true)}>Invite</Button>
             </>
           ) : pendingApp ? (
@@ -470,15 +492,26 @@ export default function CircleDetail() {
                     </p>
                   </div>
                 </div>
-                <button type="button" style={{
-                  padding: '10px 22px', borderRadius: 999,
-                  border: `1.5px solid ${clr.border}`,
-                  backgroundColor: clr.white,
-                  fontSize: 14, fontWeight: 600, color: clr.textDark,
-                  cursor: 'pointer',
-                }}>
-                  Message
-                </button>
+                {circle.organizerId && circle.organizerId !== currentUser?.id && (
+                  <button type="button" onClick={async () => {
+                    try {
+                      const chatId = await startDM({ id: circle.organizerId, name: circle.organizer?.name || '', avatar: circle.organizer?.avatar || '' })
+                      navigate(`/chat/${chatId}`)
+                    } catch (err) {
+                      console.error('[CircleDetail] message organizer failed', err)
+                      setToastMsg(err?.message || "Couldn't start a chat")
+                      setTimeout(() => setToastMsg(null), 3000)
+                    }
+                  }} style={{
+                    padding: '10px 22px', borderRadius: 999,
+                    border: `1.5px solid ${clr.border}`,
+                    backgroundColor: clr.white,
+                    fontSize: 14, fontWeight: 600, color: clr.textDark,
+                    cursor: 'pointer',
+                  }}>
+                    Message
+                  </button>
+                )}
               </div>
             </div>
 
@@ -528,7 +561,9 @@ export default function CircleDetail() {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: clr.textDark }}>Members are hidden</h3>
-              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>You'll see who's here once your application is approved.</p>
+              <p style={{ margin: 0, fontSize: 14, color: clr.textMid }}>
+                {acceptsApplications ? "You'll see who's here once your application is approved." : 'Members are visible to people in this circle.'}
+              </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

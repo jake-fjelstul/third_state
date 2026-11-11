@@ -124,7 +124,7 @@ export default function EventForm({ message, clr, onComplete }) {
             background: (busy || !title.trim() || !date)
               ? 'var(--surface-3)'
               : `var(--indigo)`,
-            color: '#FFF', fontSize: 14, fontWeight: 800,
+            color: (busy || !title.trim() || !date) ? 'var(--textLight)' : 'var(--on-ink)', fontSize: 14, fontWeight: 800,
             cursor: busy ? 'wait' : 'pointer',
             boxShadow: 'none',
           }}

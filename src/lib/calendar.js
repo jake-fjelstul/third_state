@@ -1,4 +1,4 @@
-import { toLocalDateString } from './events.js'
+import { toLocalDateString, parseLocalDate } from './events.js'
 import { supabase } from './supabase'
 import { Capacitor } from '@capacitor/core'
 
@@ -170,17 +170,20 @@ export async function disconnectCalendar() {
 function parseEventStart(event) {
   if (event?.dateObj) return new Date(event.dateObj)
   if (event?.start?.dateTime) return new Date(event.start.dateTime)
-  if (event?.start?.date) return new Date(event.start.date)
+  if (event?.start?.date) return parseLocalDate(event.start.date)
   const date = event?.date || toLocalDateString(new Date())
   const time = event?.time || '09:00'
   return new Date(`${date}T${time}`)
 }
 
+// Real end time when we have one, else the event's duration, else 90 minutes
+// (the same default availability uses). It was always one hour.
 function parseEventEnd(event) {
+  if (event?.endsAt) return new Date(event.endsAt)
+  if (event?.end?.dateTime) return new Date(event.end.dateTime)
   const start = parseEventStart(event)
-  const end = new Date(start)
-  end.setHours(end.getHours() + 1)
-  return end
+  const minutes = Number(event?.durationMinutes) > 0 ? Number(event.durationMinutes) : 90
+  return new Date(start.getTime() + minutes * 60000)
 }
 
 function authHeader(token) {

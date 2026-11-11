@@ -35,3 +35,9 @@ export function useRefreshOnTabReturn(refresh, staleMs = 60_000) {
 export function canGoBack() {
   return (window.history.state?.idx ?? 0) > 0
 }
+
+/** Pop back if there's in-app history, otherwise replace with `fallback`. */
+export function goBackOr(navigate, fallback) {
+  if (canGoBack()) navigate(-1)
+  else navigate(fallback, { replace: true })
+}

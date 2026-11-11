@@ -6,6 +6,8 @@ import { Bell, CalendarDays, Home, MessageCircle, Plus, UserRound, Users } from 
 import { Avatar } from './components/ui/ds.jsx'
 import { useMyStatus, requestOpenStatus } from './lib/statusBus.js'
 import { HARDWARE_BACK_EVENT } from './lib/hardwareBack.js'
+import { useStableNavigate } from './lib/useStableNavigate.js'
+import { requestHomeReset } from './lib/homeBus.js'
 import { Capacitor } from '@capacitor/core'
 import './App.css'
 import { useAppContext } from './context/AppContext.jsx'
@@ -94,7 +96,11 @@ function BottomNav() {
               aria-current={active ? 'page' : undefined}
               data-tour={`tab-${to.slice(1)}`}
               onClick={() => {
-                if (location.pathname === to) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+                if (location.pathname === to) {
+                  if (to === '/feed') requestHomeReset()
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                  return
+                }
                 navigate(to)
               }}
               style={{
@@ -164,7 +170,7 @@ function TopNav() {
       padding: 'max(8px, env(safe-area-inset-top)) 8px 4px 20px',
     }}>
       <div style={{ width: '100%', maxWidth: 900, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 48 }}>
-        <button type="button" onClick={() => navigate('/feed')} aria-label="Third Space home" style={{
+        <button type="button" onClick={() => { requestHomeReset(); navigate('/feed') }} aria-label="Third Space home" style={{
           background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-display)',
           fontSize: 24, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--textDark)',
           display: 'flex', alignItems: 'center', gap: 8,
@@ -286,10 +292,15 @@ function AuthGuard() {
   return <Outlet />
 }
 
+// Deep-link bookkeeping lives outside React so remounts can't replay it (J7).
+let launchUrlHandled = false
+let lastDeepLink = { url: null, at: 0 }
+
 /* ── Root app ── */
 function App() {
   const { authLoading, session, currentlyOpenChatId } = useAppContext()
-  const navigate = useNavigate()
+  // Stable across route changes, so the listener effects below run once (J7).
+  const navigate = useStableNavigate()
   const currentlyOpenChatIdRef = useRef(currentlyOpenChatId)
 
   useEffect(() => {
@@ -407,12 +418,20 @@ function App() {
         return
       }
       if (!path || path === '/') return
+      // The same link can arrive from both getLaunchUrl and appUrlOpen.
+      const now = Date.now()
+      if (lastDeepLink.url === raw && now - lastDeepLink.at < 3000) return
+      lastDeepLink = { url: raw, at: now }
       navigate(`${path}${u.search}${u.hash}`)
     }
 
     let remove = () => {}
     import('@capacitor/app').then(({ App: CapApp }) => {
-      CapApp.getLaunchUrl().then(res => routeFromUrl(res?.url)).catch(() => {})
+      // The launch URL belongs to this process start, not to every mount.
+      if (!launchUrlHandled) {
+        launchUrlHandled = true
+        CapApp.getLaunchUrl().then(res => routeFromUrl(res?.url)).catch(() => {})
+      }
       CapApp.addListener('appUrlOpen', ({ url }) => routeFromUrl(url))
         .then(h => { remove = () => h.remove() })
     }).catch(() => {})

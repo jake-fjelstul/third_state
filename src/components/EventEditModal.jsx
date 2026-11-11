@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
-import { updateEvent, deleteEvent, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events.js'
+import { updateEvent, deleteEventScoped, DURATION_OPTIONS, DEFAULT_DURATION_MINUTES } from '../lib/events.js'
 import { uploadEventCover } from '../lib/storage.js'
 import TimePicker from './TimePicker.jsx'
 import LocationAutocomplete from './ui/LocationAutocomplete.jsx'
@@ -27,7 +27,7 @@ export default function EventEditModal(props) {
   return createPortal(<EventEditModalBody {...props} />, document.body)
 }
 
-function EventEditModalBody({ event, onClose, onSaved }) {
+function EventEditModalBody({ event, onClose, onSaved, onDeleted }) {
 
   const [title, setTitle] = useState(event.title || '')
   const [date, setDate] = useState(event.date || '')
@@ -159,14 +159,19 @@ function EventEditModalBody({ event, onClose, onSaved }) {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+    const following = hasRecurringSeries && scope === 'future'
+    const question = following
+      ? 'Delete this event and every later one in the series? This cannot be undone.'
+      : 'Delete this event? This cannot be undone.'
+    if (!window.confirm(question)) {
       return
     }
     setDeleting(true)
     try {
-      await deleteEvent(event.id)
-      if (onSaved) await onSaved()
-      onClose()
+      // Server-side so deleting the first occurrence never takes the series with it.
+      await deleteEventScoped(event.id, following ? 'following' : 'this')
+      if (onDeleted) onDeleted()
+      else onClose()
     } catch (err) {
       console.error('[EventEditModal] delete failed', err)
       setErrorMsg(err.message || 'Could not delete event')
@@ -311,7 +316,7 @@ function EventEditModalBody({ event, onClose, onSaved }) {
           {/* Recurrence scope option if applicable */}
           {hasRecurringSeries && (
             <div style={{ padding: 16, backgroundColor: clr.indigoLt, borderRadius: 16, marginBottom: 16 }}>
-              <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 700, color: clr.indigo }}>Apply changes to:</p>
+              <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 700, color: clr.indigo }}>Save or delete applies to:</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: clr.textDark, cursor: 'pointer' }}>
                   <input

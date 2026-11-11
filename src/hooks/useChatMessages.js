@@ -111,8 +111,32 @@ export function useChatMessages({ chatId, channelId = null } = {}) {
       )
       .subscribe()
 
+    // Catch up after the app was in the background or the socket dropped:
+    // realtime doesn't replay what was sent while we weren't listening.
+    let lastCatchUp = Date.now()
+    const catchUp = () => {
+      if (cancelled || Date.now() - lastCatchUp < 2000) return
+      lastCatchUp = Date.now()
+      listMessages(chatId, { channelId })
+        .then(rows => {
+          if (cancelled) return
+          setMessages(prev => {
+            const fresh = new Set(rows.map(m => m.id))
+            const olderKept = prev.filter(m => !fresh.has(m.id) && rows.length && m.createdAt < rows[0].createdAt)
+            return [...olderKept, ...rows]
+          })
+        })
+        .catch(() => {})
+      listChatReactions(chatId).then(r => { if (!cancelled) setReactions(r) }).catch(() => {})
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') catchUp() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', catchUp)
+
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', catchUp)
       supabase.removeChannel(sub)
     }
   }, [chatId, channelId])

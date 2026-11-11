@@ -417,3 +417,6 @@ verify_jwt = false
 # Validates the user JWT itself via auth.getUser.
 verify_jwt = false
 
+# Auth is checked inside the function (user JWT, or the seeding secret).
+[functions.spots-import]
+verify_jwt = false

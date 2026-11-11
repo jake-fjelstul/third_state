@@ -37,8 +37,10 @@ export default function Profile() {
   const [draft, setDraft] = useState({ name: '', age: '', city: null, bio: '', interests: [], intents: [], avatar: '' })
   const [saving, setSaving] = useState(false)
 
+  // Seed the draft when editing starts, not on every profile refresh: a
+  // background refresh (RSVP, battery) used to wipe unsaved edits.
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUser || !editing) return
     setDraft({
       name: currentUser?.name || '',
       age: currentUser?.age ?? '',
@@ -48,7 +50,8 @@ export default function Profile() {
       intents: currentUser?.intents ?? [],
       avatar: currentUser?.avatar ?? '',
     })
-  }, [currentUser])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on entering edit mode
+  }, [editing, currentUser?.id])
 
   const profileForCompleteness = useMemo(() => {
     if (!currentUser) return {}
@@ -103,7 +106,12 @@ export default function Profile() {
     return () => { cancelled = true }
   }, [currentUser?.id, joinedCircles.length])
 
-  const upcomingMeetups     = meetups.slice(0, 3)
+  // meetups holds every RSVP, past included, oldest first: keep today onward.
+  const upcomingMeetups = useMemo(() => {
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    return meetups.filter(m => m.dateObj && m.dateObj >= startOfToday).slice(0, 3)
+  }, [meetups])
   const recentConnections   = connections.slice(0, 5)
 
   const [selectedEvent, setSelectedEvent] = useState(null)

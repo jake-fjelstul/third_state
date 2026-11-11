@@ -141,7 +141,7 @@ export default function CircleForm({ message, clr, onComplete }) {
             background: (busy || !name.trim())
               ? 'var(--surface-3)'
               : `var(--indigo)`,
-            color: '#FFF', fontSize: 14, fontWeight: 800,
+            color: (busy || !name.trim()) ? 'var(--textLight)' : 'var(--on-ink)', fontSize: 14, fontWeight: 800,
             cursor: busy ? 'wait' : 'pointer',
             boxShadow: 'none',
           }}

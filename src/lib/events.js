@@ -21,6 +21,17 @@ export function toLocalDateString(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
+/**
+ * 'YYYY-MM-DD' as local midnight. new Date('2026-11-12') parses as UTC
+ * midnight, which is the evening before in US time zones (all-day Google
+ * events landed on the wrong day).
+ */
+export function parseLocalDate(ymd) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''))
+  if (!m) return null
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
 /** 24-hour 'HH:mm' for a Date in the device's local time zone. */
 export function toLocalTimeString(d) {
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return ''
@@ -203,7 +214,10 @@ export function expandRecurrence({ startsAt, rule, endDate, maxOccurrences = 26 
   }
   const cap = Math.min(maxOccurrences || 26, 26)
   const results = [startsAt]
-  const endTs = endDate ? new Date(`${endDate}T23:59:59.999Z`).getTime() : null
+  // End of the "repeat until" day in local time, not UTC (an 8 PM event on
+  // the last day used to be dropped in US time zones).
+  const endDay = endDate ? parseLocalDate(endDate) : null
+  const endTs = endDay ? endDay.getTime() + 24 * 60 * 60 * 1000 - 1 : null
 
   const base = new Date(startsAt)
   let current = new Date(startsAt)
@@ -406,6 +420,14 @@ export async function deleteEvent(eventId) {
   if (error) throw error
 }
 
+/** Delete one occurrence ('this') or it and every later one ('following'). */
+export async function deleteEventScoped(eventId, scope = 'this') {
+  if (!eventId) throw new Error('Missing eventId')
+  const { data, error } = await supabase.rpc('delete_event', { p_event_id: eventId, p_scope: scope })
+  if (error) throw error
+  return data
+}
+
 export async function rsvp({ userId, eventId }) {
   const { error } = await supabase
     .from('event_attendees')
@@ -446,4 +468,11 @@ export async function listEventAttendeesWithStatus(eventId) {
     attended: r.attended ?? null,
     checkedInAt: r.checked_in_at || null,
   }))
+}
+
+/** "I'll be there" from the event reminder. */
+export async function confirmEventAttendance(eventId) {
+  const { data, error } = await supabase.rpc('confirm_event_attendance', { p_event_id: eventId })
+  if (error) throw error
+  return data
 }

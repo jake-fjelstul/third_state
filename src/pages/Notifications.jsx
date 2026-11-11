@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import EventDetailModal from '../components/EventDetailModal.jsx'
+import { getEvent, confirmEventAttendance } from '../lib/events'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext.jsx'
 import { listChannels } from '../lib/chat'
 import { avatarFor } from '../lib/avatar'
 import CircleIcon from '../components/ui/CircleIcon.jsx'
+import { relativeTime } from '../lib/notifications'
 import { joinLfgPost } from '../lib/lfg'
 import { respondCircleInvite } from '../lib/circles'
 import CollapsibleSection from '../components/ui/CollapsibleSection.jsx'
@@ -58,7 +61,26 @@ export default function Notifications() {
     sendMessage,
     blockedUserIds,
     refreshJoinedCircles,
+    cancelRsvp,
+    rsvpEvent,
+    isRsvpd,
   } = useAppContext()
+  const [openEvent, setOpenEvent] = useState(null)
+  const [eventClosing, setEventClosing] = useState(false)
+  const closeEvent = () => {
+    setEventClosing(true)
+    setTimeout(() => { setOpenEvent(null); setEventClosing(false) }, 300)
+  }
+
+  // Seeing the list counts as reading it (like iOS): clear the bell dot a
+  // moment after the screen opens.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (notifications.some(n => !n.isRead)) markAllNotificationsRead()
+    }, 1500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per visit
+  }, [])
   
   const [drafts, setDrafts] = useState({})
   const [sentStates, setSentStates] = useState({})
@@ -109,11 +131,45 @@ export default function Notifications() {
   const setActionState = (id, state) => {
     setActionStates(prev => ({ ...prev, [id]: state }))
   }
+  const setActionError = (id, msg) => setActionErrors(prev => ({ ...prev, [id]: msg }))
+
+  // Tapping a card opens what it's about.
+  const openSubject = async (notif) => {
+    markNotificationRead(notif.id)
+    const eventId = notif.event?.id || notif.eventId
+    if (notif.type === 'event_approaching' || notif.type === 'event_reaction') {
+      if (!eventId) return
+      try {
+        const ev = await getEvent(eventId)
+        if (ev) setOpenEvent(ev)
+        else setActionError(notif.id, 'This event was removed.')
+      } catch {
+        setActionError(notif.id, "Couldn't open the event.")
+      }
+      return
+    }
+    if (notif.chatId) { navigate(`/chat/${notif.chatId}`); return }
+    const circleId = notif.circle?.id || notif.targetId
+    if (circleId && ['circle_activity', 'application_approved', 'application_declined', 'circle_invite'].includes(notif.type)) {
+      navigate(`/circles/${circleId}`)
+      return
+    }
+    if (notif.user?.id && ['connection_request', 'connection_accepted', 'reconnect_nudge'].includes(notif.type)) {
+      navigate(`/user/${notif.user.id}`)
+    }
+  }
 
   const renderNotifCard = (notif, keyPrefix = 'bucket') => {
     const actionState = actionStates[notif.id] ?? null
     return (
-      <div key={`${keyPrefix}-${notif.id}`} style={{
+      <div key={`${keyPrefix}-${notif.id}`}
+        onClick={(e) => {
+          // Buttons, fields and links inside the card do their own thing.
+          if (e.target.closest('button, input, textarea, form, a')) return
+          openSubject(notif)
+        }}
+        style={{
+        cursor: 'pointer',
         backgroundColor: clr.white,
         borderRadius: 16,
         padding: '16px',
@@ -244,8 +300,15 @@ export default function Notifications() {
             )}
           </p>
           <p style={{ margin: '0 0 12px', fontSize: 13, color: clr.textLight }}>
-            {notif.timestamp} {notif.circle && `in ${notif.circle.name}`}
+            {/* Computed now, not when the list loaded ("Just now" stuck forever). */}
+            {relativeTime(notif.createdAt) || notif.timestamp} {notif.circle && `in ${notif.circle.name}`}
           </p>
+
+          {actionErrors[notif.id] && notif.type !== 'lfg_post' && (
+            <p role="alert" style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: 'var(--bad)' }}>
+              {actionErrors[notif.id]}
+            </p>
+          )}
 
           {/* Inline Actions */}
           
@@ -272,6 +335,7 @@ export default function Notifications() {
                   } catch (err) {
                     console.error(err)
                     setActionState(notif.id, null)
+                    setActionError(notif.id, "Couldn't accept. It may have been withdrawn.")
                   }
                 }}
                 disabled={actionState === 'accepting' || actionState === 'declining'}
@@ -290,6 +354,7 @@ export default function Notifications() {
                   } catch (err) {
                     console.error(err)
                     setActionState(notif.id, null)
+                    setActionError(notif.id, "Couldn't decline. Try again.")
                   }
                 }}
                 disabled={actionState === 'accepting' || actionState === 'declining'}
@@ -322,6 +387,7 @@ export default function Notifications() {
                   } catch (err) {
                     console.error(err)
                     setActionState(notif.id, null)
+                    setActionError(notif.id, /expired|no longer/i.test(err?.message) ? 'This invite is no longer valid.' : "Couldn't join. Try again.")
                   }
                 }}
                 disabled={actionState === 'accepting' || actionState === 'declining'}
@@ -341,6 +407,7 @@ export default function Notifications() {
                   } catch (err) {
                     console.error(err)
                     setActionState(notif.id, null)
+                    setActionError(notif.id, "Couldn't decline. Try again.")
                   }
                 }}
                 disabled={actionState === 'accepting' || actionState === 'declining'}
@@ -366,35 +433,52 @@ export default function Notifications() {
           )}
 
           {notif.type === 'event_approaching' && actionState === 'checked_in' && (
-            <div style={{ backgroundColor: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
-              Got it
+            <div style={{ backgroundColor: 'var(--surface-2)', color: 'var(--good)', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              See you there
             </div>
           )}
 
           {notif.type === 'event_approaching' && actionState === 'cant_make_it' && (
-            <div style={{ backgroundColor: '#FEF2F2', color: '#DC2626', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
-              Got it
+            <div style={{ backgroundColor: 'var(--surface-2)', color: 'var(--textMid)', borderRadius: 8, padding: '8px 0', fontWeight: 600, textAlign: 'center' }}>
+              RSVP cancelled
             </div>
           )}
 
           {notif.type === 'event_approaching' && actionState !== 'checked_in' && actionState !== 'cant_make_it' && (
              <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={async () => {
+                  const eventId = notif.event?.id || notif.eventId
                   setActionState(notif.id, 'checking_in')
-                  setActionState(notif.id, 'checked_in')
-                  setTimeout(() => { dismissNotification(notif.id) }, 120)
+                  try {
+                    await confirmEventAttendance(eventId)
+                    setActionState(notif.id, 'checked_in')
+                    setTimeout(() => { dismissNotification(notif.id) }, 1200)
+                  } catch (err) {
+                    console.error('[Notifications] confirm attendance failed', err)
+                    setActionState(notif.id, null)
+                    setActionError(notif.id, /not going/i.test(err?.message) ? "You're no longer going to this event." : "Couldn't save. Try again.")
+                  }
                 }}
                   disabled={actionState === 'checking_in' || actionState === 'declining_event'}
                   style={{
                     backgroundColor: clr.indigo, color: 'var(--on-ink)', border: 'none', padding: '8px 16px',
                     borderRadius: '8px', fontWeight: 600, fontSize: 14, cursor: 'pointer', flex: 1
                   }}>
-                  {actionState === 'checking_in' ? 'Saving...' : 'Check In'}
+                  {actionState === 'checking_in' ? 'Saving...' : "I'll be there"}
                 </button>
                 <button onClick={async () => {
+                  const eventId = notif.event?.id || notif.eventId
+                  if (!window.confirm(`Cancel your RSVP to ${notif.event?.title || 'this event'}?`)) return
                   setActionState(notif.id, 'declining_event')
-                  setActionState(notif.id, 'cant_make_it')
-                  setTimeout(() => { dismissNotification(notif.id) }, 120)
+                  try {
+                    await cancelRsvp(eventId)
+                    setActionState(notif.id, 'cant_make_it')
+                    setTimeout(() => { dismissNotification(notif.id) }, 1200)
+                  } catch (err) {
+                    console.error('[Notifications] cancel RSVP failed', err)
+                    setActionState(notif.id, null)
+                    setActionError(notif.id, "Couldn't cancel your RSVP. Try again.")
+                  }
                 }}
                   disabled={actionState === 'checking_in' || actionState === 'declining_event'}
                   style={{
@@ -741,6 +825,16 @@ export default function Notifications() {
           </div>
         )}
       </div>
+      {openEvent && (
+        <EventDetailModal
+          event={openEvent}
+          onClose={closeEvent}
+          closing={eventClosing}
+          isRsvpd={isRsvpd}
+          onRsvp={(evt) => rsvpEvent(evt)}
+          onCancelRsvp={(id) => cancelRsvp(id)}
+        />
+      )}
     </div>
   )
 }

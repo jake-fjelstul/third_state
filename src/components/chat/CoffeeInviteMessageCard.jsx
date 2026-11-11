@@ -6,7 +6,7 @@ import { Coffee, Calendar, MapPin, StickyNote, Hourglass, CalendarCheck } from '
 
 export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
   const payload = message.payload || {}
-  const { currentUser, refreshProfile } = useAppContext()
+  const { currentUser, refreshProfile, refreshMeetups } = useAppContext()
   const [status, setStatus] = useState(payload.status || 'pending')
   const [loading, setLoading] = useState(false)
 
@@ -45,6 +45,8 @@ export default function CoffeeInviteMessageCard({ message, viewerId, clr }) {
       if (error) throw error
 
       setStatus('accepted')
+      // Show the new coffee chat in Home and Schedule right away.
+      refreshMeetups?.()
       await refreshProfile?.().catch(() => {})
     } catch (err) {
       console.error('[CoffeeInviteMessageCard] handleAccept failed', err)

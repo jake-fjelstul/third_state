@@ -50,7 +50,7 @@ export function GroupAvatar({ name, color = clr.indigo }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
     }}>
-      <svg width="24" height="24" fill="none" stroke="#FFFFFF" strokeWidth="1.75" viewBox="0 0 24 24">
+      <svg width="24" height="24" fill="none" stroke="var(--on-ink)" strokeWidth="1.75" viewBox="0 0 24 24">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
         <circle cx="9" cy="7" r="4"/>
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
@@ -271,7 +271,8 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
   useEffect(() => {
     if (!baseId) return
     setCurrentlyOpenChatId(baseId)
-    return () => setCurrentlyOpenChatId(null)
+    // Only clear if no other thread took over in the meantime.
+    return () => setCurrentlyOpenChatId(prev => (prev === baseId ? null : prev))
   }, [baseId, setCurrentlyOpenChatId])
 
   // Reset initial scroll & stickiness flags when thread or channel changes
@@ -623,7 +624,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
             const isMe = msg.senderId === currentUser?.id || msg.sender === 'You' || msg.isMe
             if (msg.kind === 'poll') {
               return (
-                <Fragment key={i}>
+                <Fragment key={msg.id || i}>
                   {needsSeparator && (
                     <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
@@ -642,7 +643,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
             }
             if (msg.kind === 'game') {
               return (
-                <Fragment key={i}>
+                <Fragment key={msg.id || i}>
                   {needsSeparator && (
                     <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
@@ -661,7 +662,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
             }
             if (msg.kind === 'question') {
               return (
-                <Fragment key={i}>
+                <Fragment key={msg.id || i}>
                   {needsSeparator && (
                     <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
@@ -680,7 +681,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
             }
             if (msg.kind === 'circle_invite') {
               return (
-                <Fragment key={i}>
+                <Fragment key={msg.id || i}>
                   {needsSeparator && (
                     <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
@@ -696,7 +697,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
             }
             if (msg.kind === 'coffee_invite' || msg.payload?.type === 'coffee_invite') {
               return (
-                <Fragment key={i}>
+                <Fragment key={msg.id || i}>
                   {needsSeparator && (
                     <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>
@@ -714,7 +715,7 @@ export default function ThreadView({ chat, baseId, channelId, onBack }) {
               )
             }
             return (
-              <Fragment key={i}>
+              <Fragment key={msg.id || i}>
                 {needsSeparator && (
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 2px' }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: clr.textLight }}>

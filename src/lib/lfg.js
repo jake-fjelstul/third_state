@@ -14,6 +14,8 @@ export function resolveWindow(windowId, customStartIso = null, now = new Date())
     if (start.getHours() < 17) start.setHours(17, 0, 0, 0)
     const end = new Date(start)
     end.setHours(23, 59, 0, 0)
+    // Late at night "this evening" still gets a real window.
+    if (end.getTime() - start.getTime() < 60 * 60000) end.setTime(start.getTime() + 2 * 60 * 60000)
     return { startsAt: start.toISOString(), expiresAt: end.toISOString() }
   }
   if (windowId === 'custom') {
@@ -187,4 +189,17 @@ export async function getLfgJoinPreviews(postIds) {
     })
   }
   return byPost
+}
+
+/** "9:00 PM", "Tomorrow 9:00 AM" or "Sat 9:00 AM" for a start time. */
+export function startLabel(iso, now = new Date()) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const diff = Math.round((day(d) - day(now)) / 86400000)
+  if (diff === 0) return time
+  if (diff === 1) return `Tomorrow ${time}`
+  if (diff > 1 && diff < 7) return `${d.toLocaleDateString([], { weekday: 'short' })} ${time}`
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`
 }

@@ -55,20 +55,12 @@ function getInteractionScore(person, chatState, circles, joinedCircles) {
   const dmThread = Object.values(chatState ?? {}).find(
     chat => chat.type === 'dm' && chat.personId === person.id
   )
-  if (dmThread) {
-    score += Math.min((dmThread.messages?.length ?? 0) * 10, 100)
-    if (dmThread.time) score += 15
+  // Chat summaries carry the DM's last activity, not its messages.
+  if (dmThread?.lastMessageAt) {
+    const days = (Date.now() - new Date(dmThread.lastMessageAt).getTime()) / 86400000
+    score += days <= 2 ? 60 : days <= 7 ? 40 : days <= 30 ? 20 : 10
     if (dmThread.unread > 0) score += 5
   }
-  joinedCircles.forEach(circleId => {
-    const circleChat = Object.values(chatState ?? {}).find(
-      c => c.circleId === circleId || c.id === circleId
-    )
-    const theyPosted = circleChat?.messages?.some(
-      m => (m.senderId || m.sender_id) === person.id
-    )
-    if (theyPosted) score += 8
-  })
 
   // Recency decay multiplier over existing affinity/volume score:
   // Full weight (1.0) within last 7 days, decaying to ~0.45 at 30 days, floor of 0.2 for older/null.
@@ -687,7 +679,7 @@ export default function Circles() {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: clr.textMid }}>
         <p style={{ margin: '0 0 12px' }}>Couldn&apos;t load circles.</p>
-        <button type="button" onClick={() => window.location.reload()} style={{
+        <button type="button" onClick={() => { setCirclesError(null); setCirclesLoading(true); setReloadKey(k => k + 1) }} style={{
           minHeight: 44, padding: '10px 18px', borderRadius: 999, border: 'none',
           backgroundColor: clr.indigo, color: 'var(--on-ink)', fontWeight: 700, cursor: 'pointer',
         }}>Try again</button>

@@ -19,6 +19,7 @@ import { matchActions } from '../lib/searchActions.js'
 import SoloGameModal from '../components/games/SoloGameModal.jsx'
 import { Avatar, Chip, SectionHeader as DsSectionHeader } from '../components/ui/ds.jsx'
 import { publishMyStatus, consumeOpenStatus, OPEN_STATUS_EVENT } from '../lib/statusBus.js'
+import { HOME_RESET_EVENT } from '../lib/homeBus.js'
 import TimePicker from '../components/TimePicker.jsx'
 import { avatarFor } from '../lib/avatar'
 import OnboardingModal from '../components/feed/OnboardingModal.jsx'
@@ -33,7 +34,7 @@ import { checkContent } from '../lib/contentFilter.js'
 import {
   LFG_WINDOWS, resolveWindow, suggestionsForNow, createLfgPost,
   listMyLfgPosts, listJoinedLfgPosts, listActiveLfgPosts, getLfgJoiners,
-  leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews,
+  leaveLfgPost, cancelLfgPost, timeLeftLabel, getLfgJoinPreviews, joinLfgPost, startLabel,
 } from '../lib/lfg'
 import LfgRecipientPicker from '../components/lfg/LfgRecipientPicker.jsx'
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight.js'
@@ -66,7 +67,7 @@ const CIRCLE_COLORS = [
 ]
 
 const EVENT_GRADIENTS = [
-  'var(--indigo)',
+  'linear-gradient(135deg,#FF5A36,#FF8A65)',
   'linear-gradient(135deg,#0D9488,#34D399)',
   'linear-gradient(135deg,#D97706,#FCD34D)',
   'linear-gradient(135deg,#E11D48,#FB7185)',
@@ -358,6 +359,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   const [coffeeTarget, setCoffeeTarget] = useState(null)
   const [circlePrivacy, setCirclePrivacy] = useState('open')
   const [eventTime, setEventTime] = useState('18:00')
+  const [eventDate, setEventDate] = useState('')
   const [eventDuration, setEventDuration] = useState(DEFAULT_DURATION_MINUTES)
   const [coffeeTime, setCoffeeTime] = useState('10:00')
   const [coffeeDate, setCoffeeDate] = useState('')
@@ -430,8 +432,31 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
   }
 
 
-  const [coverFile, setCoverFile] = useState(null)
-  const [coverPreview, setCoverPreview] = useState(null)
+  // Each form has its own cover photo; they used to share one, so a circle
+  // cover could get uploaded as the next event's cover.
+  const [covers, setCovers] = useState({ circle: null, event: null }) // { file, preview }
+  const coverFile = covers[show]?.file ?? null
+  const coverPreview = covers[show]?.preview ?? null
+  const setCover = (kind, file) => setCovers(prev => {
+    if (prev[kind]?.preview) URL.revokeObjectURL(prev[kind].preview)
+    return { ...prev, [kind]: file ? { file, preview: URL.createObjectURL(file) } : null }
+  })
+  // One submit at a time: a double tap created two circles/events/invites.
+  const [submitting, setSubmitting] = useState(false)
+  const guarded = (fn) => async (e) => {
+    e.preventDefault()
+    if (submitting) return
+    setSubmitting(true)
+    try { await fn(e) } finally { setSubmitting(false) }
+  }
+  // Closing the sheet drops unsent cover photos.
+  useEffect(() => {
+    if (show) return
+    setCovers(prev => {
+      Object.values(prev).forEach(c => c?.preview && URL.revokeObjectURL(c.preview))
+      return { circle: null, event: null }
+    })
+  }, [show])
   const [selectedCircleIcon, setSelectedCircleIcon] = useState(DEFAULT_CIRCLE_ICON)
   const [recurrenceRule, setRecurrenceRule] = useState('none')
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
@@ -497,8 +522,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
 
   const content = () => {
     if (show === 'circle') return (
-      <form onSubmit={async e => {
-        e.preventDefault();
+      <form onSubmit={guarded(async e => {
         const name = e.target.elements.cName.value;
         const topic = e.target.elements.cTopic.value;
         const desc = e.target.elements.cDesc.value;
@@ -532,7 +556,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             name,
             icon: selectedCircleIcon,
             emoji: KEY_TO_EMOJI[selectedCircleIcon] || '👥',
-            city: currentUser?.city || 'Austin, TX',
+            city: currentUser?.city || null,
             type: circlePrivacy === 'private' ? 'private' : 'open',
             category: 'social',
             interestTag: topic,
@@ -555,13 +579,14 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             }
           }
 
+          setCover('circle', null)
           onClose()
           navigate(`/circles/${created.id}`)
         } catch (err) {
           console.error('[Feed.CreateModals] createCircle failed', err)
           onShowToast('Could not create the circle. Please try again.')
         }
-      }}>
+      })}>
         <Handle /><Header title="Create a Circle" />
 
         {/* Lucide Icon Picker */}
@@ -610,7 +635,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               <img src={coverPreview} alt="Cover preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <button
                 type="button"
-                onClick={() => { setCoverFile(null); setCoverPreview(null) }}
+                onClick={() => setCover('circle', null)}
                 style={{
                   position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%',
                   backgroundColor: 'rgba(0,0,0,0.6)', color: '#FFFFFF', border: 'none', cursor: 'pointer',
@@ -633,10 +658,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
                 accept="image/*"
                 onChange={e => {
                   const file = e.target.files?.[0]
-                  if (file) {
-                    setCoverFile(file)
-                    setCoverPreview(URL.createObjectURL(file))
-                  }
+                  if (file) setCover('circle', file)
                 }}
                 style={{ display: 'none' }}
               />
@@ -692,16 +714,15 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           </p>
         )}
 
-        <button type="submit" style={submitStyle}>Create Circle →</button>
+        <button type="submit" disabled={submitting} style={{ ...submitStyle, opacity: submitting ? 0.6 : 1 }}>{submitting ? 'Creating…' : 'Create Circle →'}</button>
       </form>
     )
     if (show === 'event') return (
-      <form onSubmit={async e => {
-        e.preventDefault();
+      <form onSubmit={guarded(async e => {
         const title = e.target.elements.eName.value;
         const check = checkContent(title);
         if (!check.ok) return onShowToast(check.reason);
-        const date = e.target.elements.eDate.value;
+        const date = eventDate;
         const time = e.target.elements.eTime.value;
         const cid = e.target.elements.eCircle.value;
         const effectiveEndDate = recurrenceRule !== 'none'
@@ -735,17 +756,17 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           }
 
           setEventLocation(null);
-          setCoverFile(null);
-          setCoverPreview(null);
+          setCover('event', null);
+          setEventDate('');
           setRecurrenceRule('none');
           setRecurrenceEndDate('');
           onClose();
           onShowToast('Event created successfully!');
         } catch (err) {
           console.error('[Feed] create event failed', err);
-          alert('Sorry — something went wrong creating your event.');
+          onShowToast('Could not create the event. Please try again.');
         }
-      }}>
+      })}>
         <Handle /><Header title="Host an Event" />
 
         {/* Cover Photo Picker */}
@@ -778,10 +799,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               accept="image/jpeg,image/png,image/webp"
               onChange={e => {
                 const file = e.target.files?.[0]
-                if (file) {
-                  setCoverFile(file)
-                  setCoverPreview(URL.createObjectURL(file))
-                }
+                if (file) setCover('event', file)
               }}
               style={{ display: 'none' }}
             />
@@ -793,7 +811,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: clr.textMid, marginBottom: 8 }}>Date</label>
-            <input required name="eDate" type="date" onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
+            <input required name="eDate" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} onClick={(e) => { try { e.target.showPicker() } catch (err) { } }} style={{
               ...inputStyle,
               marginBottom: 0,
               minWidth: 0,
@@ -840,7 +858,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             />
             <p style={{ fontSize: 12, color: clr.textMid, margin: '4px 0 0 0', fontWeight: 600 }}>
               Creates {(() => {
-                const dateVal = document.querySelector('input[name="eDate"]')?.value
+                const dateVal = eventDate
                 if (!dateVal) return 1
                 const iso = `${dateVal}T${eventTime}:00`
                 const end = recurrenceEndDate || (new Date(new Date(dateVal).getTime() + 56 * 86400000).toISOString().slice(0, 10))
@@ -863,7 +881,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
           <option value="">No specific circle (Community Event)</option>
           {joinedCircles.map(id => { const c = circles.find(x => x.id === id); return c ? <option key={id} value={id}>{c.name}</option> : null })}
         </select>
-        <button type="submit" style={submitStyle}>Create Event →</button>
+        <button type="submit" disabled={submitting} style={{ ...submitStyle, opacity: submitting ? 0.6 : 1 }}>{submitting ? 'Creating…' : 'Create Event →'}</button>
       </form>
     )
     if (show === 'lfg') {
@@ -1027,8 +1045,8 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
     if (show === 'coffee') {
       const results = coffeeSearch.trim() ? connections.filter(p => !blockedUserIds?.includes(p.id) && p.name.toLowerCase().includes(coffeeSearch.toLowerCase())).slice(0, 3) : []
       return (
-        <form onSubmit={async e => {
-          e.preventDefault(); if (!coffeeTarget) return
+        <form onSubmit={guarded(async e => {
+          if (!coffeeTarget) return
           try {
             const firstName = coffeeTarget.name.split(' ')[0]
             const when = coffeeDate
@@ -1074,9 +1092,10 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
             setCoffeeLocation(null); setCoffeeTarget(null); setCoffeeSearch(''); setCoffeeDate(''); setCoffeeNote('');
             onClose(); onShowToast('Invite sent!')
           } catch (err) {
-            console.error('[Feed.CreateModals] startDM failed', err)
+            console.error('[Feed.CreateModals] coffee invite failed', err)
+            onShowToast("Couldn't send the invite. Please try again.")
           }
-        }}>
+        })}>
           <Handle /><Header title="Coffee Chat Invite" />
           {!coffeeTarget ? (
             <div style={{ marginBottom: 16 }}>
@@ -1139,7 +1158,7 @@ function CreateModals({ show, onClose, onShowToast, people, connections, refresh
               <textarea placeholder="Add a short note... (optional)" rows={2} value={coffeeNote} onChange={e => setCoffeeNote(e.target.value)} style={{ ...inputStyle, resize: 'none' }} />
             </div>
           )}
-          <button type="submit" disabled={!coffeeTarget || !coffeeDate} style={{ ...submitStyle, opacity: (!coffeeTarget || !coffeeDate) ? 0.5 : 1 }}>Send Invite →</button>
+          <button type="submit" disabled={!coffeeTarget || !coffeeDate || submitting} style={{ ...submitStyle, opacity: (!coffeeTarget || !coffeeDate || submitting) ? 0.5 : 1 }}>{submitting ? 'Sending…' : 'Send Invite →'}</button>
         </form>
       )
     }
@@ -1409,6 +1428,7 @@ export default function Feed() {
   const [lfgSheetPost, setLfgSheetPost] = useState(null)
   const [lfgJoiners, setLfgJoiners] = useState([])
   const [lfgJoinersLoading, setLfgJoinersLoading] = useState(false)
+  const [lfgJoining, setLfgJoining] = useState(false)
 
   const refreshLfg = useCallback(async () => {
     if (!currentUser?.id) return
@@ -1441,6 +1461,21 @@ export default function Feed() {
     window.addEventListener(OPEN_STATUS_EVENT, handle)
     handle() // a request made from another tab, just before we became visible
     return () => window.removeEventListener(OPEN_STATUS_EVENT, handle)
+  }, [])
+
+  // Logo / Home tab: back to the plain Home screen (J4).
+  useEffect(() => {
+    const reset = () => {
+      setSearchQuery('')
+      setSearchOpen(false)
+      setShowCreateModal(null)
+      setLfgSheetPost(null)
+      setAssistantPrompt(null)
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      window.scrollTo({ top: 0 })
+    }
+    window.addEventListener(HOME_RESET_EVENT, reset)
+    return () => window.removeEventListener(HOME_RESET_EVENT, reset)
   }, [])
 
   const openLfgSheet = async (post) => {
@@ -1826,7 +1861,7 @@ export default function Feed() {
                   )}
                   {lfgSheetPost.startsAt && (
                     <div style={{ fontSize: 13, color: clr.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Clock size={14} color={clr.textMid} /> Starts at {new Date(lfgSheetPost.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                      <Clock size={14} color={clr.textMid} /> Starts {startLabel(lfgSheetPost.startsAt)}
                     </div>
                   )}
                 </div>
@@ -1844,13 +1879,15 @@ export default function Feed() {
             {/* Joiners section */}
             <div style={{ marginBottom: 24, paddingTop: 16, borderTop: `1px solid ${clr.border}` }}>
               <p style={{ fontSize: 13, fontWeight: 800, color: clr.textDark, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-                {lfgSheetPost.mine ? "Who's in" : "You're in"}
+                {lfgSheetPost.mine || !joinedLfg.some(p => p.id === lfgSheetPost.id) ? "Who's in" : "You're in"}
               </p>
 
               {lfgJoinersLoading ? (
                 <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>Loading…</p>
-              ) : lfgJoiners.length === 0 && lfgSheetPost.mine ? (
-                <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>No one yet — hang tight.</p>
+              ) : lfgJoiners.length === 0 ? (
+                <p style={{ fontSize: 14, color: clr.textMid, fontStyle: 'italic', margin: 0 }}>
+                  {lfgSheetPost.mine ? 'No one yet — hang tight.' : 'No one has joined yet. Be the first.'}
+                </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {lfgJoiners.map(j => (
@@ -1905,6 +1942,33 @@ export default function Feed() {
                 }}
               >
                 Cancel post
+              </button>
+            ) : !joinedLfg.some(p => p.id === lfgSheetPost.id) ? (
+              // Someone else's post I haven't joined: join it (used to say "You're in").
+              <button
+                type="button"
+                disabled={lfgJoining}
+                onClick={async () => {
+                  setLfgJoining(true)
+                  try {
+                    await joinLfgPost(lfgSheetPost.id)
+                    await refreshLfg()
+                    setLfgSheetPost(null)
+                    showToast(`You're in — say hi to ${(lfgSheetPost.authorName || '').split(' ')[0] || 'them'}`)
+                  } catch (err) {
+                    console.error('[Feed] joinLfgPost failed', err)
+                    showToast(/expired/i.test(err?.message) ? 'This one already wrapped up.' : 'Could not join. Please try again.')
+                  } finally {
+                    setLfgJoining(false)
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '14px 0', borderRadius: 999, border: 'none',
+                  backgroundColor: 'var(--accent)', color: 'var(--on-accent)', fontSize: 15, fontWeight: 800,
+                  cursor: lfgJoining ? 'default' : 'pointer', opacity: lfgJoining ? 0.7 : 1,
+                }}
+              >
+                {lfgJoining ? 'Joining…' : "I'm in"}
               </button>
             ) : (
               <button

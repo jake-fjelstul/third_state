@@ -37,6 +37,8 @@ function mapChatSummaryRow(row) {
     unread: row.unread_count,
     memberCount: row.member_count,
     avatar: row.avatar || '',
+    // The other person in a DM (076); drives tappable names and DM lookups.
+    personId: row.peer_id || null,
   }
 }
 
@@ -45,7 +47,10 @@ function mapChatSummaryRow(row) {
 export async function listChats() {
   const { data, error } = await supabase.rpc('get_my_chat_summaries')
   if (error) throw error
-  return (data || []).map(mapChatSummaryRow)
+  return (data || [])
+    // A DM whose other person deleted their account has nobody to talk to.
+    .filter(row => row.chat_type !== 'dm' || row.peer_id)
+    .map(mapChatSummaryRow)
 }
 
 export async function getChat(chatId) {
